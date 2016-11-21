@@ -17,6 +17,10 @@ type Session interface {
 	// open a new control socket
 	// does handshaske
 	OpenControlSocket() (net.Conn, error)
+
+	// get our local address
+	Addr() net.Addr
+	
 	// obtain new listener from this session
 	Listen() (net.Listener, error)
 	// lookup a name
@@ -24,7 +28,7 @@ type Session interface {
 	// lookup an i2p address
 	LookupI2P(name string) (I2PAddr, error)
 	// dial
-	Dial(a net.Addr) (net.Conn, error)
+	Dial(n, a string) (net.Conn, error)
 	// dial out to a remote destination
 	DialI2P(a I2PAddr) (net.Conn, error)
 	
@@ -45,6 +49,10 @@ type samSession struct {
 
 func (s *samSession) Name() string {
 	return s.name
+}
+
+func (s *samSession) Addr() net.Addr {
+	return s.keys.Addr()
 }
 
 func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
@@ -118,11 +126,15 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 	return
 }
 
-func (s *samSession) Dial(a net.Addr) (c net.Conn, err error) {
-	if a.Network() == "i2p" {
-		c, err = s.DialI2P(I2PAddr(a.String()))
+func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
+	if n == "i2p" {
+		var addr I2PAddr
+		addr, err = s.LookupI2P(a)
+		if err == nil {
+			c, err = s.DialI2P(addr)
+		}
 	} else {
-		err = errors.New("cannot dial out to "+a.Network()+" network, not supported")
+		err = errors.New("cannot dial out to "+a+" network, not supported")
 	}
 	return
 }
