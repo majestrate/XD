@@ -319,6 +319,18 @@ func (s *Section) Exists(option string) (ok bool) {
 	return
 }
 
+// Get option value with fallback value if not found
+func (s *Section) Get(option, fallback string) string {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	v, ok := s.options[option]
+	if ok {
+		return v
+	} else {
+		return fallback
+	}
+}
+
 // ValueOf returns the value of specified option.
 func (s *Section) ValueOf(option string) string {
 	s.mutex.Lock()
