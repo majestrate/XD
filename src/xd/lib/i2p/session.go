@@ -23,6 +23,11 @@ type Session interface {
 	Lookup(name string) (net.Addr, error)
 	// lookup an i2p address
 	LookupI2P(name string) (I2PAddr, error)
+	// dial
+	Dial(a net.Addr) (net.Conn, error)
+	// dial out to a remote destination
+	DialI2P(a I2PAddr) (net.Conn, error)
+	
 	// open the session, generate keys, start up destination etc
 	Open() error
 }
@@ -72,6 +77,55 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 	return
 }
 
+func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
+	var nc net.Conn
+	nc, err = s.OpenControlSocket()
+	if err == nil {
+		// send connect
+		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s SILENT=false\n", s.Name(), addr.String())
+		
+		r := bufio.NewReader(nc)
+		var line string
+		// read reply
+		line, err = r.ReadString(10)
+		if err == nil {
+			// parse reply
+			sc := bufio.NewScanner(strings.NewReader(line))
+			sc.Split(bufio.ScanWords)
+			for sc.Scan() {
+				txt := sc.Text()
+				upper := strings.ToUpper(txt)
+				if upper == "STREAM" {
+					continue
+				}
+				if upper == "STATUS" {
+					continue
+				}
+				if upper == "RESULT=OK" {
+					// we are connected
+					c = &I2PConn{
+						c: nc,
+						laddr: s.keys.Addr(),
+						raddr: addr,
+					}
+					break
+				}
+				err = errors.New(line)
+				nc.Close()
+			}
+		}
+	}
+	return
+}
+
+func (s *samSession) Dial(a net.Addr) (c net.Conn, err error) {
+	if a.Network() == "i2p" {
+		c, err = s.DialI2P(I2PAddr(a.String()))
+	} else {
+		err = errors.New("cannot dial out to "+a.Network()+" network, not supported")
+	}
+	return
+}
 
 func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	s.mtx.Lock()
