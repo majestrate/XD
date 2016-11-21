@@ -7,6 +7,8 @@ import (
 
 type I2PConfig struct {
 	Addr string
+	Keyfile string
+	Name string
 	I2CPOptions map[string]string
 }
 
@@ -14,11 +16,23 @@ func (cfg I2PConfig) FromSection(section *configparser.Section) {
 	cfg.I2CPOptions = make(map[string]string)
 	if section == nil {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
+		cfg.Keyfile = i2p.DEFAULT_KEYFILE
+		cfg.Name = i2p.DEFAULT_NAME
 	} else {
 		cfg.Addr = section.Get("address", i2p.DEFAULT_ADDRESS)
+		cfg.Keyfile = section.Get("keyfile", i2p.DEFAULT_KEYFILE)
+		cfg.Name = section.Get("session", i2p.DEFAULT_NAME)
 		opts := section.Options()
 		for k, v := range opts {
+			if k == "address" || k == "keyfile" || k == "session" {
+				continue
+			}
 			cfg.I2CPOptions[k] = v
 		}
 	}
+}
+
+// create an i2p session from this config
+func (cfg I2PConfig) CreateSession() i2p.Session {
+	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile)
 }

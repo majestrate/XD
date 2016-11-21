@@ -1,7 +1,6 @@
 package metainfo
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"github.com/zeebo/bencode"
@@ -19,6 +18,6 @@ func TestLoadTorrent(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Printf("%s", tf)
+	// TODO: check members
 }
 
