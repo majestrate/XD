@@ -50,6 +50,22 @@ type TorrentFile struct {
 	Encoding string `bencode:"encoding"`
 }
 
+func (tf *TorrentFile) GetAllAnnounceURLS() (l []string) {
+	if len(tf.Announce) > 0 {
+		l = append(l, tf.Announce)
+	}
+	for _, a := range tf.AnnounceList {
+		if len(a) > 0 {
+			l = append(l, a)
+		}
+	}
+	return
+}
+
+func (tf *TorrentFile) TorrentName() string {
+	return tf.Info.Path
+}
+
 // calculate infohash
 func (tf *TorrentFile) Infohash() (ih common.Infohash) {
 	h := sha1.New()

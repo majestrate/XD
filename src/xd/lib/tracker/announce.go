@@ -2,7 +2,9 @@ package tracker
 
 import (
 	"net"
+	"net/url"
 	"xd/lib/common"
+	"xd/lib/network"
 )
 
 type Request struct {
@@ -27,4 +29,17 @@ type Response struct {
 type Announcer interface {
 	// announce and get peers
 	Announce(req *Request) (*Response, error)
+}
+
+
+// get announcer from url
+// returns nil if invalid url
+func FromURL(n network.Network, str string) Announcer {
+	u, err := url.Parse(str)
+	if err == nil {
+		if u.Scheme == "http" {
+			return NewHttpTracker(n, str)
+		}
+	}
+	return nil
 }

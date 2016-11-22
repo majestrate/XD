@@ -7,6 +7,8 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
+	"xd/lib/log"
 )
 
 
@@ -40,6 +42,16 @@ func (s *samSession) Addr() net.Addr {
 func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 	n, err = net.Dial("tcp", s.addr)
 	if err == nil {
+		// make the connection never time out
+		err = n.(*net.TCPConn).SetKeepAlive(true)
+		if err == nil {
+			// send keepalive every 5 seconds
+			err = n.(*net.TCPConn).SetKeepAlivePeriod(time.Second * 5)
+		}
+		if err != nil {
+			log.Errorf("failed to set keepalive: %s", err)
+			err = nil
+		}
 		_, err = fmt.Fprintf(n, "HELLO VERSION MIN=%s MAX=%s\n", s.minversion, s.maxversion)
 		r := bufio.NewReader(n)
 		var line string
@@ -98,7 +110,7 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 						laddr: s.keys.Addr(),
 						raddr: addr,
 					}
-					break
+					return
 				}
 				err = errors.New(line)
 				nc.Close()
@@ -116,7 +128,7 @@ func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
 			c, err = s.DialI2P(addr)
 		}
 	} else {
-		err = errors.New("cannot dial out to "+a+" network, not supported")
+		err = errors.New("cannot dial out to "+n+" network, not supported")
 	}
 	return
 }
@@ -188,7 +200,7 @@ func (s *samSession) createStreamSession() (err error) {
 				}
 				if upper == "RESULT=OK" {
 					// we good
-					break
+					return
 				}
 				err = errors.New(line)
 			}
@@ -204,6 +216,9 @@ func (s *samSession) Open() (err error) {
 	}
 	if err == nil {
 		err = s.createStreamSession()
+	}
+	if err != nil {
+		s.Close()
 	}
 	return
 }

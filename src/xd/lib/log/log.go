@@ -29,6 +29,14 @@ func log(lvl int, f string, args ... interface {}) {
 	}
 }
 
+func Debug(msg string) {
+	log(debug, msg)
+}
+
+func Debugf(f string, args ... interface{}) {
+	log(debug, f, args...)
+}
+
 func Info(msg string) {
 	log(info, msg)
 }

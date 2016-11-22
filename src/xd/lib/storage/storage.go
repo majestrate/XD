@@ -38,7 +38,7 @@ type Torrent interface {
 }
 
 
-// file storage driver
+// torrent storage driver
 type Storage interface {
 	
 	// open a storage session for a torrent
@@ -48,5 +48,8 @@ type Storage interface {
 	// open all torrents tracked by this storage
 	// does not verify any piece data
 	OpenAllTorrents() ([]Torrent, error)
+
+	// intialize backend
+	Init() error
 	
 }

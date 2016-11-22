@@ -59,7 +59,6 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 					} 
 					// error
 					err = errors.New(text)
-					nc.Close()
 				}
 			}
 			// read address line
@@ -72,6 +71,10 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 					raddr: I2PAddr(line[:len(line)-1]),
 				}
 			}
+		}
+		if c == nil {
+			// we didn't get a connection
+			nc.Close()
 		}
 	}
 	return

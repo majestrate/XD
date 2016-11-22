@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"xd/lib/configparser"
 	"xd/lib/storage"
+	"xd/lib/util"
 )
 
 type StorageConfig struct {
@@ -16,9 +17,9 @@ type StorageConfig struct {
 }
 
 
-func (cfg StorageConfig) FromSection(s *configparser.Section) {
+func (cfg *StorageConfig) FromSection(s *configparser.Section) {
 
-	cfg.Root = filepath.Join("XD")
+	cfg.Root = "XD"
 	if s != nil {
 		cfg.Root = s.Get("rootdir", cfg.Root)
 	}
@@ -31,7 +32,10 @@ func (cfg StorageConfig) FromSection(s *configparser.Section) {
 	}
 }
 
-func (cfg StorageConfig) CreateStorage() storage.Storage {
+func (cfg *StorageConfig) CreateStorage() storage.Storage {
+	util.EnsureDir(cfg.Root)
+	util.EnsureDir(cfg.Downloads)
+	util.EnsureDir(cfg.Meta)
 	return &storage.FsStorage{
 		DataDir: cfg.Downloads,
 		MetaDir: cfg.Meta,

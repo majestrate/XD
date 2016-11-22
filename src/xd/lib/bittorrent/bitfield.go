@@ -14,6 +14,9 @@ type Bitfield struct {
 
 // create new bitfield
 func NewBitfield(l int, d []byte) *Bitfield {
+	if d == nil {
+		d = make([]byte, (l / 8) + 1)
+	}
 	b := make([]byte, len(d))
 	copy(b, d)
 	return &Bitfield{

@@ -21,6 +21,15 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 		st: t,
 		bf: t.Bitfield(),
 		recv: make(chan wireEvent, 8),
+		connect: make(chan connectEvent, 2),
+	}
+}
+
+func (h *Holder) ForEachTorrent(visit func (*Torrent)) {
+	h.access.Lock()
+	defer h.access.Unlock()
+	for _, t := range h.torrents {
+		visit(t)
 	}
 }
 

@@ -43,6 +43,7 @@ type Session interface {
 // create a new i2p session
 func NewSession(name, addr, keyfile string) Session {
 	return &samSession{
+		name: name,
 		addr: addr,
 		minversion: "3.0",
 		maxversion: "3.0",

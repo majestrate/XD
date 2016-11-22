@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
+	"xd/lib/log"
 	"xd/lib/metainfo"
+	"xd/lib/util"
 )
 
 // filesystem based storrent storage session
@@ -20,6 +22,7 @@ type fsTorrent struct {
 
 
 func (t *fsTorrent) Allocate() (err error) {
+	log.Infof("allocate files for %s", t.meta.TorrentName())
 	return
 }
 
@@ -53,6 +56,7 @@ func (t *fsTorrent) Verify(piece int64) (err error) {
 }
 
 func (t *fsTorrent) VerifyAll() (err error) {
+	log.Infof("verify all pieces for %s", t.meta.TorrentName())
 	pieces := len(t.meta.Info.Pieces)
 	for pieces > 0 {
 		pieces --
@@ -71,6 +75,15 @@ type FsStorage struct {
 	DataDir string
 	// directory for torrent seed data
 	MetaDir string
+}
+
+func (st *FsStorage) Init() (err error) {
+	log.Info("Ensure filesystem storage")
+	err = util.EnsureDir(st.DataDir)
+	if err == nil {
+		err = util.EnsureDir(st.MetaDir)
+	}
+	return
 }
 
 func (st *FsStorage) FindBitfield(ih common.Infohash) (bf *bittorrent.Bitfield) {
@@ -97,37 +110,41 @@ func (st *FsStorage) HasBitfield(ih common.Infohash) bool {
 }
 
 func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
-	
+	fname := st.bitfieldFilename(ih)
+	bf := bittorrent.NewBitfield(bits, nil)
+	f, err := os.OpenFile(fname, os.O_CREATE | os.O_WRONLY, 0600)
+	if err == nil {
+		bf.BEncode(f)
+		f.Close()
+	}
 }
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {
 	basepath := filepath.Join(st.DataDir, info.Info.Path)
 	if ! info.IsSingleFile() {
 		// create directory
-		err = os.Mkdir(basepath, 0700)
+		os.Mkdir(basepath, 0700)
 	}
-	if err == nil {
-
-		ih := info.Infohash()
-		metapath := filepath.Join(st.MetaDir, ih.Hex() + ".torrent")
-		_, err = os.Stat(metapath)
-		
-		if os.IsNotExist(err) {
-			// put meta info down onto filesystem
-			var f *os.File
-			f, err = os.OpenFile(metapath, os.O_CREATE | os.O_WRONLY, 0600)
+	
+	ih := info.Infohash()
+	metapath := filepath.Join(st.MetaDir, ih.Hex() + ".torrent")
+	_, err = os.Stat(metapath)
+	
+	if os.IsNotExist(err) {
+		// put meta info down onto filesystem
+		var f *os.File
+		f, err = os.OpenFile(metapath, os.O_CREATE | os.O_WRONLY, 0600)
 			if err == nil {
 				err = info.BEncode(f)
 				f.Close()
 			}
-		}
-		
-		if err == nil {
-			t = &fsTorrent{
-				st: st,
-				meta: info,
-				ih: ih,
-			}
+	}
+	
+	if err == nil {
+		t = &fsTorrent{
+			st: st,
+			meta: info,
+			ih: ih,
 		}
 	}
 	

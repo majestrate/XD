@@ -5,26 +5,26 @@ import (
 	"net/http"
 	"net/url"
 	"xd/lib/common"
-	"xd/lib/i2p"
+	"xd/lib/network"
 	"github.com/zeebo/bencode"
 )
 
 // http tracker
 type HttpTracker struct {
 	url string
-	session i2p.Session
+	session network.Network
 	// http client
 	client *http.Client
 }
 
 // create new http tracker from url
-func NewHttpTracker(s i2p.Session, url string) *HttpTracker {
+func NewHttpTracker(n network.Network, url string) *HttpTracker {
 	return &HttpTracker{
 		url: url,
-		session: s,
+		session: n,
 		client: &http.Client{
 			Transport: &http.Transport{
-				Dial: s.Dial,
+				Dial: n.Dial,
 			},
 		},
 	}

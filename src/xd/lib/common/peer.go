@@ -3,8 +3,10 @@ package common
 import (
 	"crypto/rand"
 	"io"
+	"net"
 	"net/url"
 	"xd/lib/i2p"
+	"xd/lib/network"
 	"xd/lib/version"
 )
 
@@ -15,9 +17,10 @@ func (id PeerID) Bytes() []byte {
 }
 
 // generate a new peer id
-func (id PeerID) Generate() {
+func GeneratePeerID() (id PeerID) {
 	io.ReadFull(rand.Reader, id[:])
 	copy(id[:], []byte(version.Version))
+	return
 }
 
 // encode to string
@@ -31,4 +34,16 @@ type Peer struct {
 	IP string `bencode:"ip"`
 	Port int `bencode:"port"`
 	ID PeerID `bencode:"id"`
+}
+
+// resolve network address 
+func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
+	if len(p.IP) > 0 {
+		// prefer ip
+		a, err = n.Lookup(p.IP)
+	} else {
+		// try compact
+		a, err = n.Lookup(p.Compact.String())
+	}
+	return
 }
