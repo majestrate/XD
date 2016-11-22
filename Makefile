@@ -1,10 +1,11 @@
 GOPATH=$(PWD)
 
-xd:
+xd: build
 	go build -v xd/cmd/xd
 
-test:
+build:
 	go build -v ./...
+test:
 	go test -v ./...
 
 clean:

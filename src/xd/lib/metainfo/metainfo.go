@@ -1,7 +1,11 @@
 package metainfo
 
 import (
+	"crypto/sha1"
+	"io"
 	"path/filepath"
+	"xd/lib/common"
+	"github.com/zeebo/bencode"
 )
 
 
@@ -47,3 +51,31 @@ type TorrentFile struct {
 	Encoding string `bencode:"encoding"`
 }
 
+// calculate infohash
+func (tf *TorrentFile) Infohash() (ih common.Infohash) {
+	h := sha1.New()
+	enc := bencode.NewEncoder(h)
+	enc.Encode(tf.Info)
+	d := h.Sum(nil)
+	copy(ih[:], d[:])
+	return
+}
+
+// return true if this torrent is for a single file
+func (tf *TorrentFile) IsSingleFile() bool {
+	return tf.Info.Length > 0
+}
+
+// bencode this file via an io.Writer
+func (tf *TorrentFile) BEncode(w io.Writer) (err error) {
+	enc := bencode.NewEncoder(w)
+	err = enc.Encode(tf)
+	return
+}
+
+// load from an io.Reader
+func (tf *TorrentFile) BDecode(r io.Reader) (err error) {
+	dec := bencode.NewDecoder(r)
+	err = dec.Decode(tf)
+	return
+}

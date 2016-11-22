@@ -3,21 +3,37 @@ package config
 import (
 	"path/filepath"
 	"xd/lib/configparser"
+	"xd/lib/storage"
 )
 
 type StorageConfig struct {
-	// directory for leeching files
-	LeechPath string
-	// directory for seeding files
-	SeedPath string
+	// downloads directory
+	Downloads string
+	// metadata directory
+	Meta string
+	// root directory
+	Root string
 }
 
 
 func (cfg StorageConfig) FromSection(s *configparser.Section) {
-	cfg.LeechPath = filepath.Join("torrents", "downloads")
-	cfg.SeedPath = filepath.Join("torrents", "seeding")
+
+	cfg.Root = filepath.Join("XD")
 	if s != nil {
-		cfg.LeechPath = s.Get("download_dir", cfg.LeechPath)
-		cfg.SeedPath = s.Get("seed_dir", cfg.SeedPath)
+		cfg.Root = s.Get("rootdir", cfg.Root)
+	}
+
+	cfg.Meta = filepath.Join(cfg.Root, "metadata")
+
+	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
+	if s != nil {
+		cfg.Downloads = s.Get("downloads", cfg.Downloads)
+	}
+}
+
+func (cfg StorageConfig) CreateStorage() storage.Storage {
+	return &storage.FsStorage{
+		DataDir: cfg.Downloads,
+		MetaDir: cfg.Meta,
 	}
 }

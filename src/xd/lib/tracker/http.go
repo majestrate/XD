@@ -41,7 +41,6 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	var u *url.URL
 	u, err = url.Parse(t.url)
 	if err == nil {
-		// we connected
 		
 		// build query
 		v := u.Query()
