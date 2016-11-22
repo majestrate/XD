@@ -13,6 +13,17 @@ type Holder struct {
 	torrents map[common.Infohash]*Torrent
 }
 
+
+func (h *Holder) addTorrent(t storage.Torrent) {
+	h.access.Lock()
+	defer h.access.Unlock()
+	h.torrents[t.Infohash()] = &Torrent{
+		st: t,
+		bf: t.Bitfield(),
+		recv: make(chan wireEvent, 8),
+	}
+}
+
 // find a torrent by infohash
 // returns nil if we don't have a torrent with this infohash
 func (h *Holder) GetTorrent(ih common.Infohash) (t *Torrent) {

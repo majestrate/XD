@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/metainfo"
 )
@@ -25,6 +26,15 @@ type Torrent interface {
 	// Verify Piece
 	// returns error if verification failed otherwise nil
 	Verify(piece int64) error
+
+	// get metainfo
+	MetaInfo() *metainfo.TorrentFile
+
+	// get infohash
+	Infohash() common.Infohash
+	
+	// get bitfield, if cached return cache otherwise compute and cache
+	Bitfield() *bittorrent.Bitfield
 }
 
 

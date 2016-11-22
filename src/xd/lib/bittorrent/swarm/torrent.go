@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"xd/lib/bittorrent"
+	"xd/lib/metainfo"
 	"xd/lib/storage"
 )
 
@@ -13,12 +14,17 @@ type wireEvent struct {
 
 type Torrent struct {
 	st storage.Torrent
-	bf bittorrent.Bitfield
+	bf *bittorrent.Bitfield
 	recv chan wireEvent
 }
 
+func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
+	return t.st.MetaInfo()
+}
+
 func (t *Torrent) OnNewPeer(c *PeerConn) {
-	
+	// send our bitfields to them
+	c.Send(t.bf.ToWireMessage())
 }
 
 func (t *Torrent) OnWireMessage(c *PeerConn, msg *bittorrent.WireMessage) {

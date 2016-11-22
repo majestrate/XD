@@ -3,17 +3,40 @@ package storage
 import (
 	"os"
 	"path/filepath"
+	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/metainfo"
 )
 
 // filesystem based storrent storage session
 type fsTorrent struct {
+	// parent storage
+	st *FsStorage
+	// infohash
+	ih common.Infohash
+	// metainfo
 	meta *metainfo.TorrentFile
 }
 
 
 func (t *fsTorrent) Allocate() (err error) {
+	return
+}
+
+func (t *fsTorrent) Bitfield() (bf *bittorrent.Bitfield) {
+	if ! t.st.HasBitfield(t.ih) {
+		// we have no pieces
+		t.st.CreateNewBitfield(t.ih, len(t.meta.Info.Pieces))
+	}
+	return t.st.FindBitfield(t.ih)
+}
+
+func (t *fsTorrent) MetaInfo() *metainfo.TorrentFile {
+	return t.meta
+}
+
+func (t *fsTorrent) Infohash() (ih common.Infohash) {
+	copy(ih[:], t.ih[:])
 	return
 }
 
@@ -50,6 +73,32 @@ type FsStorage struct {
 	MetaDir string
 }
 
+func (st *FsStorage) FindBitfield(ih common.Infohash) (bf *bittorrent.Bitfield) {
+	fpath := st.bitfieldFilename(ih)
+	f, err := os.Open(fpath)
+	if err == nil {
+		bf = new(bittorrent.Bitfield)
+		err = bf.BDecode(f)
+		if err != nil {
+			bf = nil
+		}
+		f.Close()
+	}
+	return
+}
+
+func (st *FsStorage) bitfieldFilename(ih common.Infohash) string {
+	return filepath.Join(st.MetaDir, ih.Hex()+".bitfield")
+}
+
+func (st *FsStorage) HasBitfield(ih common.Infohash) bool {
+	_, err := os.Stat(st.bitfieldFilename(ih))
+	return err == nil
+}
+
+func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
+	
+}
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {
 	basepath := filepath.Join(st.DataDir, info.Info.Path)
@@ -75,7 +124,9 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 		
 		if err == nil {
 			t = &fsTorrent{
+				st: st,
 				meta: info,
+				ih: ih,
 			}
 		}
 	}

@@ -53,9 +53,20 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	
+	go p.runWriter()
 	go p.runReader()
-	p.runWriter()
+	t.OnNewPeer(p)
+}
+
+func (sw *Swarm) AddTorrents() (err error) {
+	var ts []storage.Torrent
+	ts, err = sw.Torrents.st.OpenAllTorrents()
+	if err == nil {
+		for _, t := range ts {
+			sw.Torrents.addTorrent(t)
+		}
+	}
+	return
 }
 
 func NewSwarm(storage storage.Storage, net network.Network) *Swarm {

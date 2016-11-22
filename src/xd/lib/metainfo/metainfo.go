@@ -39,7 +39,6 @@ type Info struct {
 	Length int64 `bencode:"length,omitempty"`
 }
 
-
 // a torrent file
 type TorrentFile struct {
 	Info Info `bencode:"info"`
