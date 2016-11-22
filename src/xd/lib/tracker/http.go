@@ -108,6 +108,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		log.Warnf("%s got error while announcing: %s", t.Name(), err)
 		interval = 60
 	}
+	if interval == 0 {
+		interval = 60
+	}
 	t.next = time.Now().Add(time.Second * time.Duration(interval))
 	log.Infof("%s next announce %s (interval was %d)", t.Name(), t.next, interval)
 	t.announcing = false
