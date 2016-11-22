@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"bytes"
 	"net"
 	"time"
 	"xd/lib/bittorrent"
@@ -18,12 +19,6 @@ type wireEvent struct {
 	msg *bittorrent.WireMessage
 }
 
-// an event triggered when we want to connect to a remote peer
-type connectEvent struct {
-	addr net.Addr
-	id common.PeerID
-}
-
 type Torrent struct {
 	// network context
 	Net network.Network
@@ -34,7 +29,6 @@ type Torrent struct {
 	st storage.Torrent
 	bf *bittorrent.Bitfield
 	recv chan wireEvent
-	connect chan connectEvent
 }
 
 // start annoucing on all trackers
@@ -42,12 +36,17 @@ func (t *Torrent) StartAnnouncing() {
 	for _, tr := range t.Trackers {
 		t.Announce(tr, "started")
 	}
+	if t.announcer == nil {
+		t.announcer = time.NewTicker(time.Second)
+	}
 	go t.pollAnnounce()
 }
 
 // stop annoucing on all trackers
 func (t *Torrent) StopAnnouncing() {
-	t.announcer.Stop()
+	if t.announcer != nil {
+		t.announcer.Stop()
+	}
 	for _, tr := range t.Trackers {
 		t.Announce(tr, "stopped")
 	}
@@ -86,7 +85,7 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 			a, e := p.Resolve(t.Net)
 			if e == nil {
 				// no error resolving
-				t.AddPeer(a, p.ID)
+				go t.AddPeer(a, p.ID)
 			} else {
 				log.Warnf("failed to resolve peer %s", e.Error())
 			}
@@ -96,9 +95,36 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 	}
 }
 
-// connect to a new peer for this swarm
+// connect to a new peer for this swarm, blocks
 func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
-	t.connect <- connectEvent{a, id}
+	c, err := t.Net.Dial(a.Network(), a.String())
+	if err == nil {
+		// connected
+		ih := t.st.Infohash()
+		// build handshake
+		h := new(bittorrent.Handshake)
+		copy(h.Infohash[:], ih[:])
+		copy(h.PeerID[:], t.id[:])
+		// send handshake
+		err = h.Send(c)
+		if err == nil {
+			// get response to handshake
+			err = h.Recv(c)
+			if err == nil {
+				if bytes.Equal(ih[:], h.Infohash[:]) {
+					// infohashes match
+					pc := makePeerConn(c, t, h.PeerID)
+					t.OnNewPeer(pc)
+					return
+				}
+			}
+		}
+		log.Warnf("didn't complete handshake with peer: %s", err)
+		// bad thing happened
+		c.Close()
+		return
+	}
+	log.Infof("didn't connect to %s: %s", a, err)
 }
 
 func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
@@ -106,6 +132,7 @@ func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 }
 
 func (t *Torrent) OnNewPeer(c *PeerConn) {
+	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
 	c.Send(t.bf.ToWireMessage())
 }

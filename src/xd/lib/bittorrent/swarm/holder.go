@@ -21,7 +21,6 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 		st: t,
 		bf: t.Bitfield(),
 		recv: make(chan wireEvent, 8),
-		connect: make(chan connectEvent, 2),
 	}
 }
 
