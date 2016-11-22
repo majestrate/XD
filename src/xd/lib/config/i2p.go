@@ -2,6 +2,7 @@ package config
 
 import (
 	"xd/lib/configparser"
+	"xd/lib/log"
 	"xd/lib/i2p"
 )
 
@@ -34,5 +35,7 @@ func (cfg I2PConfig) FromSection(section *configparser.Section) {
 
 // create an i2p session from this config
 func (cfg I2PConfig) CreateSession() i2p.Session {
+	log.Infof("create new i2p session with %s", cfg.Addr)
 	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile)
 }
+
