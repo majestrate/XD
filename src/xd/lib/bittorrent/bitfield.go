@@ -41,7 +41,13 @@ func (bf *Bitfield) ToWireMessage() *WireMessage {
 	return NewWireMessage(5, bf.Data[:])
 }
 
-func (bf *Bitfield) HasPiece(p int) bool {
+func (bf *Bitfield) Set(p int) {
 	
+}
+
+func (bf *Bitfield) Has(p int) bool {
+	if p < bf.Length {
+		return bf.Data[p>>3]&(1<<(7-uint(p)&7)) != 0
+	}
 	return false
 }

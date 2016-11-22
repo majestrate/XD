@@ -41,7 +41,7 @@ func (c *PeerConn) HasPiece(piece int) bool {
 		// no bitfield
 		return false
 	}
-	return c.bf.HasPiece(piece)
+	return c.bf.Has(piece)
 }
 
 // run read loop
