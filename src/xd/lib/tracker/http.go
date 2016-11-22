@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"xd/lib/common"
 	"xd/lib/network"
-	
+	"xd/lib/log"
 	"github.com/zeebo/bencode"
 )
 
@@ -19,6 +19,8 @@ type HttpTracker struct {
 	client *http.Client
 	// next announce
 	next time.Time
+	// announcing right now?
+	announcing bool
 }
 
 // create new http tracker from url
@@ -74,6 +76,8 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		}
 		u.RawQuery = v.Encode()
 		var r *http.Response
+		t.announcing = true
+		log.Debugf("%s announcing", t.Name())
 		r, err = t.client.Get(u.String())
 		if err == nil {
 			defer r.Body.Close()
@@ -83,6 +87,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 				cresp := new(compactHttpAnnounceResponse)
 				err = dec.Decode(cresp)
 				if err == nil {
+					interval = cresp.Interval
 					l := len(cresp.Peers) / 32
 					for l > 0 {
 						p := new(common.Peer)
@@ -95,14 +100,16 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 			} else {
 				// decode non compact response
 				err = dec.Decode(resp)
+				interval = resp.Interval
 			}
-			interval = resp.Interval
 		}
 	}
 	t.next = time.Now().Add(time.Second * time.Duration(interval))
+	log.Infof("%s next announce %s", t.Name(), t.next)
+	t.announcing = false
 	return
 }
 
 func (t *HttpTracker) ShouldAnnounce() bool {
-	return time.Now().After(t.next)
+	return time.Now().After(t.next) && !t.announcing
 }
