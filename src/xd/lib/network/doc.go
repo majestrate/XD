@@ -1,0 +1,2 @@
+// network abstraction
+package network
