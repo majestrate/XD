@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"net"
+	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -27,6 +28,9 @@ type Torrent struct {
 	// network context
 	Net network.Network
 	Trackers []tracker.Announcer
+	announcer *time.Ticker
+	// our peer id
+	id common.PeerID
 	st storage.Torrent
 	bf *bittorrent.Bitfield
 	recv chan wireEvent
@@ -35,20 +39,48 @@ type Torrent struct {
 
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
-	
+	for _, tr := range t.Trackers {
+		t.Announce(tr, "started")
+	}
+	go t.pollAnnounce()
 }
 
 // stop annoucing on all trackers
 func (t *Torrent) StopAnnouncing() {
-
+	t.announcer.Stop()
+	for _, tr := range t.Trackers {
+		t.Announce(tr, "stopped")
+	}
 }
 
-func (t *Torrent) Announce(tr tracker.Announcer) (err error) {
-	req := &tracker.Request{
-
+// poll announce ticker channel and issue announces
+func (t *Torrent) pollAnnounce() {
+	for {
+		_, ok := <- t.announcer.C
+		if ! ok {
+			// done
+			return
+		}
+		for _, tr := range t.Trackers {
+			if tr.ShouldAnnounce() {
+				go t.Announce(tr, "")
+			}
+		}
 	}
-	var resp *tracker.Response
-	resp, err = tr.Announce(req)
+}
+
+// do an announce
+func (t *Torrent) Announce(tr tracker.Announcer, event string) {
+	req := &tracker.Request{
+		Infohash: t.st.Infohash(),
+		PeerID: t.id,
+		IP: t.Net.Addr(),
+		Port: 6881,
+		Event: event,
+		NumWant: 10, // TODO: don't hardcode
+		Compact: true,
+	}
+	resp, err := tr.Announce(req)
 	if err == nil {
 		for _, p := range resp.Peers {
 			a, e := p.Resolve(t.Net)
@@ -59,8 +91,9 @@ func (t *Torrent) Announce(tr tracker.Announcer) (err error) {
 				log.Warnf("failed to resolve peer %s", e.Error())
 			}
 		}
+	} else {
+		log.Warnf("failed to announce to %s: %s", tr.Name(), err)
 	}
-	return
 }
 
 // connect to a new peer for this swarm

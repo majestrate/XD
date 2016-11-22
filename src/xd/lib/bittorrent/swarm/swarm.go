@@ -30,6 +30,8 @@ func (sw *Swarm) Run() (err error) {
 	sw.Torrents.ForEachTorrent(func(t *Torrent) {
 		// give network
 		t.Net = sw.net
+		// give peerid
+		t.id = sw.id
 		// add trackers
 		info := t.MetaInfo()
 		for _, u := range info.GetAllAnnounceURLS() {
@@ -39,7 +41,7 @@ func (sw *Swarm) Run() (err error) {
 			}
 		}
 		// start annoucing
-		t.StartAnnouncing()
+		go t.StartAnnouncing()
 	})
 	
 	for err == nil {

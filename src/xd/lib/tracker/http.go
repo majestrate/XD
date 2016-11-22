@@ -2,10 +2,12 @@ package tracker
 
 import (
 	"fmt"
+	"time"
 	"net/http"
 	"net/url"
 	"xd/lib/common"
 	"xd/lib/network"
+	
 	"github.com/zeebo/bencode"
 )
 
@@ -15,6 +17,8 @@ type HttpTracker struct {
 	session network.Network
 	// http client
 	client *http.Client
+	// next announce
+	next time.Time
 }
 
 // create new http tracker from url
@@ -36,8 +40,17 @@ type compactHttpAnnounceResponse struct {
 	Interval int `bencode:"interval"`
 }
 
+func (t *HttpTracker) Name() string {
+	u, err := url.Parse(t.url)
+	if err == nil {
+		return u.Host
+	}
+	return t.url
+}
+
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
+	interval := 30
 	var u *url.URL
 	u, err = url.Parse(t.url)
 	if err == nil {
@@ -49,7 +62,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v.Add("peer_id", string(req.PeerID.Bytes()))
 		v.Add("port", fmt.Sprintf("%d", req.Port))
 		v.Add("numwant", fmt.Sprintf("%d", req.NumWant))
-		v.Add("event", req.Event)
+		if len(req.Event) > 0 {
+			v.Add("event", req.Event)
+		}
 		v.Add("downloaded", fmt.Sprintf("%d", req.Downloaded))
 		v.Add("uploaded", fmt.Sprintf("%d", req.Uploaded))
 		
@@ -81,7 +96,13 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 				// decode non compact response
 				err = dec.Decode(resp)
 			}
+			interval = resp.Interval
 		}
 	}
+	t.next = time.Now().Add(time.Second * time.Duration(interval))
 	return
+}
+
+func (t *HttpTracker) ShouldAnnounce() bool {
+	return time.Now().After(t.next)
 }

@@ -26,9 +26,14 @@ type Response struct {
 }
 
 
+// bittorrent announcer, gets peers and announces presence in swarm
 type Announcer interface {
 	// announce and get peers
 	Announce(req *Request) (*Response, error)
+	// return true if we should announce otherwise return false
+	ShouldAnnounce() bool
+	// name of this tracker
+	Name() string
 }
 
 
