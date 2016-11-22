@@ -158,7 +158,10 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 			if upper == "REPLY" {
 				continue
 			}
-			if txt == fmt.Sprintf("NAME=%s", name) {
+			if upper == "RESULT=OK" {
+				continue
+			}
+			if strings.HasPrefix(upper, "NAME=") {
 				continue
 			}
 			if strings.HasPrefix(txt, "VALUE=") {
