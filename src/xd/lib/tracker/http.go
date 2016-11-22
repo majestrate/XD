@@ -52,6 +52,7 @@ func (t *HttpTracker) Name() string {
 
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
+	t.announcing = true
 	interval := 30
 	var u *url.URL
 	u, err = url.Parse(t.url)
@@ -76,7 +77,6 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		}
 		u.RawQuery = v.Encode()
 		var r *http.Response
-		t.announcing = true
 		log.Debugf("%s announcing", t.Name())
 		r, err = t.client.Get(u.String())
 		if err == nil {
@@ -104,8 +104,12 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 			}
 		}
 	}
+	if err != nil {
+		log.Warnf("%s got error while announcing: %s", t.Name(), err)
+		interval = 60
+	}
 	t.next = time.Now().Add(time.Second * time.Duration(interval))
-	log.Infof("%s next announce %s", t.Name(), t.next)
+	log.Infof("%s next announce %s (interval was %d)", t.Name(), t.next, interval)
 	t.announcing = false
 	return
 }
