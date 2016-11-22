@@ -25,6 +25,10 @@ func (s *samSession) Close() error {
 	return s.c.Close()
 }
 
+func (s *samSession) B32Addr() string {
+	return s.keys.Addr().Base32Addr().String()
+}
+
 func (s *samSession) Name() string {
 	return s.name
 }

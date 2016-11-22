@@ -20,8 +20,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open i2p session: %s", err.Error())
 	}
+	log.Infof("i2p session made, we are %s", net.B32Addr())
 
-	log.Info("Closing i2p session")
+	log.Info("closing i2p session")
 	net.Close()
 	log.Info("done")
 }

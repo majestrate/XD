@@ -13,6 +13,9 @@ type Session interface {
 	// does handshaske
 	OpenControlSocket() (net.Conn, error)
 
+	// get printable b32.i2p address
+	B32Addr() string
+	
 	// implements network.Network
 	Addr() net.Addr
 
