@@ -121,19 +121,19 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 }
 
 func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
-	if n == "i2p" {
-		var addr I2PAddr
-		addr, err = s.LookupI2P(a)
-		if err == nil {
-			c, err = s.DialI2P(addr)
-		}
-	} else {
-		err = errors.New("cannot dial out to "+n+" network, not supported")
+	var addr I2PAddr
+	addr, err = s.LookupI2P(a)
+	if err == nil {
+		c, err = s.DialI2P(addr)
 	}
 	return
 }
 
 func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
+	name, _, err = net.SplitHostPort(name)
+	if err != nil {
+		return
+	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	if s.c == nil {

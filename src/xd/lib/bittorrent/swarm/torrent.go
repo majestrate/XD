@@ -149,11 +149,10 @@ func (t *Torrent) Run() {
 			return
 		}
 		if ev.msg.KeepAlive() {
+			log.Debugf("got keepalive from %s", ev.c.id)
 			continue
 		}
 		id := ev.msg.MessageID()
-		if id == 5 {
-			// we got a bitfield
-		}	
+		log.Debugf("peer %s got message %d", ev.c.id, id)
 	}
 }

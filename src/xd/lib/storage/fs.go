@@ -158,7 +158,7 @@ func (st *FsStorage) OpenAllTorrents() (torrents []Torrent, err error) {
 		var t Torrent
 		var f *os.File
 		tf := new(metainfo.TorrentFile)
-		f, err = os.Open(filepath.Join(st.MetaDir, m))
+		f, err = os.Open(m)
 		if err == nil {
 			err = tf.BDecode(f)
 			f.Close()
