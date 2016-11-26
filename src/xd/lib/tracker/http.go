@@ -112,7 +112,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		interval = 60
 	}
 	t.next = time.Now().Add(time.Second * time.Duration(interval))
-	log.Infof("%s next announce %s (interval was %d)", t.Name(), t.next, interval)
+	log.Infof("%s got %d peers, next announce %s (interval was %d)", t.Name(), len(resp.Peers), t.next, interval)
 	t.announcing = false
 	return
 }
