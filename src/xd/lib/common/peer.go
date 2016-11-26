@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/rand"
 	"io"
+	"strings"
 	"net"
 	"net/url"
 	"xd/lib/i2p"
@@ -40,7 +41,8 @@ type Peer struct {
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 	if len(p.IP) > 0 {
 		// prefer ip
-		a, err = n.Lookup(p.IP)
+		parts := strings.Split(p.IP, ".i2p")
+		a = i2p.I2PAddr(parts[0])
 	} else {
 		// try compact
 		a, err = n.Lookup(p.Compact.String())

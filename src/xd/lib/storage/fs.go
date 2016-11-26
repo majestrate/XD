@@ -20,9 +20,26 @@ type fsTorrent struct {
 	meta *metainfo.TorrentFile
 }
 
+func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
+	fname := filepath.Join(t.st.DataDir, f.Path.FilePath())
+	err = util.EnsureFile(fname, f.Length)
+	return
+}
 
 func (t *fsTorrent) Allocate() (err error) {
 	log.Infof("allocate files for %s", t.meta.TorrentName())
+	if t.meta.IsSingleFile() {
+		err = t.AllocateFile(metainfo.FileInfo{
+			Length: t.meta.Info.Length,
+			Path: metainfo.FilePath([]string{t.meta.Info.Path}),
+		})
+	} else {
+		// multifile
+		err = os.Mkdir(t.meta.Info.Path, 0700)
+		for _, f := range t.meta.Info.Files {
+			err = t.AllocateFile(f)
+		}
+	}
 	return
 }
 
@@ -50,7 +67,15 @@ func (t *fsTorrent) Infohash() (ih common.Infohash) {
 	return
 }
 
+func (t *fsTorrent) FilePath() string {
+	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
+}
+
 func (t *fsTorrent) GetPiece(num, off int64) (p *common.Piece) {
+	if t.meta.IsSingleFile() {
+	} else {
+		
+	}
 	return 
 }
 

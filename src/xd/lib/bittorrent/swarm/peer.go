@@ -4,6 +4,7 @@ import (
 	"net"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
+	"xd/lib/log"
 )
 
 // a peer connection
@@ -56,6 +57,7 @@ func (c *PeerConn) runReader() {
 			}
 			if msg.MessageID() == bittorrent.BITFIELD {
 				c.bf = bittorrent.NewBitfield(len(c.t.MetaInfo().Info.Pieces), msg.Payload())
+				log.Debugf("got bitfield from %s", c.id.String())
 				continue
 			}
 			c.t.OnWireMessage(c, msg)

@@ -76,6 +76,8 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	}
 	// start annoucing
 	go t.StartAnnouncing()
+	// handle messages
+	go t.Run()
 }
 
 func (sw *Swarm) Run() (err error) {
