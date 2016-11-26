@@ -45,7 +45,22 @@ func (bf *Bitfield) ToWireMessage() *WireMessage {
 }
 
 func (bf *Bitfield) Set(p int) {
-	
+	if p < bf.Length {
+		bf.Data[p>>3] |= (1<<(7-uint(p)&7)) 
+	}
+}
+
+// count how many bits are set
+func (bf *Bitfield) CountSet() (sum int64) {
+	l := bf.Length
+	for l > 0 {
+		l --
+		// TODO: make this less horrible
+		if bf.Has(l) {
+			sum ++
+		}
+	}
+	return
 }
 
 func (bf *Bitfield) Has(p int) bool {

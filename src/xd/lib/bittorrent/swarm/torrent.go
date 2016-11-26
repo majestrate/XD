@@ -77,6 +77,7 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 		Port: 6881,
 		Event: event,
 		NumWant: 10, // TODO: don't hardcode
+		Left: t.st.DownloadRemaining(),
 	}
 	resp, err := tr.Announce(req)
 	if err == nil {

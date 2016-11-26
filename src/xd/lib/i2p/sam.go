@@ -130,9 +130,10 @@ func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
 }
 
 func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
-	name, _, err = net.SplitHostPort(name)
-	if err != nil {
-		return
+	var n string
+	n, _, err = net.SplitHostPort(name)
+	if err == nil {
+		name = n
 	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -219,6 +220,13 @@ func (s *samSession) Open() (err error) {
 	}
 	if err == nil {
 		err = s.createStreamSession()
+		if err == nil {
+			var a I2PAddr
+			a, err = s.LookupI2P("ME")
+			if err == nil {
+				s.keys.pubkey = a.String()
+			}
+		}
 	}
 	if err != nil {
 		s.Close()

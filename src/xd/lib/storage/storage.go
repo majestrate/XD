@@ -35,6 +35,10 @@ type Torrent interface {
 	
 	// get bitfield, if cached return cache otherwise compute and cache
 	Bitfield() *bittorrent.Bitfield
+
+	// get number of bytes remaining we need to download
+	DownloadRemaining() int64
+	
 }
 
 
@@ -48,7 +52,7 @@ type Storage interface {
 	// open all torrents tracked by this storage
 	// does not verify any piece data
 	OpenAllTorrents() ([]Torrent, error)
-
+	
 	// intialize backend
 	Init() error
 	

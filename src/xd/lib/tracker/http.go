@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"errors"
 	"fmt"
 	"time"
 	"net/http"
@@ -40,6 +41,7 @@ func NewHttpTracker(n network.Network, url string) *HttpTracker {
 type compactHttpAnnounceResponse struct {
 	Peers []byte `bencode:"peers"`
 	Interval int `bencode:"interval"`
+	Error string `bencode:"failure reason"`
 }
 
 func (t *HttpTracker) Name() string {
@@ -65,6 +67,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v.Add("peer_id", string(req.PeerID.Bytes()))
 		v.Add("port", fmt.Sprintf("%d", req.Port))
 		v.Add("numwant", fmt.Sprintf("%d", req.NumWant))
+		v.Add("left", fmt.Sprintf("%d", req.Left))
 		if len(req.Event) > 0 {
 			v.Add("event", req.Event)
 		}
@@ -96,17 +99,22 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 						resp.Peers = append(resp.Peers, p)
 						l --
 					}
+					if len(cresp.Error) > 0 {
+						err = errors.New(cresp.Error)
+					}
 				}
 			} else {
 				// decode non compact response
 				err = dec.Decode(resp)
 				interval = resp.Interval
+				if len(resp.Error) > 0 {
+					err = errors.New(resp.Error)
+				}
 			}
 		}
 	}
 	if err != nil {
 		log.Warnf("%s got error while announcing: %s", t.Name(), err)
-		interval = 60
 	}
 	if interval == 0 {
 		interval = 60

@@ -39,6 +39,11 @@ type Info struct {
 	Length int64 `bencode:"length,omitempty"`
 }
 
+// get total size of files from torrent info section
+func (i Info) TotalSize() int64 {
+	return int64(len(i.Pieces)) * i.PieceLength
+}
+
 // a torrent file
 type TorrentFile struct {
 	Info Info `bencode:"info"`

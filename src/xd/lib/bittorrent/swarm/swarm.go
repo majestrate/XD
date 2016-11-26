@@ -2,10 +2,12 @@ package swarm
 
 import (
 	"net"
+	"os"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/metainfo"
 	"xd/lib/network"
 	"xd/lib/storage"
 	"xd/lib/tracker"
@@ -17,32 +19,72 @@ type Swarm struct {
 	id common.PeerID
 }
 
-func (sw *Swarm) Run() (err error) {
+// wait until we get a network context
+func (sw *Swarm) WaitForNetwork() {
 	for sw.net == nil {
-		// wait for network
-		log.Debug("swarm waiting for network")
 		time.Sleep(time.Second)
 	}
+}
+
+// add new torrent
+func (sw *Swarm) AddTorrent(meta_fname string) (err error) {
+	info := new(metainfo.TorrentFile)
+	var f *os.File
+	f, err = os.Open(meta_fname)
+	if err == nil {
+		err = info.BDecode(f)
+		f.Close()
+		if err == nil {
+			var t storage.Torrent
+			t, err = sw.Torrents.st.OpenTorrent(info)
+			if err == nil {
+				name := t.MetaInfo().TorrentName()
+				log.Debugf("allocate space for %s", name)
+				err = t.Allocate()
+				if err != nil {
+					return
+				}
+				log.Debugf("verify all pieces for %s", name)
+				err = t.VerifyAll()
+				if err != nil {
+					return
+				}
+				sw.WaitForNetwork()
+				sw.Torrents.addTorrent(t)
+				tr := sw.Torrents.GetTorrent(t.Infohash())
+				if tr != nil {
+					sw.startTorrent(tr)
+				}
+			}
+		}
+	}
+	return
+}
+
+func (sw *Swarm) startTorrent(t *Torrent) {
+	// give network
+	t.Net = sw.net
+	// give peerid
+	t.id = sw.id
+	// add trackers
+	info := t.MetaInfo()
+	for _, u := range info.GetAllAnnounceURLS() {
+		tr := tracker.FromURL(sw.net, u)
+		if tr != nil {
+			t.Trackers = append(t.Trackers, tr)
+		}
+	}
+	// start annoucing
+	go t.StartAnnouncing()
+}
+
+func (sw *Swarm) Run() (err error) {
+	sw.WaitForNetwork()
 	log.Infof("swarm obtained network address: %s", sw.net.Addr())
 
 	// set up announcers
 
-	sw.Torrents.ForEachTorrent(func(t *Torrent) {
-		// give network
-		t.Net = sw.net
-		// give peerid
-		t.id = sw.id
-		// add trackers
-		info := t.MetaInfo()
-		for _, u := range info.GetAllAnnounceURLS() {
-			tr := tracker.FromURL(sw.net, u)
-			if tr != nil {
-				t.Trackers = append(t.Trackers, tr)
-			}
-		}
-		// start annoucing
-		go t.StartAnnouncing()
-	})
+	sw.Torrents.ForEachTorrent(sw.startTorrent)
 	
 	for err == nil {
 		var c net.Conn

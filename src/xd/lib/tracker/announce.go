@@ -12,9 +12,9 @@ type Request struct {
 	PeerID common.PeerID
 	IP net.Addr
 	Port int
-	Uploaded int
-	Downloaded int
-	Left int
+	Uploaded int64
+	Downloaded int64
+	Left int64
 	Event string
 	NumWant int
 	Compact bool
@@ -23,6 +23,7 @@ type Request struct {
 type Response struct {
 	Interval int `bencode:"interval"`
 	Peers []*common.Peer `bencode:"peers"`
+	Error string `bencode:"failure reason"`
 }
 
 
