@@ -19,22 +19,26 @@ type Keyfile struct {
 
 // save to filesystem
 func (k *Keyfile) Store() (err error) {
-	var f *os.File
-	f, err = os.OpenFile(k.fname, os.O_CREATE | os.O_WRONLY, 0600)
-	if err == nil {
-		err = k.write(f)
-		f.Close()
+	if len(k.fname) > 0 {
+		var f *os.File
+		f, err = os.OpenFile(k.fname, os.O_CREATE | os.O_WRONLY, 0600)
+		if err == nil {
+			err = k.write(f)
+			f.Close()
+		}
 	}
 	return
 }
 
 // load from filesystem
 func (k *Keyfile) Load() (err error) {
-	var f *os.File
-	f, err = os.Open(k.fname)
-	if err == nil {
-		err = k.read(f)
-		f.Close()
+	if len(k.fname) > 0 {
+		var f *os.File
+		f, err = os.Open(k.fname)
+		if err == nil {
+			err = k.read(f)
+			f.Close()
+		}
 	}
 	return
 }
@@ -59,8 +63,10 @@ func (k *Keyfile) Addr() I2PAddr {
 
 // ensure keys are created using a control socket
 func (k *Keyfile) ensure(nc net.Conn) (err error) {
-	_, err = os.Stat(k.fname)
-	if os.IsNotExist(err) {
+	if len(k.fname) > 0 {
+		_, err = os.Stat(k.fname)
+	}
+	if os.IsNotExist(err) || len(k.fname) == 0 {
 		// no keyfile
 		_, err = fmt.Fprintf(nc, "DEST GENERATE\n")
 		r := bufio.NewReader(nc)
@@ -99,6 +105,9 @@ func (k *Keyfile) ensure(nc net.Conn) (err error) {
 
 // create new keyfile given filepath
 func NewKeyfile(f string) *Keyfile {
+	if strings.ToUpper(f) == "TRANSIENT" {
+		f = ""
+	}
 	return &Keyfile{
 		fname: f,
 	}
