@@ -39,9 +39,9 @@ type Info struct {
 	// name of root file
 	Path string `bencode:"name"`
 	// file metadata
-	Files []FileInfo `bencode:"files,omitemtpy"`
+	Files []FileInfo `bencode:"files,omitempty"`
 	// private torrent
-	Private int64 `bencode:"private"`
+	Private int64 `bencode:"private,omitempty"`
 	// length of file in signle file mode
 	Length int64 `bencode:"length,omitempty"`
 }
@@ -84,7 +84,7 @@ func (tf *TorrentFile) TorrentName() string {
 func (tf *TorrentFile) Infohash() (ih common.Infohash) {
 	h := sha1.New()
 	enc := bencode.NewEncoder(h)
-	enc.Encode(tf.Info)
+	enc.Encode(&tf.Info)
 	d := h.Sum(nil)
 	copy(ih[:], d[:])
 	return

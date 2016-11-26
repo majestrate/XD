@@ -22,6 +22,18 @@ func main() {
 
 	sw := swarm.NewSwarm(st)
 	go func() {
+		ts, err := st.OpenAllTorrents()
+		if err != nil {
+			done <- err
+			return
+		}
+		for _, t := range ts {
+			err := sw.AddTorrent(t)
+			if err != nil {
+				done <- err
+				return
+			}
+		}
 		// run swarm
 		done <- sw.Run()
 	}()

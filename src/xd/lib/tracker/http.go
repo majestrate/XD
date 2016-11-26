@@ -55,6 +55,7 @@ func (t *HttpTracker) Name() string {
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	t.announcing = true
+	resp = new(Response)
 	interval := 30
 	var u *url.URL
 	u, err = url.Parse(t.url)
@@ -85,7 +86,6 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		if err == nil {
 			defer r.Body.Close()
 			dec := bencode.NewDecoder(r.Body)
-			resp = new(Response)
 			if req.Compact {
 				cresp := new(compactHttpAnnounceResponse)
 				err = dec.Decode(cresp)
