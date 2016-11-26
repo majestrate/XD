@@ -9,10 +9,17 @@ import (
 )
 
 
-type FilePath []string
+type FilePath []string 
 
 // get filepath
 func (f FilePath) FilePath() string {
+	/*
+	var parts []string
+	for _, part := range f {
+		parts = append(parts, string(part))
+	}
+	return filepath.Join(parts...)
+	*/
 	return filepath.Join(f...)
 }
 
@@ -48,27 +55,29 @@ func (i Info) TotalSize() int64 {
 type TorrentFile struct {
 	Info Info `bencode:"info"`
 	Announce string `bencode:"announce"`
-	AnnounceList []string `bencode:"announce-list"`
+	AnnounceList [][]string `bencode:"announce-list"`
 	Created int64   `bencode:"created"`
-	Comment string  `bencode:"comment"`
-	CreatedBy int64 `bencode:"created by"`
-	Encoding string `bencode:"encoding"`
+	Comment []byte  `bencode:"comment"`
+	CreatedBy []byte `bencode:"created by"`
+	Encoding []byte `bencode:"encoding"`
 }
 
 func (tf *TorrentFile) GetAllAnnounceURLS() (l []string) {
 	if len(tf.Announce) > 0 {
 		l = append(l, tf.Announce)
 	}
-	for _, a := range tf.AnnounceList {
-		if len(a) > 0 {
-			l = append(l, a)
+	for _, al := range tf.AnnounceList {
+		for _, a := range al {
+			if len(a) > 0 {
+				l = append(l, a)
+			}
 		}
 	}
 	return
 }
 
 func (tf *TorrentFile) TorrentName() string {
-	return tf.Info.Path
+	return string(tf.Info.Path)
 }
 
 // calculate infohash

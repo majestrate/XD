@@ -127,7 +127,7 @@ func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
 }
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {
-	basepath := filepath.Join(st.DataDir, info.Info.Path)
+	basepath := filepath.Join(st.DataDir, info.TorrentName())
 	if ! info.IsSingleFile() {
 		// create directory
 		os.Mkdir(basepath, 0700)
@@ -169,6 +169,33 @@ func (st *FsStorage) OpenAllTorrents() (torrents []Torrent, err error) {
 		if err == nil {
 			err = tf.BDecode(f)
 			f.Close()
+		}
+		if err == nil {
+			t, err = st.OpenTorrent(tf)
+		}
+		if t != nil {
+			torrents = append(torrents, t)
+		}
+	}
+	return
+}
+
+func (st *FsStorage) PollNewTorrents() (torrents []Torrent) {
+	matches, _ := filepath.Glob(filepath.Join(st.DataDir, "*.torrent"))
+	for _, m := range matches {
+		var t Torrent
+		tf := new(metainfo.TorrentFile)
+		f, err := os.Open(m)
+		if err == nil {
+			err = tf.BDecode(f)
+			f.Close()
+		}
+		if err != nil {
+			log.Warnf("error checking torrent file: %s", err)
+		}
+		if st.HasBitfield(tf.Infohash()) {
+			// we already have this torrent
+			continue
 		}
 		if err == nil {
 			t, err = st.OpenTorrent(tf)

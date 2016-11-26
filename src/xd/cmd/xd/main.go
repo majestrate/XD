@@ -1,6 +1,7 @@
 package main
 
 import (
+	"time"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
@@ -21,20 +22,27 @@ func main() {
 
 	sw := swarm.NewSwarm(st)
 	go func() {
-		err := sw.AddTorrents()
-		if err == nil {
-			log.Info("running swarm")
-			// run swarm
-			err = sw.Run()
-			if err != nil {
-				log.Errorf("error in swarm runner: %s", err.Error())
-			}
-		} else {
-			log.Errorf("failed to add all torrents: %s", err.Error())
-		}
-		done <- err
+		// run swarm
+		done <- sw.Run()
 	}()
-	
+
+	// torrent auto adder
+	go func() {
+		for {
+			nt := st.PollNewTorrents()
+			for _, t := range nt {
+				name := t.MetaInfo().TorrentName()
+				log.Debugf("adding torrent %s", name)
+				err := sw.AddTorrent(t)
+				if err == nil {
+					log.Infof("added %s", name)
+				} else {
+					log.Errorf("Failed to add %s: %s", name, err)
+				}
+			}
+			time.Sleep(time.Second)
+		}
+	}()
 	
 	net := conf.I2P.CreateSession()
 	log.Info("opening i2p session")

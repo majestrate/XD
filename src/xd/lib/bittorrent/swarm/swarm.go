@@ -26,8 +26,8 @@ func (sw *Swarm) WaitForNetwork() {
 	}
 }
 
-// add new torrent
-func (sw *Swarm) AddTorrent(meta_fname string) (err error) {
+// add new torrent manually
+func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
 	info := new(metainfo.TorrentFile)
 	var f *os.File
 	f, err = os.Open(meta_fname)
@@ -82,8 +82,6 @@ func (sw *Swarm) Run() (err error) {
 	sw.WaitForNetwork()
 	log.Infof("swarm obtained network address: %s", sw.net.Addr())
 
-	// set up announcers
-
 	sw.Torrents.ForEachTorrent(sw.startTorrent)
 	
 	for err == nil {
@@ -134,26 +132,20 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 	t.OnNewPeer(p)
 }
 
-func (sw *Swarm) AddTorrents() (err error) {
-	var ts []storage.Torrent
-	ts, err = sw.Torrents.st.OpenAllTorrents()
-	if err == nil {
-		for _, t := range ts {
-			name := t.MetaInfo().TorrentName()
-			log.Debugf("allocate space for %s", name)
-			err = t.Allocate()
-			if err != nil {
-				break
-			}
-			log.Debugf("verify all pieces for %s", name)
-			err = t.VerifyAll()
-			if err != nil {
-				break
-			}
-			sw.Torrents.addTorrent(t)
-			log.Infof("added torrent %s", name)
-		}
+func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
+	name := t.MetaInfo().TorrentName()
+	log.Debugf("allocate space for %s", name)
+	err = t.Allocate()
+	if err != nil {
+		return
 	}
+	log.Debugf("verify all pieces for %s", name)
+	err = t.VerifyAll()
+	if err != nil {
+		return
+	}
+	sw.Torrents.addTorrent(t)
+	log.Infof("added torrent %s", name)
 	return
 }
 

@@ -55,5 +55,9 @@ type Storage interface {
 	
 	// intialize backend
 	Init() error
+
+	// returns nil if we have no new torrents added from backend
+	// returns next new torrent added from backend
+	PollNewTorrents() []Torrent
 	
 }
