@@ -143,9 +143,11 @@ func (t *Torrent) OnWireMessage(c *PeerConn, msg *bittorrent.WireMessage) {
 }
 
 func (t *Torrent) Run() {
+	log.Infof("%s running", t.MetaInfo().TorrentName())
 	for {
 		ev, ok := <- t.recv
 		if !ok {
+			log.Warnf("%s torrent run exit", t.MetaInfo().TorrentName())
 			// channel closed
 			return
 		}

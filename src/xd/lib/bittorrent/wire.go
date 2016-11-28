@@ -39,6 +39,10 @@ func (msg *WireMessage) KeepAlive() bool {
 	return msg.length == 0
 }
 
+func (msg *WireMessage) Len() uint32 {
+	return msg.length
+}
+
 func (msg *WireMessage) Payload() []byte {
 	return msg.data[1:]
 }

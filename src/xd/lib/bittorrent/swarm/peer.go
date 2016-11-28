@@ -34,6 +34,7 @@ func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
 func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
 	msg = new(bittorrent.WireMessage)
 	err = msg.Recv(c.c)
+	log.Debugf("got %d from %s", msg.Len(), c.id)
 	return
 }
 
@@ -53,6 +54,7 @@ func (c *PeerConn) runReader() {
 		msg, err = c.Recv()
 		if err == nil {
 			if msg.KeepAlive() {
+				log.Debugf("keepalive from %s", c.id)
 				continue
 			}
 			if msg.MessageID() == bittorrent.BITFIELD {
@@ -63,6 +65,7 @@ func (c *PeerConn) runReader() {
 			c.t.OnWireMessage(c, msg)
 		}
 	}
+	log.Errorf("%s read error: %s", c.id, err)
 }
 
 
