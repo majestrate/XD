@@ -14,21 +14,22 @@ import (
 )
 
 // an event triggered when we get an inbound wire message from a peer we are connected with on this torrent
-type wireEvent struct {
+type pieceEvent struct {
 	c *PeerConn
-	msg *bittorrent.WireMessage
+	r *bittorrent.PieceRequest
 }
 
+// single torrent tracked in a swarm
 type Torrent struct {
 	// network context
-	Net network.Network
-	Trackers []tracker.Announcer
+	Net       network.Network
+	Trackers  []tracker.Announcer
 	announcer *time.Ticker
 	// our peer id
-	id common.PeerID
-	st storage.Torrent
-	bf *bittorrent.Bitfield
-	recv chan wireEvent
+	id    common.PeerID
+	st    storage.Torrent
+	bf    *bittorrent.Bitfield
+	piece chan pieceEvent
 }
 
 // start annoucing on all trackers
@@ -55,8 +56,8 @@ func (t *Torrent) StopAnnouncing() {
 // poll announce ticker channel and issue announces
 func (t *Torrent) pollAnnounce() {
 	for {
-		_, ok := <- t.announcer.C
-		if ! ok {
+		_, ok := <-t.announcer.C
+		if !ok {
 			// done
 			return
 		}
@@ -72,13 +73,13 @@ func (t *Torrent) pollAnnounce() {
 func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 	req := &tracker.Request{
 		Infohash: t.st.Infohash(),
-		PeerID: t.id,
-		IP: t.Net.Addr(),
-		Port: 6881,
-		Event: event,
-		NumWant: 10, // TODO: don't hardcode
-		Left: t.st.DownloadRemaining(),
-		Compact: true,
+		PeerID:   t.id,
+		IP:       t.Net.Addr(),
+		Port:     6881,
+		Event:    event,
+		NumWant:  10, // TODO: don't hardcode
+		Left:     t.st.DownloadRemaining(),
+		Compact:  true,
 	}
 	resp, err := tr.Announce(req)
 	if err == nil {
@@ -115,7 +116,7 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
 				if bytes.Equal(ih[:], h.Infohash[:]) {
 					// infohashes match
 					pc := makePeerConn(c, t, h.PeerID)
-					t.OnNewPeer(pc)
+					t.onNewPeer(pc)
 					return
 				}
 			}
@@ -128,34 +129,31 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
 	log.Infof("didn't connect to %s: %s", a, err)
 }
 
+// get metainfo for this torrent
 func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 	return t.st.MetaInfo()
 }
 
-func (t *Torrent) OnNewPeer(c *PeerConn) {
+// callback called when we get a new inbound peer
+func (t *Torrent) onNewPeer(c *PeerConn) {
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
 	c.Send(t.bf.ToWireMessage())
 }
 
-func (t *Torrent) OnWireMessage(c *PeerConn, msg *bittorrent.WireMessage) {
-	t.recv <- wireEvent{c, msg}
+// handle a wire message
+func (t *Torrent) onPieceRequest(c *PeerConn, req *bittorrent.PieceRequest) {
+	t.piece <- pieceEvent{c, req}
 }
 
 func (t *Torrent) Run() {
 	log.Infof("%s running", t.MetaInfo().TorrentName())
 	for {
-		ev, ok := <- t.recv
+		_, ok := <-t.piece
 		if !ok {
 			log.Warnf("%s torrent run exit", t.MetaInfo().TorrentName())
 			// channel closed
 			return
 		}
-		if ev.msg.KeepAlive() {
-			log.Debugf("got keepalive from %s", ev.c.id)
-			continue
-		}
-		id := ev.msg.MessageID()
-		log.Debugf("peer %s got message %d", ev.c.id, id)
 	}
 }

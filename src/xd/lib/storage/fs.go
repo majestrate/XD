@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"xd/lib/bittorrent"
@@ -31,7 +32,7 @@ func (t *fsTorrent) Allocate() (err error) {
 	if t.meta.IsSingleFile() {
 		err = t.AllocateFile(metainfo.FileInfo{
 			Length: t.meta.Info.Length,
-			Path: metainfo.FilePath([]string{t.meta.Info.Path}),
+			Path:   metainfo.FilePath([]string{t.meta.Info.Path}),
 		})
 	} else {
 		// multifile
@@ -44,7 +45,7 @@ func (t *fsTorrent) Allocate() (err error) {
 }
 
 func (t *fsTorrent) Bitfield() (bf *bittorrent.Bitfield) {
-	if ! t.st.HasBitfield(t.ih) {
+	if !t.st.HasBitfield(t.ih) {
 		// we have no pieces
 		t.st.CreateNewBitfield(t.ih, len(t.meta.Info.Pieces))
 	}
@@ -53,7 +54,7 @@ func (t *fsTorrent) Bitfield() (bf *bittorrent.Bitfield) {
 
 func (t *fsTorrent) DownloadRemaining() (r int64) {
 	bf := t.Bitfield()
-	have := bf.CountSet() * t.meta.Info.PieceLength
+	have := bf.CountSet() * int64(t.meta.Info.PieceLength)
 	r = t.meta.Info.TotalSize() - have
 	return
 }
@@ -71,12 +72,36 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) GetPiece(num, off int64) (p *common.Piece) {
+func (t *fsTorrent) GetPiece(num, off uint32) (p *common.Piece) {
+	sz := t.meta.Info.PieceLength
 	if t.meta.IsSingleFile() {
+		f, err := os.Open(t.meta.Info.Path)
+		if err != nil {
+			return
+		}
+		pc := new(common.Piece)
+		pc.Index = int64(num)
+		pc.Begin = int64(off)
+		idx := pc.Index * int64(sz)
+		idx += pc.Begin
+
+		_, err = f.Seek(idx, 0)
+		if err != nil {
+			f.Close()
+			return
+		}
+
+		pc.Data = make([]byte, sz)
+		_, err = io.ReadFull(f, pc.Data)
+		f.Close()
+		if err != nil {
+			return nil
+		}
+		p = pc
 	} else {
-		
+
 	}
-	return 
+	return
 }
 
 func (t *fsTorrent) PutPiece(p *common.Piece) {
@@ -91,7 +116,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	log.Infof("verify all pieces for %s", t.meta.TorrentName())
 	pieces := len(t.meta.Info.Pieces)
 	for pieces > 0 {
-		pieces --
+		pieces--
 		err = t.Verify(int64(pieces))
 		if err != nil {
 			break
@@ -99,7 +124,6 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	}
 	return
 }
-
 
 // filesystem based torrent storage
 type FsStorage struct {
@@ -144,7 +168,7 @@ func (st *FsStorage) HasBitfield(ih common.Infohash) bool {
 func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
 	fname := st.bitfieldFilename(ih)
 	bf := bittorrent.NewBitfield(bits, nil)
-	f, err := os.OpenFile(fname, os.O_CREATE | os.O_WRONLY, 0600)
+	f, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0600)
 	if err == nil {
 		bf.BEncode(f)
 		f.Close()
@@ -153,33 +177,33 @@ func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {
 	basepath := filepath.Join(st.DataDir, info.TorrentName())
-	if ! info.IsSingleFile() {
+	if !info.IsSingleFile() {
 		// create directory
 		os.Mkdir(basepath, 0700)
 	}
-	
+
 	ih := info.Infohash()
-	metapath := filepath.Join(st.MetaDir, ih.Hex() + ".torrent")
+	metapath := filepath.Join(st.MetaDir, ih.Hex()+".torrent")
 	_, err = os.Stat(metapath)
-	
+
 	if os.IsNotExist(err) {
 		// put meta info down onto filesystem
 		var f *os.File
-		f, err = os.OpenFile(metapath, os.O_CREATE | os.O_WRONLY, 0600)
-			if err == nil {
-				err = info.BEncode(f)
-				f.Close()
-			}
-	}
-	
-	if err == nil {
-		t = &fsTorrent{
-			st: st,
-			meta: info,
-			ih: ih,
+		f, err = os.OpenFile(metapath, os.O_CREATE|os.O_WRONLY, 0600)
+		if err == nil {
+			err = info.BEncode(f)
+			f.Close()
 		}
 	}
-	
+
+	if err == nil {
+		t = &fsTorrent{
+			st:   st,
+			meta: info,
+			ih:   ih,
+		}
+	}
+
 	return
 }
 

@@ -13,10 +13,11 @@ import (
 	"xd/lib/tracker"
 )
 
+// a bittorrent swarm tracking many torrents
 type Swarm struct {
-	net network.Network
+	net      network.Network
 	Torrents *Holder
-	id common.PeerID
+	id       common.PeerID
 }
 
 // wait until we get a network context
@@ -80,12 +81,14 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	go t.Run()
 }
 
+// blocking run of swarm
+// start accepting inbound connections
 func (sw *Swarm) Run() (err error) {
 	sw.WaitForNetwork()
 	log.Infof("swarm obtained network address: %s", sw.net.Addr())
 
 	sw.Torrents.ForEachTorrent(sw.startTorrent)
-	
+
 	for err == nil {
 		var c net.Conn
 		c, err = sw.net.Accept()
@@ -96,7 +99,6 @@ func (sw *Swarm) Run() (err error) {
 	}
 	return
 }
-
 
 // got inbound connection
 func (sw *Swarm) inboundConn(c net.Conn) {
@@ -119,7 +121,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 	// make peer conn
 	p := makePeerConn(c, t, h.PeerID)
-	
+
 	// reply to handshake
 	copy(h.PeerID[:], sw.id[:])
 	err = h.Send(c)
@@ -131,9 +133,10 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 	}
 	go p.runWriter()
 	go p.runReader()
-	t.OnNewPeer(p)
+	t.onNewPeer(p)
 }
 
+// add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
 	name := t.MetaInfo().TorrentName()
 	log.Debugf("allocate space for %s", name)
@@ -151,14 +154,16 @@ func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
 	return
 }
 
+// inject network context when it's ready
 func (sw *Swarm) SetNetwork(net network.Network) {
 	sw.net = net
 }
 
+// create a new swarm using a storage backend for storing downloads and torrent metadata
 func NewSwarm(storage storage.Storage) *Swarm {
 	sw := &Swarm{
 		Torrents: &Holder{
-			st: storage,
+			st:       storage,
 			torrents: make(map[common.Infohash]*Torrent),
 		},
 	}

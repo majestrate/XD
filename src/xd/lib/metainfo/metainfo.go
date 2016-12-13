@@ -2,23 +2,22 @@ package metainfo
 
 import (
 	"crypto/sha1"
+	"github.com/zeebo/bencode"
 	"io"
 	"path/filepath"
 	"xd/lib/common"
-	"github.com/zeebo/bencode"
 )
 
-
-type FilePath []string 
+type FilePath []string
 
 // get filepath
 func (f FilePath) FilePath() string {
 	/*
-	var parts []string
-	for _, part := range f {
-		parts = append(parts, string(part))
-	}
-	return filepath.Join(parts...)
+		var parts []string
+		for _, part := range f {
+			parts = append(parts, string(part))
+		}
+		return filepath.Join(parts...)
 	*/
 	return filepath.Join(f...)
 }
@@ -33,7 +32,7 @@ type FileInfo struct {
 // info section of torrent file
 type Info struct {
 	// length of pices in bytes
-	PieceLength int64 `bencode:"piece length"`
+	PieceLength int `bencode:"piece length"`
 	// piece data
 	Pieces []byte `bencode:"pieces"`
 	// name of root file
@@ -48,18 +47,18 @@ type Info struct {
 
 // get total size of files from torrent info section
 func (i Info) TotalSize() int64 {
-	return int64(len(i.Pieces)) * i.PieceLength
+	return int64(len(i.Pieces)) * int64(i.PieceLength)
 }
 
 // a torrent file
 type TorrentFile struct {
-	Info Info `bencode:"info"`
-	Announce string `bencode:"announce"`
+	Info         Info       `bencode:"info"`
+	Announce     string     `bencode:"announce"`
 	AnnounceList [][]string `bencode:"announce-list"`
-	Created int64   `bencode:"created"`
-	Comment []byte  `bencode:"comment"`
-	CreatedBy []byte `bencode:"created by"`
-	Encoding []byte `bencode:"encoding"`
+	Created      int64      `bencode:"created"`
+	Comment      []byte     `bencode:"comment"`
+	CreatedBy    []byte     `bencode:"created by"`
+	Encoding     []byte     `bencode:"encoding"`
 }
 
 func (tf *TorrentFile) GetAllAnnounceURLS() (l []string) {

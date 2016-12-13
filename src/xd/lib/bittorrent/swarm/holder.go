@@ -8,23 +8,22 @@ import (
 
 // torrent swarm container
 type Holder struct {
-	st storage.Storage
-	access sync.Mutex
+	st       storage.Storage
+	access   sync.Mutex
 	torrents map[common.Infohash]*Torrent
 }
-
 
 func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Lock()
 	defer h.access.Unlock()
 	h.torrents[t.Infohash()] = &Torrent{
-		st: t,
-		bf: t.Bitfield(),
-		recv: make(chan wireEvent, 8),
+		st:    t,
+		bf:    t.Bitfield(),
+		piece: make(chan pieceEvent, 8),
 	}
 }
 
-func (h *Holder) ForEachTorrent(visit func (*Torrent)) {
+func (h *Holder) ForEachTorrent(visit func(*Torrent)) {
 	h.access.Lock()
 	defer h.access.Unlock()
 	for _, t := range h.torrents {
