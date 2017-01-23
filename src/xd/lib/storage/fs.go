@@ -22,7 +22,7 @@ type fsTorrent struct {
 }
 
 func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
-	fname := filepath.Join(t.st.DataDir, f.Path.FilePath())
+	fname := filepath.Join(t.st.DataDir, t.meta.Info.Path, f.Path.FilePath())
 	err = util.EnsureFile(fname, f.Length)
 	return
 }
@@ -105,7 +105,7 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 		piece_off := int64(sz) * int64(num)
 		for _, info := range t.meta.Info.Files {
 			if info.Length+cur >= piece_off {
-				fpath := info.Path.FilePath()
+				fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
 				f, err := os.Open(fpath)
 				if err == nil {
 					defer f.Close()

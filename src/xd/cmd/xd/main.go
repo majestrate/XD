@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
@@ -11,6 +12,9 @@ func main() {
 	done := make(chan error)
 	conf := new(config.Config)
 	fname := "torrents.ini"
+	if len(os.Args) > 1 {
+		fname = os.Args[1]
+	}
 	err := conf.Load(fname)
 	if err != nil {
 		log.Errorf("failed to config %s", err)
