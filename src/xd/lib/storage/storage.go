@@ -20,11 +20,7 @@ type Torrent interface {
 
 	// get a piece from storage
 	// returns nil if we don't have the data
-	GetPiece(ind, off uint32) *common.Piece
-
-	// Verify Piece
-	// returns error if verification failed otherwise nil
-	Verify(piece int64) error
+	GetPiece(ind uint32) *common.Piece
 
 	// get metainfo
 	MetaInfo() *metainfo.TorrentFile

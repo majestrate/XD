@@ -81,9 +81,14 @@ func (c *PeerConn) HasPiece(piece int) bool {
 	return c.bf.Has(piece)
 }
 
-// return true if this peer is choked otherwise return false
-func (c *PeerConn) PeerChoked() bool {
+// return true if this peer is choking us otherwise return false
+func (c *PeerConn) RemoteChoking() bool {
 	return c.peerChoke
+}
+
+// return true if we are choking the remote peer otherwise return false
+func (c *PeerConn) Chocking() bool {
+	return c.usChoke
 }
 
 func (c *PeerConn) remoteUnchoke() {
@@ -159,6 +164,9 @@ func (c *PeerConn) runReader() {
 				c.t.onPieceRequest(c, ev)
 				continue
 			}
+			if msgid == bittorrent.Piece {
+				c.t.gotPieceData(msg.GetPieceData())
+			}
 		}
 	}
 	if err != io.EOF {
@@ -181,20 +189,27 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-
 	for c.Algorithm != nil && !c.Algorithm.Done() {
+		// check for choke
 		if c.Algorithm.Choke(c.id) {
 			c.Choke()
 			continue
 		} else {
 			c.Unchoke()
 		}
+		for c.RemoteChoking() {
+			// wait until we are unchoked
+			log.Debugf("%s waiting for unchoke", c.id.String())
+			time.Sleep(time.Second)
+		}
+		// get next request
 		req := c.Algorithm.Next(c.id, c.bf, c.t.bf)
 		if req == nil {
 			log.Debugf("No more pieces to request from %s", c.id.String())
 			time.Sleep(time.Second)
 			continue
 		}
+		// send request
 		c.Send(req.ToWireMessage())
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())

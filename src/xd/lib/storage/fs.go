@@ -72,7 +72,7 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) GetPiece(num, off uint32) (p *common.Piece) {
+func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 	sz := t.meta.Info.PieceLength
 	if t.meta.IsSingleFile() {
 		f, err := os.Open(t.meta.Info.Path)
@@ -81,10 +81,7 @@ func (t *fsTorrent) GetPiece(num, off uint32) (p *common.Piece) {
 		}
 		pc := new(common.Piece)
 		pc.Index = int64(num)
-		pc.Begin = int64(off)
 		idx := pc.Index * int64(sz)
-		idx += pc.Begin
-
 		_, err = f.Seek(idx, 0)
 		if err != nil {
 			f.Close()
@@ -99,6 +96,47 @@ func (t *fsTorrent) GetPiece(num, off uint32) (p *common.Piece) {
 		}
 		p = pc
 	} else {
+		pc := new(common.Piece)
+		pc.Data = make([]byte, sz)
+		pc.Index = int64(num)
+		idx := int64(0)
+		cur := int64(0)
+		left := int64(sz)
+		piece_off := int64(sz) * int64(num)
+		for _, info := range t.meta.Info.Files {
+			if info.Length+cur >= piece_off {
+				fpath := info.Path.FilePath()
+				f, err := os.Open(fpath)
+				if err == nil {
+					defer f.Close()
+					if info.Length < left {
+						_, err = io.ReadFull(f, p.Data[idx:idx+info.Length])
+						idx += info.Length
+						left -= info.Length
+						cur += info.Length
+						if err != nil {
+							p = nil
+							log.Errorf("Failed to read %s: %s", fpath, err)
+							return
+						}
+						continue
+					} else {
+						f.Seek((piece_off-idx)-int64(sz), 0)
+						_, err = io.ReadFull(f, p.Data[idx:left])
+						if err != nil {
+							p = nil
+							log.Errorf("Failed to read %s: %s", fpath, err)
+							return
+						}
+						break
+					}
+				} else {
+					log.Errorf("Failed to open %s: %s", fpath, err)
+					return nil
+				}
+			}
+			cur += info.Length
+		}
 
 	}
 	return
@@ -108,16 +146,13 @@ func (t *fsTorrent) PutPiece(p *common.Piece) {
 
 }
 
-func (t *fsTorrent) Verify(piece int64) (err error) {
-	return
-}
-
 func (t *fsTorrent) VerifyAll() (err error) {
 	log.Infof("verify all pieces for %s", t.meta.TorrentName())
 	pieces := len(t.meta.Info.Pieces)
-	for pieces > 0 {
-		pieces--
-		err = t.Verify(int64(pieces))
+	idx := 0
+	for idx < pieces {
+
+		pieces++
 		if err != nil {
 			break
 		}

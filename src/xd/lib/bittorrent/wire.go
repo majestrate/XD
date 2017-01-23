@@ -153,6 +153,29 @@ func (req *PieceRequest) ToWireMessage() *WireMessage {
 	return NewWireMessage(Request, body[:])
 }
 
+type PieceData struct {
+	Index uint32
+	Begin uint32
+	Data  []byte
+}
+
+func (msg *WireMessage) GetPieceData() *PieceData {
+
+	if msg.MessageID() != Piece {
+		return nil
+	}
+	data := msg.Payload()
+	if len(data) > 8 {
+		p := new(PieceData)
+		p.Index = binary.BigEndian.Uint32(data)
+		p.Begin = binary.BigEndian.Uint32(data[4:])
+		p.Data = make([]byte, len(data)-8)
+		copy(p.Data, data[8:])
+		return p
+	}
+	return nil
+}
+
 // get piece request from wire message or nil if malformed or not a piece request
 func (msg *WireMessage) GetPieceRequest() *PieceRequest {
 	if msg.MessageID() != Request {
