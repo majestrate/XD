@@ -96,7 +96,7 @@ type Torrent struct {
 	bf    *bittorrent.Bitfield
 	piece chan pieceEvent
 	// pending incomplete pieces
-	pending map[int]*cachedPiece
+	pending map[uint32]*cachedPiece
 	pmtx    sync.RWMutex
 }
 
@@ -204,7 +204,7 @@ func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 
 // called when we got piece data
 func (t *Torrent) gotPieceData(d *bittorrent.PieceData) {
-	t.visitPendingPiece(int(d.Index), func(p *cachedPiece) {
+	t.visitPendingPiece(d.Index, func(p *cachedPiece) {
 		if p != nil {
 			p.put(int(d.Begin), d.Data)
 		}
@@ -259,7 +259,7 @@ func (t *Torrent) Run() {
 }
 
 // safely visit pending downloading piece , calls v(piece) if we have it or v(nil) if we don't
-func (t *Torrent) visitPendingPiece(idx int, v func(*cachedPiece)) {
+func (t *Torrent) visitPendingPiece(idx uint32, v func(*cachedPiece)) {
 	t.pmtx.Lock()
 	p, _ := t.pending[idx]
 	v(p)
@@ -280,7 +280,7 @@ func (t *Torrent) Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bi
 	sz := t.MetaInfo().Info.PieceLength
 	req := &bittorrent.PieceRequest{}
 
-	t.visitPendingPiece(int(set), func(p *cachedPiece) {
+	t.visitPendingPiece(uint32(set), func(p *cachedPiece) {
 		if p == nil {
 			// new cached piece
 			p = new(cachedPiece)
@@ -290,7 +290,7 @@ func (t *Torrent) Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bi
 			}
 			p.progress = make([]byte, sz)
 			// put the cached piece
-			t.pending[int(set)] = p
+			t.pending[uint32(set)] = p
 		}
 		req.Begin = uint32(p.nextOffset())
 		req.Index = uint32(set)
