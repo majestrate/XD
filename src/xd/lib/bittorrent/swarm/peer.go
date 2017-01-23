@@ -1,8 +1,11 @@
 package swarm
 
 import (
+	"io"
 	"net"
+	"time"
 	"xd/lib/bittorrent"
+	"xd/lib/bittorrent/client"
 	"xd/lib/common"
 	"xd/lib/log"
 )
@@ -18,6 +21,10 @@ type PeerConn struct {
 	peerInterested bool
 	usChoke        bool
 	usInterseted   bool
+	// request algorithm
+	Algorithm client.Algorithm
+	// done callback
+	Done func()
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -28,11 +35,15 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	p.usChoke = true
 	copy(p.id[:], id[:])
 	p.send = make(chan *bittorrent.WireMessage, 8)
+	p.Algorithm = t
 	return p
 }
 
 // send a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
+	if c.send == nil {
+		return
+	}
 	c.send <- msg
 }
 
@@ -42,6 +53,24 @@ func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
 	err = msg.Recv(c.c)
 	log.Debugf("got %d from %s", msg.Len(), c.id)
 	return
+}
+
+// send choke
+func (c *PeerConn) Choke() {
+	if !c.usChoke {
+		log.Debugf("choke peer %s", c.id.String())
+		c.Send(bittorrent.NewWireMessage(bittorrent.Choke, nil))
+		c.usChoke = true
+	}
+}
+
+// send unchoke
+func (c *PeerConn) Unchoke() {
+	if c.usChoke {
+		log.Debugf("unchoke peer %s", c.id.String())
+		c.Send(bittorrent.NewWireMessage(bittorrent.UnChoke, nil))
+		c.usChoke = false
+	}
 }
 
 func (c *PeerConn) HasPiece(piece int) bool {
@@ -62,6 +91,7 @@ func (c *PeerConn) remoteUnchoke() {
 		log.Warnf("remote peer %s sent multiple unchokes", c.id.String())
 	}
 	c.peerChoke = false
+	log.Debugf("%s unchoked us", c.id.String())
 }
 
 func (c *PeerConn) remoteChoke() {
@@ -69,14 +99,25 @@ func (c *PeerConn) remoteChoke() {
 		log.Warnf("remote peer %s sent multiple chokes", c.id.String())
 	}
 	c.peerChoke = true
+	log.Debugf("%s choked us", c.id.String())
 }
 
 func (c *PeerConn) markInterested() {
 	c.peerInterested = true
+	log.Debugf("%s is interested", c.id.String())
 }
 
 func (c *PeerConn) markNotInterested() {
 	c.peerInterested = false
+	log.Debugf("%s is not interested", c.id.String())
+}
+
+func (c *PeerConn) Close() {
+	log.Debugf("%s closing connection", c.id.String())
+	chnl := c.send
+	c.send = nil
+	close(chnl)
+	c.c.Close()
 }
 
 // run read loop
@@ -120,7 +161,9 @@ func (c *PeerConn) runReader() {
 			}
 		}
 	}
-	log.Errorf("%s read error: %s", c.id, err)
+	if err != io.EOF {
+		log.Errorf("%s read error: %s", c.id, err)
+	}
 }
 
 // run write loop
@@ -134,4 +177,31 @@ func (c *PeerConn) runWriter() {
 			}
 		}
 	}
+}
+
+// run download loop
+func (c *PeerConn) runDownload() {
+
+	for c.Algorithm != nil && !c.Algorithm.Done() {
+		if c.Algorithm.Choke(c.id) {
+			c.Choke()
+			continue
+		} else {
+			c.Unchoke()
+		}
+		req := c.Algorithm.Next(c.id, c.bf, c.t.bf)
+		if req == nil {
+			log.Debugf("No more pieces to request from %s", c.id.String())
+			time.Sleep(time.Second)
+			continue
+		}
+		c.Send(req.ToWireMessage())
+	}
+	log.Debugf("peer %s is 'done'", c.id.String())
+	// done downloading
+	if c.Done != nil {
+		c.Done()
+	}
+	log.Debugf("Close connection to %s", c.id.String())
+	c.Close()
 }

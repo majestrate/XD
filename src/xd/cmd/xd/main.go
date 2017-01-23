@@ -55,7 +55,7 @@ func main() {
 			time.Sleep(time.Second)
 		}
 	}()
-	
+
 	net := conf.I2P.CreateSession()
 	log.Info("opening i2p session")
 	err = net.Open()
@@ -64,7 +64,7 @@ func main() {
 	}
 	log.Infof("i2p session made, we are %s", net.B32Addr())
 	sw.SetNetwork(net)
-	err = <- done
+	err = <-done
 	close(done)
 	// close network because we are done
 	log.Info("closing i2p network connection")

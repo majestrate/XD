@@ -139,6 +139,8 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
 	c.Send(t.bf.ToWireMessage())
+	// send unchoke message
+	c.Unchoke()
 }
 
 // handle a wire message
@@ -156,4 +158,20 @@ func (t *Torrent) Run() {
 			return
 		}
 	}
+}
+
+// implements client.Algorithm
+func (t *Torrent) Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bittorrent.PieceRequest {
+	return nil
+}
+
+// implements client.Algorithm
+func (t *Torrent) Done() bool {
+	return t.bf.Completed()
+}
+
+// implements client.Algorithm
+func (t *Torrent) Choke(id common.PeerID) bool {
+	// TODO: implement choking
+	return false
 }

@@ -73,12 +73,15 @@ type WireMessage struct {
 }
 
 // create new wire message
-func NewWireMessage(id byte, body []byte) *WireMessage {
+func NewWireMessage(id WireMessageType, body []byte) *WireMessage {
+	if body == nil {
+		body = []byte{}
+	}
 	msg := &WireMessage{
 		length: uint32(1 + len(body)),
 	}
 	msg.data = make([]byte, msg.length)
-	msg.data[0] = id
+	msg.data[0] = byte(id)
 	copy(msg.data[1:], body)
 	return msg
 }
@@ -139,6 +142,15 @@ type PieceRequest struct {
 	Index  uint32
 	Begin  uint32
 	Length uint32
+}
+
+// convert piece request to wire message
+func (req *PieceRequest) ToWireMessage() *WireMessage {
+	var body [12]byte
+	binary.BigEndian.PutUint32(body[:], req.Index)
+	binary.BigEndian.PutUint32(body[4:], req.Begin)
+	binary.BigEndian.PutUint32(body[8:], req.Length)
+	return NewWireMessage(Request, body[:])
 }
 
 // get piece request from wire message or nil if malformed or not a piece request

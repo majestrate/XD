@@ -15,13 +15,13 @@ type Bitfield struct {
 // create new bitfield
 func NewBitfield(l int, d []byte) *Bitfield {
 	if d == nil {
-		d = make([]byte, (l / 8) + 1)
+		d = make([]byte, (l/8)+1)
 	}
 	b := make([]byte, len(d))
 	copy(b, d)
 	return &Bitfield{
 		Length: l,
-		Data: b,
+		Data:   b,
 	}
 }
 
@@ -46,7 +46,7 @@ func (bf *Bitfield) ToWireMessage() *WireMessage {
 
 func (bf *Bitfield) Set(p int) {
 	if p < bf.Length {
-		bf.Data[p>>3] |= (1<<(7-uint(p)&7)) 
+		bf.Data[p>>3] |= (1 << (7 - uint(p)&7))
 	}
 }
 
@@ -54,10 +54,10 @@ func (bf *Bitfield) Set(p int) {
 func (bf *Bitfield) CountSet() (sum int64) {
 	l := bf.Length
 	for l > 0 {
-		l --
+		l--
 		// TODO: make this less horrible
 		if bf.Has(l) {
-			sum ++
+			sum++
 		}
 	}
 	return
@@ -68,4 +68,16 @@ func (bf *Bitfield) Has(p int) bool {
 		return bf.Data[p>>3]&(1<<(7-uint(p)&7)) != 0
 	}
 	return false
+}
+
+func (bf *Bitfield) Completed() bool {
+	l := bf.Length
+	for l > 0 {
+		l--
+		// TODO: make this less horrible
+		if !bf.Has(l) {
+			return false
+		}
+	}
+	return true
 }
