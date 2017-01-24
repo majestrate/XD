@@ -28,16 +28,16 @@ const Have = WireMessageType(4)
 const BitField = WireMessageType(5)
 
 // request piece message
-const Request = WireMessageType(7)
+const Request = WireMessageType(6)
 
 // response to REQUEST message
-const Piece = WireMessageType(8)
+const Piece = WireMessageType(7)
 
 // cancel a REQUEST message
-const Cancel = WireMessageType(9)
+const Cancel = WireMessageType(8)
 
 // extention
-const Port = WireMessageType(10)
+const Port = WireMessageType(9)
 
 func (t WireMessageType) String() string {
 	switch t {

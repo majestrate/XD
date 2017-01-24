@@ -129,9 +129,11 @@ func (c *PeerConn) markNotInterested() {
 
 func (c *PeerConn) Close() {
 	log.Debugf("%s closing connection", c.id.String())
-	chnl := c.send
-	c.send = nil
-	close(chnl)
+	if c.send != nil {
+		chnl := c.send
+		c.send = nil
+		close(chnl)
+	}
 	c.c.Close()
 }
 
@@ -192,6 +194,7 @@ func (c *PeerConn) runReader() {
 	if err != io.EOF {
 		log.Errorf("%s read error: %s", c.id, err)
 	}
+	c.Close()
 }
 
 func (c *PeerConn) sendKeepAlive() error {
@@ -215,7 +218,7 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	for c.Algorithm != nil && !c.Algorithm.Done() {
+	for c.Algorithm != nil && !c.Algorithm.Done() && c.send != nil {
 		// check for choke
 		if c.Algorithm.Choke(c.id) {
 			c.Choke()
