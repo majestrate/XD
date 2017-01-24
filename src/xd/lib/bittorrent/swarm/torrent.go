@@ -32,10 +32,13 @@ type pieceEvent struct {
 type cachedPiece struct {
 	piece    *common.Piece
 	progress []byte
+	mtx      sync.RWMutex
 }
 
 // get unfilled available block offset
 func (p *cachedPiece) nextOffset() (idx int) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	for idx < len(p.progress) {
 		if p.progress[idx] == Missing {
 			break
@@ -68,13 +71,16 @@ func (p *cachedPiece) done() bool {
 
 // put a slice of data at offset
 func (p *cachedPiece) put(offset int, data []byte) {
-	if offset+len(data) <= len(p.progress) {
+	log.Debugf("put %d at %d", len(data), offset)
+	if offset+len(data) < len(p.progress) {
 		// put data
 		copy(p.piece.Data[offset:], data)
 		// put progress
 		for idx, _ := range data {
 			p.progress[idx+offset] = Obtained
 		}
+	} else {
+		log.Warnf("block out of range %d", offset)
 	}
 }
 
@@ -216,22 +222,17 @@ func (t *Torrent) gotPieceData(d *bittorrent.PieceData) {
 	t.visitPendingPiece(d.Index, func(p *cachedPiece) {
 		if p != nil {
 			p.put(int(d.Begin), d.Data)
-			// TODO: don't check for every block
 			if p.done() {
-				donePiece = p.piece
+				// delete cached piece
+				delete(t.pending, d.Index)
+				// set bitfield as obtained
+				t.Bitfield().Set(int(d.Index))
+				// store piece
+				log.Debugf("store piece %d for %s", d.Index, t.Name())
+				t.storePiece(donePiece)
 			}
 		}
 	})
-	if donePiece != nil {
-		t.pmtx.Lock()
-		// delete cached piece
-		delete(t.pending, d.Index)
-		// set bitfield as obtained
-		t.Bitfield().Set(int(d.Index))
-		t.pmtx.Unlock()
-		// store piece
-		t.storePiece(donePiece)
-	}
 }
 
 func (t *Torrent) Name() string {
@@ -335,7 +336,6 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 	req := &bittorrent.PieceRequest{}
 
 	t.visitPendingPiece(uint32(set), func(p *cachedPiece) {
-		log.Debugf("piece %d", set)
 		if p == nil {
 			// new cached piece
 			p = new(cachedPiece)

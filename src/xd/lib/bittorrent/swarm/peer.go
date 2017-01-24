@@ -1,7 +1,6 @@
 package swarm
 
 import (
-	"encoding/binary"
 	"io"
 	"net"
 	"time"
@@ -28,6 +27,8 @@ type PeerConn struct {
 	Done func()
 	// keepalive ticker
 	keepalive *time.Ticker
+	// current request
+	req *bittorrent.PieceRequest
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -37,7 +38,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan *bittorrent.WireMessage, 8)
+	p.send = make(chan *bittorrent.WireMessage)
 	p.Algorithm = t
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
@@ -128,10 +129,12 @@ func (c *PeerConn) markNotInterested() {
 }
 
 func (c *PeerConn) Close() {
+	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
 	if c.send != nil {
 		chnl := c.send
 		c.send = nil
+		time.Sleep(time.Second / 10)
 		close(chnl)
 	}
 	c.c.Close()
@@ -153,6 +156,10 @@ func (c *PeerConn) runReader() {
 			if msgid == bittorrent.BitField {
 				c.bf = bittorrent.NewBitfield(len(c.t.MetaInfo().Info.Pieces), msg.Payload())
 				log.Debugf("got bitfield from %s", c.id.String())
+				var m *bittorrent.WireMessage
+				// TODO: determine if we are really interested
+				m = bittorrent.NewWireMessage(bittorrent.Interested, nil)
+				c.Send(m)
 				continue
 			}
 			if msgid == bittorrent.Choke {
@@ -177,17 +184,21 @@ func (c *PeerConn) runReader() {
 				continue
 			}
 			if msgid == bittorrent.Piece {
-				c.t.gotPieceData(msg.GetPieceData())
+				d := msg.GetPieceData()
+				if c.req == nil {
+					// no pending request
+					log.Warnf("got unwarranted piece data from %s", c.id.String())
+				} else if d.Index == c.req.Index && d.Begin == c.req.Begin {
+					c.t.gotPieceData(d)
+				} else {
+					log.Warnf("got undesired piece data from %s", c.id.String())
+				}
+				c.req = nil
+				continue
 			}
 			if msgid == bittorrent.Have {
-				idx := binary.BigEndian.Uint32(msg.Payload())
-				var m *bittorrent.WireMessage
-				if c.t.Bitfield().Has(int(idx)) {
-					m = bittorrent.NewWireMessage(bittorrent.NotInterested, nil)
-				} else {
-					m = bittorrent.NewWireMessage(bittorrent.Interested, nil)
-				}
-				c.Send(m)
+
+				continue
 			}
 		}
 	}
@@ -198,7 +209,7 @@ func (c *PeerConn) runReader() {
 }
 
 func (c *PeerConn) sendKeepAlive() error {
-	log.Debugf("send keepalive")
+	log.Debugf("send keepalive to %s", c.id.String())
 	return bittorrent.KeepAlive().Send(c.c)
 }
 
@@ -217,6 +228,7 @@ func (c *PeerConn) runWriter() {
 		}
 	}
 	log.Errorf("write loop ended: %s", err)
+	c.Close()
 }
 
 // run download loop
@@ -229,6 +241,10 @@ func (c *PeerConn) runDownload() {
 		} else {
 			c.Unchoke()
 		}
+		if c.req != nil {
+			time.Sleep(time.Second)
+			continue
+		}
 		// get next request
 		req := c.Algorithm.Next(c.id, c.bf)
 		if req == nil {
@@ -237,11 +253,13 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		if c.RemoteChoking() {
-			time.Sleep(time.Second)
-		} else {
-			// send request
-			c.Send(req.ToWireMessage())
+			log.Debugf("%s is choking", c.id.String())
+			time.Sleep(time.Second / 10)
+			continue
 		}
+		// send request
+		c.req = req
+		c.Send(req.ToWireMessage())
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())
 	// done downloading
