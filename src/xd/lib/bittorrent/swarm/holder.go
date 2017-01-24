@@ -20,7 +20,7 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	tr := &Torrent{
 		st:      t,
 		piece:   make(chan pieceEvent, 8),
-		pending: make(map[uint32]*cachedPiece),
+		pending: make(map[uint32]*PeerConn),
 	}
 	h.torrents[t.Infohash()] = tr
 	go h.sw.startTorrent(tr)

@@ -104,8 +104,8 @@ type Torrent struct {
 	id    common.PeerID
 	st    storage.Torrent
 	piece chan pieceEvent
-	// pending incomplete pieces
-	pending map[uint32]*cachedPiece
+	// pending incomplete pieces and who is fetching them
+	pending map[uint32]*PeerConn
 	pmtx    sync.RWMutex
 }
 
@@ -216,25 +216,6 @@ func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 	return t.st.MetaInfo()
 }
 
-// called when we got piece data
-func (t *Torrent) gotPieceData(d *bittorrent.PieceData) {
-	var donePiece *common.Piece
-	t.visitPendingPiece(d.Index, func(p *cachedPiece) {
-		if p != nil {
-			p.put(int(d.Begin), d.Data)
-			if p.done() {
-				// delete cached piece
-				delete(t.pending, d.Index)
-				// set bitfield as obtained
-				t.Bitfield().Set(int(d.Index))
-				// store piece
-				log.Debugf("store piece %d for %s", d.Index, t.Name())
-				t.storePiece(donePiece)
-			}
-		}
-	})
-}
-
 func (t *Torrent) Name() string {
 	return t.MetaInfo().TorrentName()
 }
@@ -253,6 +234,22 @@ func (t *Torrent) storePiece(p *common.Piece) {
 	if err != nil {
 		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
 	}
+	t.pmtx.Lock()
+	delete(t.pending, uint32(p.Index))
+	t.pmtx.Unlock()
+}
+
+func (t *Torrent) markPieceInProgress(idx uint32, c *PeerConn) {
+	t.pmtx.Lock()
+	t.pending[idx] = c
+	t.pmtx.Unlock()
+}
+
+func (t *Torrent) pieceRequested(idx uint32) bool {
+	t.pmtx.Lock()
+	_, ok := t.pending[idx]
+	t.pmtx.Unlock()
+	return ok
 }
 
 // callback called when we get a new inbound peer
@@ -304,60 +301,6 @@ func (t *Torrent) Run() {
 		}
 
 	}
-}
-
-// safely visit pending downloading piece , calls v(piece) if we have it or v(nil) if we don't
-func (t *Torrent) visitPendingPiece(idx uint32, v func(*cachedPiece)) {
-	t.pmtx.Lock()
-	p, _ := t.pending[idx]
-	v(p)
-	t.pmtx.Unlock()
-}
-
-// implements client.Algorithm
-func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorrent.PieceRequest {
-	if remote == nil {
-		// no bitfield yet
-		return nil
-	}
-	local := t.Bitfield()
-
-	set := 0
-
-	for remote.Has(set) {
-		if local.Has(set) {
-			set++
-		} else {
-			break
-		}
-	}
-
-	sz := t.MetaInfo().Info.PieceLength
-	req := &bittorrent.PieceRequest{}
-
-	t.visitPendingPiece(uint32(set), func(p *cachedPiece) {
-		if p == nil {
-			// new cached piece
-			p = new(cachedPiece)
-			p.piece = &common.Piece{
-				Index: int64(set),
-				Data:  make([]byte, sz),
-			}
-			p.progress = make([]byte, sz)
-			// put the cached piece
-			t.pending[uint32(set)] = p
-		}
-		off := p.nextOffset()
-		if off >= 0 {
-			req.Begin = uint32(off)
-			req.Index = uint32(set)
-			req.Length = BlockSize
-		} else {
-			// TODO: this may cause download lag
-			req = nil
-		}
-	})
-	return req
 }
 
 // implements client.Algorithm

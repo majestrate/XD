@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 	"xd/lib/bittorrent"
-	"xd/lib/bittorrent/client"
 	"xd/lib/common"
 	"xd/lib/log"
 )
@@ -21,14 +20,14 @@ type PeerConn struct {
 	peerInterested bool
 	usChoke        bool
 	usInterseted   bool
-	// request algorithm
-	Algorithm client.Algorithm
 	// done callback
 	Done func()
 	// keepalive ticker
 	keepalive *time.Ticker
 	// current request
 	req *bittorrent.PieceRequest
+	// current piece
+	piece *cachedPiece
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -39,7 +38,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	p.usChoke = true
 	copy(p.id[:], id[:])
 	p.send = make(chan *bittorrent.WireMessage)
-	p.Algorithm = t
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
 }
@@ -189,7 +187,16 @@ func (c *PeerConn) runReader() {
 					// no pending request
 					log.Warnf("got unwarranted piece data from %s", c.id.String())
 				} else if d.Index == c.req.Index && d.Begin == c.req.Begin {
-					c.t.gotPieceData(d)
+					c.piece.put(int(d.Begin), d.Data)
+					if c.piece.done() {
+						c.t.storePiece(c.piece.piece)
+						c.piece = nil
+					} else {
+						c.req = c.nextBlock()
+						if c.req != nil {
+							c.Send(c.req.ToWireMessage())
+						}
+					}
 				} else {
 					log.Warnf("got undesired piece data from %s", c.id.String())
 				}
@@ -208,6 +215,36 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
+func (c *PeerConn) busy() bool {
+	return c.piece != nil
+}
+
+func (c *PeerConn) getPiece(idx uint32) {
+	log.Debugf("%s get piece %d", c.id.String(), idx)
+	c.t.markPieceInProgress(idx, c)
+	sz := c.t.MetaInfo().Info.PieceLength
+	c.piece = new(cachedPiece)
+	c.piece.piece = &common.Piece{
+		Index: int64(idx),
+		Data:  make([]byte, sz),
+	}
+	c.piece.progress = make([]byte, sz)
+	c.req = c.nextBlock()
+	c.Send(c.req.ToWireMessage())
+}
+func (c *PeerConn) nextBlock() *bittorrent.PieceRequest {
+	off := c.piece.nextOffset()
+	if off == -1 {
+		return nil
+	}
+	b := uint32(off)
+	return &bittorrent.PieceRequest{
+		Index:  uint32(c.piece.piece.Index),
+		Begin:  b,
+		Length: BlockSize,
+	}
+}
+
 func (c *PeerConn) sendKeepAlive() error {
 	log.Debugf("send keepalive to %s", c.id.String())
 	return bittorrent.KeepAlive().Send(c.c)
@@ -222,8 +259,13 @@ func (c *PeerConn) runWriter() {
 			err = c.sendKeepAlive()
 		case msg, ok := <-c.send:
 			if ok {
-				log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
-				err = msg.Send(c.c)
+				if c.RemoteChoking() && msg.MessageID() == bittorrent.Request {
+					// drop
+					log.Debugf("drop request because choke")
+				} else {
+					log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
+					err = msg.Send(c.c)
+				}
 			}
 		}
 	}
@@ -233,33 +275,49 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	for c.Algorithm != nil && !c.Algorithm.Done() && c.send != nil {
+	for !c.t.Done() && c.send != nil {
 		// check for choke
-		if c.Algorithm.Choke(c.id) {
+		if c.t.Choke(c.id) {
 			c.Choke()
 			continue
 		} else {
 			c.Unchoke()
 		}
+
+		if c.RemoteChoking() {
+			time.Sleep(time.Second)
+			continue
+		}
 		if c.req != nil {
 			time.Sleep(time.Second)
 			continue
 		}
-		// get next request
-		req := c.Algorithm.Next(c.id, c.bf)
-		if req == nil {
-			log.Debugf("No more pieces to request from %s", c.id.String())
+		if c.busy() {
 			time.Sleep(time.Second)
 			continue
 		}
-		if c.RemoteChoking() {
-			log.Debugf("%s is choking", c.id.String())
-			time.Sleep(time.Second / 10)
+		remote := c.bf
+		if remote == nil {
+			log.Debugf("%s has not bitfield", c.id.String())
+			time.Sleep(time.Second)
 			continue
 		}
-		// send request
-		c.req = req
-		c.Send(req.ToWireMessage())
+		local := c.t.Bitfield()
+		set := 0
+		for remote.Has(set) {
+			if local.Has(set) {
+				set++
+			} else {
+				break
+			}
+		}
+		if set < local.Length {
+			// this blocks
+			c.getPiece(uint32(set))
+		} else {
+			// wut
+			log.Debugf("%s could not request %d", c.id.String(), set)
+		}
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())
 	// done downloading

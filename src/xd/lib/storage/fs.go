@@ -170,7 +170,6 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 	if err != nil {
 		return err
 	}
-
 	sz := t.meta.Info.PieceLength
 	if t.meta.IsSingleFile() {
 		f, err := os.OpenFile(t.FilePath(), os.O_WRONLY, 0640)
@@ -225,6 +224,8 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 			cur += info.Length
 		}
 	}
+	// set bitfield
+	t.bf.Set(int(pc.Index))
 	return nil
 }
 
