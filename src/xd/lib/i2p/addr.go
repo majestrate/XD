@@ -19,7 +19,7 @@ func (a I2PAddr) String() string {
 func (a I2PAddr) Base32Addr() (b32 Base32Addr) {
 	buf := make([]byte, i2pB64enc.DecodedLen(len(a)))
 	if _, err := i2pB64enc.Decode(buf, []byte(a)); err != nil {
-		return 
+		return
 	}
 	h := sha256.New()
 	h.Write(buf)

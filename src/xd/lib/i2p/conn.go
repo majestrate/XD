@@ -57,4 +57,3 @@ func (c *I2PConn) SetReadDeadline(t time.Time) error {
 func (c *I2PConn) SetWriteDeadline(t time.Time) error {
 	return c.c.SetWriteDeadline(t)
 }
-

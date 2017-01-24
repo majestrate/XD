@@ -1,6 +1,7 @@
 package util
 
 import "io"
+
 // ensure a byteslice is written in full
 func WriteFull(w io.Writer, d []byte) (err error) {
 	var n int

@@ -13,4 +13,3 @@ type Network interface {
 	Addr() net.Addr
 	Lookup(name string) (net.Addr, error)
 }
-

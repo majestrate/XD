@@ -16,7 +16,6 @@ type StorageConfig struct {
 	Root string
 }
 
-
 func (cfg *StorageConfig) FromSection(s *configparser.Section) {
 
 	cfg.Root = "XD"

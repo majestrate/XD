@@ -2,8 +2,8 @@ package configparser_test
 
 import (
 	"fmt"
-	"xd/lib/configparser"
 	"log"
+	"xd/lib/configparser"
 )
 
 // Read and modify a configuration file

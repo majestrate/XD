@@ -8,24 +8,23 @@ import (
 )
 
 type Request struct {
-	Infohash common.Infohash
-	PeerID common.PeerID
-	IP net.Addr
-	Port int
-	Uploaded int64
+	Infohash   common.Infohash
+	PeerID     common.PeerID
+	IP         net.Addr
+	Port       int
+	Uploaded   int64
 	Downloaded int64
-	Left int64
-	Event string
-	NumWant int
-	Compact bool
+	Left       int64
+	Event      string
+	NumWant    int
+	Compact    bool
 }
 
 type Response struct {
-	Interval int `bencode:"interval"`
-	Peers []*common.Peer `bencode:"peers"`
-	Error string `bencode:"failure reason"`
+	Interval int            `bencode:"interval"`
+	Peers    []*common.Peer `bencode:"peers"`
+	Error    string         `bencode:"failure reason"`
 }
-
 
 // bittorrent announcer, gets peers and announces presence in swarm
 type Announcer interface {
@@ -36,7 +35,6 @@ type Announcer interface {
 	// name of this tracker
 	Name() string
 }
-
 
 // get announcer from url
 // returns nil if invalid url

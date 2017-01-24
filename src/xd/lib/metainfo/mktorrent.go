@@ -4,7 +4,6 @@ import (
 	"xd/lib/version"
 )
 
-
 const CREATED_BY = version.Version
 
 // create a new torrent from a file or directory

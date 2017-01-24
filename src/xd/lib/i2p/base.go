@@ -1,6 +1,6 @@
 package i2p
 
-import(
+import (
 	"encoding/base32"
 	"encoding/base64"
 )

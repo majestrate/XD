@@ -9,19 +9,18 @@ import (
 	"strings"
 )
 
-
 // a destination keypair file
 type Keyfile struct {
 	privkey string
-	pubkey string
-	fname string
+	pubkey  string
+	fname   string
 }
 
 // save to filesystem
 func (k *Keyfile) Store() (err error) {
 	if len(k.fname) > 0 {
 		var f *os.File
-		f, err = os.OpenFile(k.fname, os.O_CREATE | os.O_WRONLY, 0600)
+		f, err = os.OpenFile(k.fname, os.O_CREATE|os.O_WRONLY, 0600)
 		if err == nil {
 			err = k.write(f)
 			f.Close()

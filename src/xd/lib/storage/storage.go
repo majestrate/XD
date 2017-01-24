@@ -16,7 +16,7 @@ type Torrent interface {
 	VerifyAll() error
 
 	// put a downloaded piece into the storage
-	PutPiece(p *common.Piece)
+	PutPiece(p *common.Piece) error
 
 	// get a piece from storage
 	// returns nil if we don't have the data

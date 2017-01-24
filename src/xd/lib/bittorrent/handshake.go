@@ -8,12 +8,10 @@ import (
 
 const _handshake_v1 = "BitTorrent protocol"
 
-
-
 // bittorrent protocol handshake
 type Handshake struct {
 	Infohash common.Infohash
-	PeerID common.PeerID
+	PeerID   common.PeerID
 }
 
 // recv handshake via reader

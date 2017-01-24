@@ -11,15 +11,14 @@ import (
 	"xd/lib/log"
 )
 
-
 type samSession struct {
-	addr string
+	addr       string
 	minversion string
 	maxversion string
-	name string
-	keys *Keyfile
+	name       string
+	keys       *Keyfile
 	// control connection
-	c net.Conn
+	c   net.Conn
 	mtx sync.RWMutex
 }
 
@@ -85,7 +84,7 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 	if err == nil {
 		// send connect
 		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s SILENT=false\n", s.Name(), addr.String())
-		
+
 		r := bufio.NewReader(nc)
 		var line string
 		// read reply
@@ -106,7 +105,7 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 				if upper == "RESULT=OK" {
 					// we are connected
 					c = &I2PConn{
-						c: nc,
+						c:     nc,
 						laddr: s.keys.Addr(),
 						raddr: addr,
 					}
@@ -237,9 +236,8 @@ func (s *samSession) Open() (err error) {
 func (s *samSession) Accept() (c net.Conn, err error) {
 	l := &i2pListener{
 		session: s,
-		laddr: I2PAddr(s.keys.pubkey),
+		laddr:   I2PAddr(s.keys.pubkey),
 	}
 	c, err = l.Accept()
 	return
 }
-

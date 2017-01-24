@@ -5,7 +5,7 @@ import (
 )
 
 type Config struct {
-	I2P I2PConfig
+	I2P     I2PConfig
 	Storage StorageConfig
 }
 

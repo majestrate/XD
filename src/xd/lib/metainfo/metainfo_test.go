@@ -1,10 +1,10 @@
 package metainfo
 
 import (
-	"os"
-	"testing"
 	"github.com/zeebo/bencode"
+	"os"
 	"strings"
+	"testing"
 )
 
 func TestLoadTorrent(t *testing.T) {
@@ -24,4 +24,3 @@ func TestLoadTorrent(t *testing.T) {
 	}
 	// TODO: check members
 }
-

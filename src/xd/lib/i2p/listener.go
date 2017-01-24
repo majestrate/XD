@@ -56,7 +56,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 					if upper == "RESULT=OK" {
 						// we good
 						break
-					} 
+					}
 					// error
 					err = errors.New(text)
 				}
@@ -66,7 +66,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 			if err == nil {
 				// we got a new connection yeeeeh
 				c = &I2PConn{
-					c: nc,
+					c:     nc,
 					laddr: l.laddr,
 					raddr: I2PAddr(line[:len(line)-1]),
 				}
@@ -79,4 +79,3 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 	}
 	return
 }
-

@@ -1,4 +1,4 @@
 /**
- package for parsing bitorrent meta info objects
+package for parsing bitorrent meta info objects
 */
 package metainfo

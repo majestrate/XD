@@ -3,18 +3,18 @@ package tracker
 import (
 	"errors"
 	"fmt"
-	"time"
+	"github.com/zeebo/bencode"
 	"net/http"
 	"net/url"
+	"time"
 	"xd/lib/common"
-	"xd/lib/network"
 	"xd/lib/log"
-	"github.com/zeebo/bencode"
+	"xd/lib/network"
 )
 
 // http tracker
 type HttpTracker struct {
-	url string
+	url     string
 	session network.Network
 	// http client
 	client *http.Client
@@ -27,7 +27,7 @@ type HttpTracker struct {
 // create new http tracker from url
 func NewHttpTracker(n network.Network, url string) *HttpTracker {
 	return &HttpTracker{
-		url: url,
+		url:     url,
 		session: n,
 		client: &http.Client{
 			Transport: &http.Transport{
@@ -39,9 +39,9 @@ func NewHttpTracker(n network.Network, url string) *HttpTracker {
 
 // http compact response
 type compactHttpAnnounceResponse struct {
-	Peers []byte `bencode:"peers"`
-	Interval int `bencode:"interval"`
-	Error string `bencode:"failure reason"`
+	Peers    []byte `bencode:"peers"`
+	Interval int    `bencode:"interval"`
+	Error    string `bencode:"failure reason"`
 }
 
 func (t *HttpTracker) Name() string {
@@ -60,7 +60,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	var u *url.URL
 	u, err = url.Parse(t.url)
 	if err == nil {
-		
+
 		// build query
 		v := u.Query()
 		v.Add("ip", req.IP.String())
@@ -74,7 +74,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		}
 		v.Add("downloaded", fmt.Sprintf("%d", req.Downloaded))
 		v.Add("uploaded", fmt.Sprintf("%d", req.Uploaded))
-		
+
 		// compact response
 		if req.Compact {
 			v.Add("compact", "1")
@@ -95,9 +95,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 					for l > 0 {
 						p := new(common.Peer)
 						// TODO: bounds check
-						copy(p.Compact[:], cresp.Peers[(l-1)*32: l*32])
+						copy(p.Compact[:], cresp.Peers[(l-1)*32:l*32])
 						resp.Peers = append(resp.Peers, p)
-						l --
+						l--
 					}
 					if len(cresp.Error) > 0 {
 						err = errors.New(cresp.Error)

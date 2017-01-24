@@ -2,6 +2,7 @@ package util
 
 import (
 	"os"
+	"xd/lib/log"
 )
 
 // ensure a directory is made
@@ -9,6 +10,7 @@ import (
 func EnsureDir(fpath string) (err error) {
 	_, err = os.Stat(fpath)
 	if os.IsNotExist(err) {
+		log.Debugf("create dir %s", fpath)
 		err = os.Mkdir(fpath, 0700)
 	}
 	return

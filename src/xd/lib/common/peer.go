@@ -3,9 +3,9 @@ package common
 import (
 	"crypto/rand"
 	"io"
-	"strings"
 	"net"
 	"net/url"
+	"strings"
 	"xd/lib/i2p"
 	"xd/lib/network"
 	"xd/lib/version"
@@ -32,12 +32,12 @@ func (id PeerID) String() string {
 // swarm peer
 type Peer struct {
 	Compact i2p.Base32Addr `bencode:"-"`
-	IP string `bencode:"ip"`
-	Port int `bencode:"port"`
-	ID PeerID `bencode:"id"`
+	IP      string         `bencode:"ip"`
+	Port    int            `bencode:"port"`
+	ID      PeerID         `bencode:"id"`
 }
 
-// resolve network address 
+// resolve network address
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 	if len(p.IP) > 0 {
 		// prefer ip

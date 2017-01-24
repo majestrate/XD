@@ -7,7 +7,7 @@ func (z *zeroReader) Read(d []byte) (int, error) {
 	i := 0
 	for i < len(d) {
 		d[i] = 0
-		i ++
+		i++
 	}
 	return len(d), nil
 }

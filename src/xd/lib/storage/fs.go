@@ -22,7 +22,7 @@ type fsTorrent struct {
 }
 
 func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
-	fname := filepath.Join(t.st.DataDir, t.meta.Info.Path, f.Path.FilePath())
+	fname := filepath.Join(t.FilePath(), f.Path.FilePath())
 	err = util.EnsureFile(fname, f.Length)
 	return
 }
@@ -30,15 +30,13 @@ func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
 func (t *fsTorrent) Allocate() (err error) {
 	log.Infof("allocate files for %s", t.meta.TorrentName())
 	if t.meta.IsSingleFile() {
-		err = t.AllocateFile(metainfo.FileInfo{
-			Length: t.meta.Info.Length,
-			Path:   metainfo.FilePath([]string{t.meta.Info.Path}),
-		})
+		err = util.EnsureFile(t.FilePath(), t.meta.Info.Length)
 	} else {
-		// multifile
-		err = os.Mkdir(t.meta.Info.Path, 0700)
 		for _, f := range t.meta.Info.Files {
 			err = t.AllocateFile(f)
+			if err != nil {
+				break
+			}
 		}
 	}
 	return
@@ -75,7 +73,7 @@ func (t *fsTorrent) FilePath() string {
 func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 	sz := t.meta.Info.PieceLength
 	if t.meta.IsSingleFile() {
-		f, err := os.Open(t.meta.Info.Path)
+		f, err := os.Open(t.FilePath())
 		if err != nil {
 			return
 		}
@@ -142,8 +140,62 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 	return
 }
 
-func (t *fsTorrent) PutPiece(p *common.Piece) {
-
+func (t *fsTorrent) PutPiece(pc *common.Piece) error {
+	sz := t.meta.Info.PieceLength
+	if t.meta.IsSingleFile() {
+		f, err := os.OpenFile(t.FilePath(), os.O_WRONLY, 0640)
+		if err != nil {
+			log.Errorf("failed to open %s: %s", t.FilePath())
+			return err
+		}
+		idx := pc.Index * int64(sz)
+		_, err = f.Seek(idx, 0)
+		if err != nil {
+			log.Errorf("Failed to seek in %s:, %s", t.FilePath())
+			f.Close()
+			return err
+		}
+		err = util.WriteFull(f, pc.Data)
+		f.Close()
+	} else {
+		idx := int64(0)
+		cur := int64(0)
+		left := int64(sz)
+		piece_off := int64(sz) * int64(pc.Index)
+		for _, info := range t.meta.Info.Files {
+			if info.Length+cur >= piece_off {
+				fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
+				f, err := os.OpenFile(fpath, os.O_WRONLY, 0640)
+				if err == nil {
+					defer f.Close()
+					if info.Length < left {
+						err = util.WriteFull(f, pc.Data[idx:idx+info.Length])
+						idx += info.Length
+						left -= info.Length
+						cur += info.Length
+						if err != nil {
+							log.Errorf("Failed to write %s: %s", fpath, err)
+							return err
+						}
+						continue
+					} else {
+						f.Seek((piece_off-idx)-int64(sz), 0)
+						err = util.WriteFull(f, pc.Data[idx:left])
+						if err != nil {
+							log.Errorf("Failed to write %s: %s", fpath, err)
+							return err
+						}
+						break
+					}
+				} else {
+					log.Errorf("Failed to open %s: %s", fpath, err)
+					return err
+				}
+			}
+			cur += info.Length
+		}
+	}
+	return nil
 }
 
 func (t *fsTorrent) VerifyAll() (err error) {

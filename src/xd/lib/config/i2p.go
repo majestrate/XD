@@ -2,14 +2,14 @@ package config
 
 import (
 	"xd/lib/configparser"
-	"xd/lib/log"
 	"xd/lib/i2p"
+	"xd/lib/log"
 )
 
 type I2PConfig struct {
-	Addr string
-	Keyfile string
-	Name string
+	Addr        string
+	Keyfile     string
+	Name        string
 	I2CPOptions map[string]string
 }
 
@@ -38,4 +38,3 @@ func (cfg *I2PConfig) CreateSession() i2p.Session {
 	log.Infof("create new i2p session with %s", cfg.Addr)
 	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile)
 }
-
