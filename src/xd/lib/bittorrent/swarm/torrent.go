@@ -322,17 +322,17 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 	local := t.Bitfield()
 	set := local.CountSet()
 
-	for remote.Has(int(set)) {
+	for remote.Has(set) {
 		set++
 	}
 
-	if set >= int64(local.Length) {
+	if set >= local.Length {
 		// seek from begining
 		set = 0
-		for remote.Has(int(set)) {
+		for remote.Has(set) {
 			set++
 		}
-		if set >= int64(local.Length) {
+		if set >= local.Length {
 			// no more for now
 			return nil
 		}
@@ -346,7 +346,7 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 			// new cached piece
 			p = new(cachedPiece)
 			p.piece = &common.Piece{
-				Index: set,
+				Index: int64(set),
 				Data:  make([]byte, sz),
 			}
 			p.progress = make([]byte, sz)

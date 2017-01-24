@@ -64,7 +64,7 @@ func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 
 func (t *fsTorrent) DownloadRemaining() (r int64) {
 	bf := t.Bitfield()
-	have := bf.CountSet() * int64(t.meta.Info.PieceLength)
+	have := int64(bf.CountSet()) * int64(t.meta.Info.PieceLength)
 	r = t.meta.Info.TotalSize() - have
 	return
 }

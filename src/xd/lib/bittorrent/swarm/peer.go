@@ -198,6 +198,7 @@ func (c *PeerConn) runReader() {
 }
 
 func (c *PeerConn) sendKeepAlive() error {
+	log.Debugf("send keepalive")
 	return bittorrent.KeepAlive().Send(c.c)
 }
 
@@ -210,10 +211,12 @@ func (c *PeerConn) runWriter() {
 			err = c.sendKeepAlive()
 		case msg, ok := <-c.send:
 			if ok {
+				log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
 				err = msg.Send(c.c)
 			}
 		}
 	}
+	log.Errorf("write loop ended: %s", err)
 }
 
 // run download loop

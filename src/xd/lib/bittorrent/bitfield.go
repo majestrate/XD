@@ -51,7 +51,7 @@ func (bf *Bitfield) Set(p int) {
 }
 
 // count how many bits are set
-func (bf *Bitfield) CountSet() (sum int64) {
+func (bf *Bitfield) CountSet() (sum int) {
 	l := bf.Length
 	for l > 0 {
 		l--
