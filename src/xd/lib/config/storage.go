@@ -18,7 +18,7 @@ type StorageConfig struct {
 
 func (cfg *StorageConfig) FromSection(s *configparser.Section) {
 
-	cfg.Root = "XD"
+	cfg.Root = "storage"
 	if s != nil {
 		cfg.Root = s.Get("rootdir", cfg.Root)
 	}
