@@ -63,6 +63,7 @@ func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
 }
 
 func (sw *Swarm) startTorrent(t *Torrent) {
+	sw.WaitForNetwork()
 	// give network
 	t.Net = sw.net
 	// give peerid
@@ -86,9 +87,6 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 func (sw *Swarm) Run() (err error) {
 	sw.WaitForNetwork()
 	log.Infof("swarm obtained network address: %s", sw.net.Addr())
-
-	sw.Torrents.ForEachTorrent(sw.startTorrent)
-
 	for err == nil {
 		var c net.Conn
 		c, err = sw.net.Accept()
@@ -157,6 +155,7 @@ func NewSwarm(storage storage.Storage) *Swarm {
 			torrents: make(map[common.Infohash]*Torrent),
 		},
 	}
+	sw.Torrents.sw = sw
 	sw.id = common.GeneratePeerID()
 	log.Infof("generated peer id %s", sw.id.String())
 	return sw

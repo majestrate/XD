@@ -63,7 +63,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 
 		// build query
 		v := u.Query()
-		v.Add("ip", req.IP.String())
+		v.Add("ip", req.IP.String()+".i2p")
 		v.Add("info_hash", string(req.Infohash.Bytes()))
 		v.Add("peer_id", string(req.PeerID.Bytes()))
 		v.Add("port", fmt.Sprintf("%d", req.Port))
