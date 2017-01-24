@@ -16,7 +16,7 @@ import (
 )
 
 // how big should we download pieces at a time (bytes)?
-const BlockSize = 1024 * 8
+const BlockSize = 1024 * 16
 
 const Missing = 0
 const Pending = 1
@@ -165,6 +165,10 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 		for _, p := range resp.Peers {
 			a, e := p.Resolve(t.Net)
 			if e == nil {
+				if a.String() == t.Net.Addr().String() {
+					// don't connect to self
+					continue
+				}
 				// no error resolving
 				go t.AddPeer(a, p.ID)
 			} else {
@@ -235,6 +239,7 @@ func (t *Torrent) storePiece(p *common.Piece) {
 	t.pmtx.Lock()
 	delete(t.pending, uint32(p.Index))
 	t.pmtx.Unlock()
+	t.st.Flush()
 }
 
 func (t *Torrent) cancelPiece(idx uint32) {

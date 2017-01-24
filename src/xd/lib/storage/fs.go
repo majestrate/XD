@@ -229,7 +229,7 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 	return nil
 }
 
-func (t *fsTorrent) VerifyAll() (err error) {
+func (t *fsTorrent) VerifyAll(force bool) (err error) {
 	log.Infof("verify all pieces for %s", t.meta.TorrentName())
 	pieces := len(t.meta.Info.Pieces)
 	sz := t.meta.Info.PieceLength
@@ -240,6 +240,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		var f *os.File
 		f, err = os.Open(t.FilePath())
 		if err != nil {
+			log.Errorf("failed to open: %s", err)
 			return
 		}
 		defer f.Close()
@@ -251,7 +252,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 			if err == io.EOF {
 				err = nil
 			}
-			if bf.Has(int(pc.Index)) {
+			if bf.Has(int(pc.Index)) || force {
 				if !t.meta.Info.CheckPiece(pc) {
 					err = errors.New(fmt.Sprintf("piece %d is invalid", pc.Index))
 					return
@@ -302,7 +303,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 							return
 						}
 						left -= int64(n)
-						if bf.Has(int(pc.Index)) {
+						if bf.Has(int(pc.Index)) || force {
 							if !t.meta.Info.CheckPiece(pc) {
 								err = errors.New(fmt.Sprintf("piece %d failed check", pc.Index))
 							}

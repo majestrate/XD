@@ -46,7 +46,7 @@ func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
 					return
 				}
 				log.Debugf("verify all pieces for %s", name)
-				err = t.VerifyAll()
+				err = t.VerifyAll(false)
 				if err != nil {
 					return
 				}
