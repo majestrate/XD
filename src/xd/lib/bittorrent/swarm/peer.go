@@ -191,6 +191,7 @@ func (c *PeerConn) runReader() {
 					if c.piece.done() {
 						c.t.storePiece(c.piece.piece)
 						c.piece = nil
+						c.req = nil
 					} else {
 						c.req = c.nextBlock()
 						if c.req != nil {
@@ -200,7 +201,6 @@ func (c *PeerConn) runReader() {
 				} else {
 					log.Warnf("got undesired piece data from %s", c.id.String())
 				}
-				c.req = nil
 				continue
 			}
 			if msgid == bittorrent.Have {
