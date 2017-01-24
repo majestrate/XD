@@ -200,6 +200,7 @@ func (c *PeerConn) runReader() {
 						if c.req != nil {
 							c.Send(c.req.ToWireMessage())
 						} else {
+							log.Warnf("%s failed to get next block", c.id.String())
 							c.t.cancelPiece(uint32(c.piece.piece.Index))
 							c.piece = nil
 						}

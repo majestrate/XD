@@ -16,7 +16,7 @@ import (
 )
 
 // how big should we download pieces at a time (bytes)?
-const BlockSize = 1024 * 8
+const BlockSize = 1024 * 2
 
 const Missing = 0
 const Pending = 1
@@ -41,14 +41,13 @@ func (p *cachedPiece) nextOffset() (idx int) {
 	defer p.mtx.Unlock()
 	for idx < len(p.progress) {
 		if p.progress[idx] == Missing {
-			break
-		}
-		// mark progress as pending
-		var i int
-		for i < BlockSize {
-			p.progress[idx] = Pending
-			i++
-			idx++
+			// mark progress as pending
+			var i int
+			for i < BlockSize {
+				p.progress[idx+i] = Pending
+				i++
+			}
+			return
 		}
 		idx += BlockSize
 	}
@@ -71,7 +70,6 @@ func (p *cachedPiece) done() bool {
 
 // put a slice of data at offset
 func (p *cachedPiece) put(offset int, data []byte) {
-	log.Debugf("put %d at %d", len(data), offset)
 	if offset+len(data) < len(p.progress) {
 		// put data
 		copy(p.piece.Data[offset:], data)
