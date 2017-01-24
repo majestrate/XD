@@ -18,8 +18,9 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Lock()
 	defer h.access.Unlock()
 	tr := &Torrent{
-		st:    t,
-		piece: make(chan pieceEvent, 8),
+		st:      t,
+		piece:   make(chan pieceEvent, 8),
+		pending: make(map[uint32]*cachedPiece),
 	}
 	h.torrents[t.Infohash()] = tr
 	go h.sw.startTorrent(tr)
