@@ -70,7 +70,7 @@ func (p *cachedPiece) done() bool {
 
 // put a slice of data at offset
 func (p *cachedPiece) put(offset int, data []byte) {
-	if offset+len(data) < len(p.progress) {
+	if offset+len(data) <= len(p.progress) {
 		// put data
 		copy(p.piece.Data[offset:], data)
 		// put progress
