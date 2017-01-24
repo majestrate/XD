@@ -139,16 +139,6 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 // add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
 	name := t.MetaInfo().TorrentName()
-	log.Debugf("allocate space for %s", name)
-	err = t.Allocate()
-	if err != nil {
-		return
-	}
-	log.Debugf("verify all pieces for %s", name)
-	err = t.VerifyAll()
-	if err != nil {
-		return
-	}
 	sw.Torrents.addTorrent(t)
 	log.Infof("added torrent %s", name)
 	return

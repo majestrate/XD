@@ -233,7 +233,6 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	pieces := len(t.meta.Info.Pieces)
 	sz := t.meta.Info.PieceLength
 	bf := t.Bitfield()
-
 	pc := new(common.Piece)
 	pc.Data = make([]byte, sz)
 	if t.meta.IsSingleFile() {
@@ -317,6 +316,10 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		}
 	}
 	if err != nil {
+		if err == io.EOF {
+			err = nil
+			return
+		}
 		log.Errorf("failed to verify %s: %s", t.Name(), err)
 	}
 	return
@@ -415,11 +418,18 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 	}
 
 	if err == nil {
-		t = &fsTorrent{
+		ft := &fsTorrent{
 			st:   st,
 			meta: info,
 			ih:   ih,
 		}
+		log.Debugf("allocate space for %s", ft.Name())
+		err = ft.Allocate()
+		if err != nil {
+			t = nil
+			return
+		}
+		t = ft
 	}
 
 	return
