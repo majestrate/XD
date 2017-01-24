@@ -195,7 +195,7 @@ func (c *PeerConn) runReader() {
 }
 
 func (c *PeerConn) sendKeepAlive() error {
-	return bittorrent.NewWireMessage(bittorrent.KeepAlive, nil).Send(c.c)
+	return bittorrent.KeepAlive().Send(c.c)
 }
 
 // run write loop

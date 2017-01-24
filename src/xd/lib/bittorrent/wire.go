@@ -9,26 +9,23 @@ import (
 // type for wire message id
 type WireMessageType byte
 
-// keep alive message
-const KeepAlive = WireMessageType(0)
-
 // choke message
-const Choke = WireMessageType(1)
+const Choke = WireMessageType(0)
 
 // unchoke message
-const UnChoke = WireMessageType(2)
+const UnChoke = WireMessageType(1)
 
 // peer is interested message
-const Interested = WireMessageType(3)
+const Interested = WireMessageType(2)
 
 // peer is not interested message
-const NotInterested = WireMessageType(4)
+const NotInterested = WireMessageType(3)
 
 // have message
-const Have = WireMessageType(5)
+const Have = WireMessageType(4)
 
 // bitfield message
-const BitField = WireMessageType(6)
+const BitField = WireMessageType(5)
 
 // request piece message
 const Request = WireMessageType(7)
@@ -73,6 +70,13 @@ func (t WireMessageType) String() string {
 type WireMessage struct {
 	length uint32
 	data   []byte
+}
+
+func KeepAlive() *WireMessage {
+	return &WireMessage{
+		length: 0,
+		data:   []byte{},
+	}
 }
 
 // create new wire message
