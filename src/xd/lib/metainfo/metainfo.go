@@ -26,9 +26,11 @@ func (f FilePath) FilePath() string {
 
 type FileInfo struct {
 	// length of file
-	Length int64 `bencode:length`
+	Length int64 `bencode:"length"`
 	// relative path of file
-	Path FilePath `bencode:name`
+	Path FilePath `bencode:"path"`
+	// md5sum
+	Sum []byte `bencode:"md5sum,omitempty"`
 }
 
 // info section of torrent file
@@ -45,6 +47,8 @@ type Info struct {
 	Private int64 `bencode:"private,omitempty"`
 	// length of file in signle file mode
 	Length int64 `bencode:"length,omitempty"`
+	// md5sum
+	Sum []byte `bencode:"md5sum,omitempty"`
 }
 
 // check if a piece is valid against the pieces in this info section
@@ -94,10 +98,10 @@ func (tf *TorrentFile) TorrentName() string {
 
 // calculate infohash
 func (tf *TorrentFile) Infohash() (ih common.Infohash) {
-	h := sha1.New()
-	enc := bencode.NewEncoder(h)
-	enc.Encode(tf.Info)
-	d := h.Sum(nil)
+	s := sha1.New()
+	enc := bencode.NewEncoder(s)
+	enc.Encode(&tf.Info)
+	d := s.Sum(nil)
 	copy(ih[:], d[:])
 	return
 }

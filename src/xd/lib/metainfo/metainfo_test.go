@@ -19,7 +19,8 @@ func TestLoadTorrent(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if strings.ToUpper(tf.Infohash().Hex()) != "E8E6FCDBD1E2B4DFE1D3192E50193FAA35AE44E3" {
+
+	if strings.ToUpper(tf.Infohash().Hex()) != "6BCDC07177EC43658C1B4D5450640059663A5214" {
 		t.Error(tf.Infohash().Hex())
 	}
 	// TODO: check members
