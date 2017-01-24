@@ -49,7 +49,7 @@ func (p *cachedPiece) nextOffset() (idx int) {
 		}
 		idx += BlockSize
 	}
-	if idx < len(p.progress) {
+	if idx >= len(p.progress) {
 		// fail
 		idx = -1
 	}
@@ -320,21 +320,14 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 		return nil
 	}
 	local := t.Bitfield()
-	set := local.CountSet()
 
-	for !remote.Has(set) {
-		set++
-	}
+	set := 0
 
-	if set >= local.Length {
-		// seek from begining
-		set = 0
-		for !remote.Has(set) {
+	for remote.Has(set) {
+		if local.Has(set) {
 			set++
-		}
-		if set >= local.Length {
-			// no more for now
-			return nil
+		} else {
+			break
 		}
 	}
 
@@ -342,6 +335,7 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 	req := &bittorrent.PieceRequest{}
 
 	t.visitPendingPiece(uint32(set), func(p *cachedPiece) {
+		log.Debugf("piece %d", set)
 		if p == nil {
 			// new cached piece
 			p = new(cachedPiece)
