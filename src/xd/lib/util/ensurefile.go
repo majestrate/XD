@@ -19,7 +19,9 @@ func EnsureFile(fpath string, size int64) (err error) {
 			f, err = os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY, 0600)
 			if err == nil {
 				// fill with zeros
-				_, err = io.CopyN(f, Zero, size)
+				if size > 0 {
+					_, err = io.CopyN(f, Zero, size)
+				}
 				f.Close()
 			}
 		}

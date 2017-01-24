@@ -6,6 +6,7 @@ import (
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
+	"xd/lib/util"
 )
 
 func main() {
@@ -15,6 +16,7 @@ func main() {
 	if len(os.Args) > 1 {
 		fname = os.Args[1]
 	}
+	util.EnsureFile(fname, 0)
 	err := conf.Load(fname)
 	if err != nil {
 		log.Errorf("failed to config %s", err)
