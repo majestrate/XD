@@ -152,7 +152,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	idx := 0
 	for idx < pieces {
 
-		pieces++
+		idx++
 		if err != nil {
 			break
 		}
