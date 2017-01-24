@@ -16,7 +16,7 @@ import (
 )
 
 // how big should we download pieces at a time (bytes)?
-const BlockSize = 1024 * 2
+const BlockSize = 1024 * 8
 
 const Missing = 0
 const Pending = 1
