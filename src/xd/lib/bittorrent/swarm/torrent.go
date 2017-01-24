@@ -315,6 +315,10 @@ func (t *Torrent) visitPendingPiece(idx uint32, v func(*cachedPiece)) {
 
 // implements client.Algorithm
 func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorrent.PieceRequest {
+	if remote == nil {
+		// no bitfield yet
+		return nil
+	}
 	local := t.Bitfield()
 	set := local.CountSet()
 
