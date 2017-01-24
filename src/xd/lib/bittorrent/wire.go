@@ -9,6 +9,9 @@ import (
 // type for wire message id
 type WireMessageType byte
 
+// keep alive message
+const KeepAlive = WireMessageType(0)
+
 // choke message
 const Choke = WireMessageType(1)
 

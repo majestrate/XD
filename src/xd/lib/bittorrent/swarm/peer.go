@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"encoding/binary"
 	"io"
 	"net"
 	"time"
@@ -25,6 +26,8 @@ type PeerConn struct {
 	Algorithm client.Algorithm
 	// done callback
 	Done func()
+	// keepalive ticker
+	keepalive *time.Ticker
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -36,7 +39,14 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	copy(p.id[:], id[:])
 	p.send = make(chan *bittorrent.WireMessage, 8)
 	p.Algorithm = t
+	p.keepalive = time.NewTicker(time.Minute)
 	return p
+}
+
+func (c *PeerConn) start() {
+	go c.runDownload()
+	go c.runReader()
+	go c.runWriter()
 }
 
 // send a bittorrent wire message to this peer
@@ -51,7 +61,7 @@ func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
 func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
 	msg = new(bittorrent.WireMessage)
 	err = msg.Recv(c.c)
-	log.Debugf("got %d from %s", msg.Len(), c.id)
+	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	return
 }
 
@@ -167,6 +177,16 @@ func (c *PeerConn) runReader() {
 			if msgid == bittorrent.Piece {
 				c.t.gotPieceData(msg.GetPieceData())
 			}
+			if msgid == bittorrent.Have {
+				idx := binary.BigEndian.Uint32(msg.Payload())
+				var m *bittorrent.WireMessage
+				if c.t.Bitfield().Has(int(idx)) {
+					m = bittorrent.NewWireMessage(bittorrent.NotInterested, nil)
+				} else {
+					m = bittorrent.NewWireMessage(bittorrent.Interested, nil)
+				}
+				c.Send(m)
+			}
 		}
 	}
 	if err != io.EOF {
@@ -174,11 +194,17 @@ func (c *PeerConn) runReader() {
 	}
 }
 
+func (c *PeerConn) sendKeepAlive() error {
+	return bittorrent.NewWireMessage(bittorrent.KeepAlive, nil).Send(c.c)
+}
+
 // run write loop
 func (c *PeerConn) runWriter() {
 	var err error
 	for err == nil {
 		select {
+		case <-c.keepalive.C:
+			err = c.sendKeepAlive()
 		case msg, ok := <-c.send:
 			if ok {
 				err = msg.Send(c.c)
@@ -197,11 +223,6 @@ func (c *PeerConn) runDownload() {
 		} else {
 			c.Unchoke()
 		}
-		for c.RemoteChoking() {
-			// wait until we are unchoked
-			log.Debugf("%s waiting for unchoke", c.id.String())
-			time.Sleep(time.Second)
-		}
 		// get next request
 		req := c.Algorithm.Next(c.id, c.bf)
 		if req == nil {
@@ -209,8 +230,12 @@ func (c *PeerConn) runDownload() {
 			time.Sleep(time.Second)
 			continue
 		}
-		// send request
-		c.Send(req.ToWireMessage())
+		if c.RemoteChoking() {
+			time.Sleep(time.Second)
+		} else {
+			// send request
+			c.Send(req.ToWireMessage())
+		}
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())
 	// done downloading

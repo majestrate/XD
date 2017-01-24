@@ -191,6 +191,7 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
 				if bytes.Equal(ih[:], h.Infohash[:]) {
 					// infohashes match
 					pc := makePeerConn(c, t, h.PeerID)
+					pc.start()
 					t.onNewPeer(pc)
 					return
 				}
@@ -258,8 +259,6 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
 	c.Send(t.Bitfield().ToWireMessage())
-	// send unchoke message
-	c.Unchoke()
 }
 
 // handle a piece request

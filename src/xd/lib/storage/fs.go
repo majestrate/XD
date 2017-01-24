@@ -326,7 +326,8 @@ func (t *fsTorrent) VerifyAll() (err error) {
 }
 
 func (t *fsTorrent) Flush() error {
-	return t.st.flushBitfield(t.ih, t.Bitfield())
+	bf := t.Bitfield()
+	return t.st.flushBitfield(t.ih, bf)
 }
 
 // filesystem based torrent storage
@@ -421,13 +422,13 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 			meta: info,
 			ih:   ih,
 		}
-		ft.Flush()
 		log.Debugf("allocate space for %s", ft.Name())
 		err = ft.Allocate()
 		if err != nil {
 			t = nil
 			return
 		}
+		ft.Flush()
 		t = ft
 	}
 
