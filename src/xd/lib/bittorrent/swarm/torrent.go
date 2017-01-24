@@ -322,14 +322,14 @@ func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorren
 	local := t.Bitfield()
 	set := local.CountSet()
 
-	for remote.Has(set) {
+	for !remote.Has(set) {
 		set++
 	}
 
 	if set >= local.Length {
 		// seek from begining
 		set = 0
-		for remote.Has(set) {
+		for !remote.Has(set) {
 			set++
 		}
 		if set >= local.Length {

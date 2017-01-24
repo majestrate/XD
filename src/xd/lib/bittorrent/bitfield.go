@@ -46,7 +46,10 @@ func (bf *Bitfield) ToWireMessage() *WireMessage {
 
 func (bf *Bitfield) Set(p int) {
 	if p < bf.Length {
-		bf.Data[p>>3] |= (1 << (7 - uint(p)&7))
+		idx := p >> 3
+		if idx < len(bf.Data) {
+			bf.Data[idx] |= (1 << (7 - uint(p)&7))
+		}
 	}
 }
 
@@ -65,7 +68,10 @@ func (bf *Bitfield) CountSet() (sum int) {
 
 func (bf *Bitfield) Has(p int) bool {
 	if p < bf.Length {
-		return bf.Data[p>>3]&(1<<(7-uint(p)&7)) != 0
+		idx := p >> 3
+		if idx < len(bf.Data) {
+			return bf.Data[idx]&(1<<(7-uint(p)&7)) != 0
+		}
 	}
 	return false
 }
