@@ -41,7 +41,7 @@ func (bf *Bitfield) BDecode(r io.Reader) (err error) {
 
 // serialize to wire message
 func (bf *Bitfield) ToWireMessage() *WireMessage {
-	return NewWireMessage(5, bf.Data[:])
+	return NewWireMessage(BitField, bf.Data[:])
 }
 
 func (bf *Bitfield) Set(p int) {

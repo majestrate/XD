@@ -33,6 +33,9 @@ type Torrent interface {
 
 	// get number of bytes remaining we need to download
 	DownloadRemaining() int64
+
+	// flush bitfield to disk
+	Flush() error
 }
 
 // torrent storage driver

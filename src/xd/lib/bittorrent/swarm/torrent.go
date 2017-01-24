@@ -49,6 +49,10 @@ func (p *cachedPiece) nextOffset() (idx int) {
 		}
 		idx += BlockSize
 	}
+	if idx < len(p.progress) {
+		// fail
+		idx = -1
+	}
 	return
 }
 
@@ -93,11 +97,14 @@ type Torrent struct {
 	// our peer id
 	id    common.PeerID
 	st    storage.Torrent
-	bf    *bittorrent.Bitfield
 	piece chan pieceEvent
 	// pending incomplete pieces
 	pending map[uint32]*cachedPiece
 	pmtx    sync.RWMutex
+}
+
+func (t *Torrent) Bitfield() *bittorrent.Bitfield {
+	return t.st.Bitfield()
 }
 
 // start annoucing on all trackers
@@ -204,33 +211,70 @@ func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 
 // called when we got piece data
 func (t *Torrent) gotPieceData(d *bittorrent.PieceData) {
+	var donePiece *common.Piece
 	t.visitPendingPiece(d.Index, func(p *cachedPiece) {
 		if p != nil {
 			p.put(int(d.Begin), d.Data)
+			// TODO: don't check for every block
+			if p.done() {
+				donePiece = p.piece
+			}
 		}
 	})
+	if donePiece != nil {
+		t.pmtx.Lock()
+		// delete cached piece
+		delete(t.pending, d.Index)
+		// set bitfield as obtained
+		t.Bitfield().Set(int(d.Index))
+		t.pmtx.Unlock()
+		// store piece
+		t.storePiece(donePiece)
+	}
+}
+
+func (t *Torrent) Name() string {
+	return t.MetaInfo().TorrentName()
+}
+
+// gracefully close torrent and flush to disk
+func (t *Torrent) Close() {
+	chnl := t.piece
+	t.piece = nil
+	close(chnl)
+	t.st.Flush()
+}
+
+func (t *Torrent) storePiece(p *common.Piece) {
+	log.Infof("piece %d is done for %s", p.Index, t.st.Infohash().Hex())
+	err := t.st.PutPiece(p)
+	if err != nil {
+		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
+	}
 }
 
 // callback called when we get a new inbound peer
 func (t *Torrent) onNewPeer(c *PeerConn) {
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
-	c.Send(t.bf.ToWireMessage())
+	c.Send(t.Bitfield().ToWireMessage())
 	// send unchoke message
 	c.Unchoke()
 }
 
-// handle a wire message
+// handle a piece request
 func (t *Torrent) onPieceRequest(c *PeerConn, req *bittorrent.PieceRequest) {
-	t.piece <- pieceEvent{c, req}
+	if t.piece != nil {
+		t.piece <- pieceEvent{c, req}
+	}
 }
 
 func (t *Torrent) Run() {
-	log.Infof("%s running", t.MetaInfo().TorrentName())
+	log.Infof("%s running", t.Name())
 	for {
 		ev, ok := <-t.piece
 		if !ok {
-			log.Warnf("%s torrent run exit", t.MetaInfo().TorrentName())
+			log.Infof("%s torrent run exit", t.Name())
 			// channel closed
 			return
 		}
@@ -241,7 +285,9 @@ func (t *Torrent) Run() {
 			p := t.st.GetPiece(r.Index)
 			if p == nil {
 				// we don't have the piece
-				log.Infof("%s asked for a piece we don't have", ev.c.id.String())
+				log.Infof("%s asked for a piece we don't have for %s", ev.c.id.String(), t.Name())
+				// TODO: should we close here?
+				ev.c.Close()
 			} else {
 				// have the piece, send it
 				d := make([]byte, 8+r.Length)
@@ -253,6 +299,8 @@ func (t *Torrent) Run() {
 			}
 		} else {
 			log.Infof("%s asked for a zero length piece", ev.c.id.String())
+			// TODO: should we close here?
+			ev.c.Close()
 		}
 
 	}
@@ -267,14 +315,24 @@ func (t *Torrent) visitPendingPiece(idx uint32, v func(*cachedPiece)) {
 }
 
 // implements client.Algorithm
-func (t *Torrent) Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bittorrent.PieceRequest {
+func (t *Torrent) Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorrent.PieceRequest {
+	local := t.Bitfield()
 	set := local.CountSet()
+
 	for remote.Has(int(set)) {
 		set++
 	}
+
 	if set >= int64(local.Length) {
-		// no more for now
-		return nil
+		// seek from begining
+		set = 0
+		for remote.Has(int(set)) {
+			set++
+		}
+		if set >= int64(local.Length) {
+			// no more for now
+			return nil
+		}
 	}
 
 	sz := t.MetaInfo().Info.PieceLength
@@ -292,17 +350,22 @@ func (t *Torrent) Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bi
 			// put the cached piece
 			t.pending[uint32(set)] = p
 		}
-		req.Begin = uint32(p.nextOffset())
-		req.Index = uint32(set)
-		req.Length = BlockSize
+		off := p.nextOffset()
+		if off >= 0 {
+			req.Begin = uint32(off)
+			req.Index = uint32(set)
+			req.Length = BlockSize
+		} else {
+			// TODO: this may cause download lag
+			req = nil
+		}
 	})
-
 	return req
 }
 
 // implements client.Algorithm
 func (t *Torrent) Done() bool {
-	return t.bf.Completed()
+	return t.Bitfield().Completed()
 }
 
 // implements client.Algorithm

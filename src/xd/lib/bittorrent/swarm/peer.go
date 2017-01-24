@@ -203,7 +203,7 @@ func (c *PeerConn) runDownload() {
 			time.Sleep(time.Second)
 		}
 		// get next request
-		req := c.Algorithm.Next(c.id, c.bf, c.t.bf)
+		req := c.Algorithm.Next(c.id, c.bf)
 		if req == nil {
 			log.Debugf("No more pieces to request from %s", c.id.String())
 			time.Sleep(time.Second)

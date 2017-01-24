@@ -6,8 +6,8 @@ import (
 )
 
 type Algorithm interface {
-	// get next piece request given remote and local bitfileds
-	Next(id common.PeerID, remote, local *bittorrent.Bitfield) *bittorrent.PieceRequest
+	// get next piece request given remote bitfiled
+	Next(id common.PeerID, remote *bittorrent.Bitfield) *bittorrent.PieceRequest
 
 	// are we done downloading ?
 	Done() bool

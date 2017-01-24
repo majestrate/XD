@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -19,6 +22,10 @@ type fsTorrent struct {
 	ih common.Infohash
 	// metainfo
 	meta *metainfo.TorrentFile
+	// cached bitfield
+	bf *bittorrent.Bitfield
+	// mutex for bitfield access
+	bfmtx sync.RWMutex
 }
 
 func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
@@ -42,12 +49,17 @@ func (t *fsTorrent) Allocate() (err error) {
 	return
 }
 
-func (t *fsTorrent) Bitfield() (bf *bittorrent.Bitfield) {
-	if !t.st.HasBitfield(t.ih) {
-		// we have no pieces
-		t.st.CreateNewBitfield(t.ih, len(t.meta.Info.Pieces))
+func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
+	t.bfmtx.Lock()
+	if t.bf == nil {
+		if !t.st.HasBitfield(t.ih) {
+			// we have no pieces
+			t.st.CreateNewBitfield(t.ih, len(t.meta.Info.Pieces))
+		}
+		t.bf = t.st.FindBitfield(t.ih)
 	}
-	return t.st.FindBitfield(t.ih)
+	t.bfmtx.Unlock()
+	return t.bf
 }
 
 func (t *fsTorrent) DownloadRemaining() (r int64) {
@@ -140,7 +152,21 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 	return
 }
 
+func (t *fsTorrent) checkPiece(pc *common.Piece) (err error) {
+	if !t.meta.Info.CheckPiece(pc) {
+		err = common.ErrInvalidPiece
+	}
+	return
+}
+
 func (t *fsTorrent) PutPiece(pc *common.Piece) error {
+
+	// check integrity
+	err := t.checkPiece(pc)
+	if err != nil {
+		return err
+	}
+
 	sz := t.meta.Info.PieceLength
 	if t.meta.IsSingleFile() {
 		f, err := os.OpenFile(t.FilePath(), os.O_WRONLY, 0640)
@@ -201,15 +227,87 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 func (t *fsTorrent) VerifyAll() (err error) {
 	log.Infof("verify all pieces for %s", t.meta.TorrentName())
 	pieces := len(t.meta.Info.Pieces)
-	idx := 0
-	for idx < pieces {
+	sz := t.meta.Info.PieceLength
+	bf := t.Bitfield()
 
-		idx++
+	pc := new(common.Piece)
+	pc.Data = make([]byte, sz)
+	if t.meta.IsSingleFile() {
+		var f *os.File
+		f, err = os.Open(t.FilePath())
 		if err != nil {
-			break
+			return
+		}
+		defer f.Close()
+		for pc.Index < int64(pieces) {
+			_, err = io.ReadFull(f, pc.Data)
+			if err != nil && err != io.EOF {
+				return
+			}
+			if err == io.EOF {
+				err = nil
+			}
+			if bf.Has(int(pc.Index)) {
+				if !t.meta.Info.CheckPiece(pc) {
+					err = errors.New(fmt.Sprintf("piece %d is invalid", pc.Index))
+					return
+				}
+			}
+			pc.Index++
+		}
+	} else {
+		// were we are in the current piece
+		pos := int64(0)
+		for _, info := range t.meta.Info.Files {
+			var f *os.File
+			fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
+			f, err = os.Open(fpath)
+			if err == nil {
+				// read short file
+				if info.Length < int64(sz)-pos {
+					_, err = io.ReadFull(f, pc.Data[pos:pos+info.Length])
+					if err != nil {
+						return
+					}
+					pos += info.Length
+					f.Close()
+					continue
+				} else {
+					left := info.Length
+					for left > 0 {
+						var n int
+						if left >= int64(sz) {
+							n, err = io.ReadFull(f, pc.Data[pos:])
+							pos = int64(0)
+						} else {
+							n, err = io.ReadFull(f, pc.Data[pos:])
+							pos += int64(n)
+							f.Close()
+							break
+						}
+						if err != nil {
+							return
+						}
+						left -= int64(n)
+						if bf.Has(int(pc.Index)) {
+							if !t.meta.Info.CheckPiece(pc) {
+								err = errors.New(fmt.Sprintf("piece %d failed check", pc.Index))
+							}
+						}
+						pc.Index++
+						pos = int64(0)
+					}
+				}
+			}
 		}
 	}
 	return
+}
+
+func (t *fsTorrent) Flush() error {
+	t.bfmtx.Lock()
+	defer t.bfmtx.Unlock()
+	return t.st.flushBitfield(t.ih, t.bf)
 }
 
 // filesystem based torrent storage
@@ -220,8 +318,23 @@ type FsStorage struct {
 	MetaDir string
 }
 
+func (st *FsStorage) flushBitfield(ih common.Infohash, bf *bittorrent.Bitfield) (err error) {
+	fname := st.bitfieldFilename(ih)
+	var f *os.File
+	f, err = os.OpenFile(fname, os.O_WRONLY, 0600)
+	if err == nil {
+		err = bf.BEncode(f)
+		f.Close()
+	}
+	return
+}
+
 func (st *FsStorage) Init() (err error) {
 	log.Info("Ensure filesystem storage")
+	if st.DataDir == "" || st.MetaDir == "" {
+		err = errors.New("bad FsStorage parameters")
+		return
+	}
 	err = util.EnsureDir(st.DataDir)
 	if err == nil {
 		err = util.EnsureDir(st.MetaDir)

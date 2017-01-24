@@ -1,11 +1,13 @@
 package metainfo
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"github.com/zeebo/bencode"
 	"io"
 	"path/filepath"
 	"xd/lib/common"
+	"xd/lib/log"
 )
 
 type FilePath []string
@@ -43,6 +45,17 @@ type Info struct {
 	Private int64 `bencode:"private,omitempty"`
 	// length of file in signle file mode
 	Length int64 `bencode:"length,omitempty"`
+}
+
+// check if a piece is valid against the pieces in this info section
+func (i Info) CheckPiece(p *common.Piece) bool {
+	idx := int(p.Index * 20)
+	if idx+20 < len(i.Pieces) {
+		h := sha1.Sum(p.Data)
+		return bytes.Equal(h[:], i.Pieces[idx:idx+20])
+	}
+	log.Error("piece index out of bounds")
+	return false
 }
 
 // get total size of files from torrent info section

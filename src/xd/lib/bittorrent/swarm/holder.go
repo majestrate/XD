@@ -18,7 +18,6 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	defer h.access.Unlock()
 	h.torrents[t.Infohash()] = &Torrent{
 		st:    t,
-		bf:    t.Bitfield(),
 		piece: make(chan pieceEvent, 8),
 	}
 }
