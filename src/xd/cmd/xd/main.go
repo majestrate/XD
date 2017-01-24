@@ -30,12 +30,14 @@ func main() {
 	go func() {
 		ts, err := st.OpenAllTorrents()
 		if err != nil {
+			log.Errorf("error opening all torrents: %s", err)
 			done <- err
 			return
 		}
 		for _, t := range ts {
 			err := sw.AddTorrent(t)
 			if err != nil {
+				log.Errorf("error adding torrent: %s", err)
 				done <- err
 				return
 			}
@@ -72,6 +74,9 @@ func main() {
 	sw.SetNetwork(net)
 	err = <-done
 	close(done)
+	if err != nil {
+		log.Errorf("error: %s", err)
+	}
 	// close network because we are done
 	log.Info("closing i2p network connection")
 	net.Close()

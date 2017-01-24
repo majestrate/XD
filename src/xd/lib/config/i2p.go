@@ -4,6 +4,7 @@ import (
 	"xd/lib/configparser"
 	"xd/lib/i2p"
 	"xd/lib/log"
+	"xd/lib/util"
 )
 
 type I2PConfig struct {
@@ -17,12 +18,12 @@ func (cfg *I2PConfig) FromSection(section *configparser.Section) {
 	cfg.I2CPOptions = make(map[string]string)
 	if section == nil {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
-		cfg.Keyfile = i2p.DEFAULT_KEYFILE
-		cfg.Name = i2p.DEFAULT_NAME
+		cfg.Keyfile = ""
+		cfg.Name = util.RandStr(5)
 	} else {
 		cfg.Addr = section.Get("address", i2p.DEFAULT_ADDRESS)
-		cfg.Keyfile = section.Get("keyfile", i2p.DEFAULT_KEYFILE)
-		cfg.Name = section.Get("session", i2p.DEFAULT_NAME)
+		cfg.Keyfile = section.Get("keyfile", "")
+		cfg.Name = section.Get("session", util.RandStr(5))
 		opts := section.Options()
 		for k, v := range opts {
 			if k == "address" || k == "keyfile" || k == "session" {

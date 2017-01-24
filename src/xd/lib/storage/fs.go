@@ -73,6 +73,10 @@ func (t *fsTorrent) MetaInfo() *metainfo.TorrentFile {
 	return t.meta
 }
 
+func (t *fsTorrent) Name() string {
+	return t.meta.TorrentName()
+}
+
 func (t *fsTorrent) Infohash() (ih common.Infohash) {
 	copy(ih[:], t.ih[:])
 	return
@@ -261,12 +265,14 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		for _, info := range t.meta.Info.Files {
 			var f *os.File
 			fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
+			log.Debugf("open %s", fpath)
 			f, err = os.Open(fpath)
 			if err == nil {
 				// read short file
 				if info.Length < int64(sz)-pos {
 					_, err = io.ReadFull(f, pc.Data[pos:pos+info.Length])
 					if err != nil {
+						log.Errorf("error reading short file %s: %s", fpath, err)
 						return
 					}
 					pos += info.Length
@@ -278,14 +284,21 @@ func (t *fsTorrent) VerifyAll() (err error) {
 						var n int
 						if left >= int64(sz) {
 							n, err = io.ReadFull(f, pc.Data[pos:])
+							if err == io.EOF {
+								err = nil
+							}
 							pos = int64(0)
 						} else {
 							n, err = io.ReadFull(f, pc.Data[pos:])
+							if err == io.EOF {
+								err = nil
+							}
 							pos += int64(n)
 							f.Close()
 							break
 						}
 						if err != nil {
+							log.Errorf("error reading long file %s: %s", fpath, err)
 							return
 						}
 						left -= int64(n)
@@ -298,8 +311,13 @@ func (t *fsTorrent) VerifyAll() (err error) {
 						pos = int64(0)
 					}
 				}
+			} else {
+				log.Errorf("error opening file %s: %s", fpath, err)
 			}
 		}
+	}
+	if err != nil {
+		log.Errorf("failed to verify %s: %s", t.Name(), err)
 	}
 	return
 }

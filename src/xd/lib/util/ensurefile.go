@@ -10,7 +10,9 @@ import (
 // ensure a file and its parent directory exists
 func EnsureFile(fpath string, size int64) (err error) {
 	d, _ := filepath.Split(fpath)
-	err = EnsureDir(d)
+	if d != "" {
+		err = EnsureDir(d)
+	}
 	if err == nil {
 		_, err = os.Stat(fpath)
 		if os.IsNotExist(err) {
