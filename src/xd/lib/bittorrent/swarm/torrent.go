@@ -239,6 +239,12 @@ func (t *Torrent) storePiece(p *common.Piece) {
 	t.pmtx.Unlock()
 }
 
+func (t *Torrent) cancelPiece(idx uint32) {
+	t.pmtx.Lock()
+	delete(t.pending, idx)
+	t.pmtx.Unlock()
+}
+
 func (t *Torrent) markPieceInProgress(idx uint32, c *PeerConn) {
 	t.pmtx.Lock()
 	t.pending[idx] = c

@@ -134,6 +134,9 @@ func (c *PeerConn) Close() {
 		c.send = nil
 		time.Sleep(time.Second / 10)
 		close(chnl)
+		if c.piece != nil {
+			c.t.cancelPiece(uint32(c.piece.piece.Index))
+		}
 	}
 	c.c.Close()
 }
@@ -196,6 +199,9 @@ func (c *PeerConn) runReader() {
 						c.req = c.nextBlock()
 						if c.req != nil {
 							c.Send(c.req.ToWireMessage())
+						} else {
+							c.t.cancelPiece(uint32(c.piece.piece.Index))
+							c.piece = nil
 						}
 					}
 				} else {
@@ -305,7 +311,7 @@ func (c *PeerConn) runDownload() {
 		local := c.t.Bitfield()
 		set := 0
 		for remote.Has(set) {
-			if local.Has(set) {
+			if local.Has(set) || c.t.pieceRequested(uint32(set)) {
 				set++
 			} else {
 				break
