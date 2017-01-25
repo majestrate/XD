@@ -223,7 +223,7 @@ func (c *PeerConn) runReader() {
 }
 
 func (c *PeerConn) busy() bool {
-	return c.piece != nil
+	return c.piece != nil || c.req != nil
 }
 
 func (c *PeerConn) getPiece(idx uint32) {
@@ -292,10 +292,6 @@ func (c *PeerConn) runDownload() {
 		}
 
 		if c.RemoteChoking() {
-			time.Sleep(time.Second)
-			continue
-		}
-		if c.req != nil {
 			time.Sleep(time.Second)
 			continue
 		}

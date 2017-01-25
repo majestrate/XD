@@ -184,7 +184,7 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 			f.Close()
 			return err
 		}
-		err = util.WriteFull(f, pc.Data)
+		_, err = f.Write(pc.Data)
 		f.Close()
 	} else {
 		idx := int64(0)
@@ -198,7 +198,8 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 				if err == nil {
 					defer f.Close()
 					if info.Length < left {
-						err = util.WriteFull(f, pc.Data[idx:idx+info.Length])
+						_, err = f.Write(pc.Data[idx : idx+info.Length])
+						//err = util.WriteFull(f, pc.Data[idx:idx+info.Length])
 						idx += info.Length
 						left -= info.Length
 						cur += info.Length
@@ -209,7 +210,8 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 						continue
 					} else {
 						f.Seek((piece_off-idx)-int64(sz), 0)
-						err = util.WriteFull(f, pc.Data[idx:left])
+						_, err = f.Write(pc.Data[idx:left])
+						// err = util.WriteFull(f, pc.Data[idx:left])
 						if err != nil {
 							log.Errorf("Failed to write %s: %s", fpath, err)
 							return err
@@ -245,7 +247,7 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 		}
 		defer f.Close()
 		for pc.Index < int64(pieces) {
-			_, err = io.ReadFull(f, pc.Data)
+			_, err = io.ReadFull(f, pc.Data[:])
 			if err != nil && err != io.EOF {
 				return
 			}

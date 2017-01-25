@@ -231,7 +231,7 @@ func (t *Torrent) Close() {
 }
 
 func (t *Torrent) storePiece(p *common.Piece) {
-	log.Infof("piece %d is done for %s", p.Index, t.st.Infohash().Hex())
+	log.Infof("storing piece %d for %s", p.Index, t.st.Infohash().Hex())
 	err := t.st.PutPiece(p)
 	if err != nil {
 		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
