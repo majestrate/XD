@@ -28,6 +28,8 @@ type PeerConn struct {
 	req *bittorrent.PieceRequest
 	// current piece
 	piece *cachedPiece
+	// last time sent
+	lastSend time.Time
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -37,7 +39,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan *bittorrent.WireMessage)
+	p.send = make(chan *bittorrent.WireMessage, 8)
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
 }
@@ -253,8 +255,12 @@ func (c *PeerConn) nextBlock() *bittorrent.PieceRequest {
 }
 
 func (c *PeerConn) sendKeepAlive() error {
-	log.Debugf("send keepalive to %s", c.id.String())
-	return bittorrent.KeepAlive().Send(c.c)
+	tm := time.Now().Add(0 - (time.Minute * 2))
+	if c.lastSend.After(tm) {
+		log.Debugf("send keepalive to %s", c.id.String())
+		return bittorrent.KeepAlive().Send(c.c)
+	}
+	return nil
 }
 
 // run write loop
@@ -266,6 +272,7 @@ func (c *PeerConn) runWriter() {
 			err = c.sendKeepAlive()
 		case msg, ok := <-c.send:
 			if ok {
+				c.lastSend = time.Now()
 				if c.RemoteChoking() && msg.MessageID() == bittorrent.Request {
 					// drop
 					log.Debugf("drop request because choke")
