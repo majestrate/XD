@@ -7,6 +7,7 @@ import (
 type Config struct {
 	I2P     I2PConfig
 	Storage StorageConfig
+	RPC     RPCConfig
 }
 
 // load from file by filename
@@ -18,6 +19,8 @@ func (cfg *Config) Load(fname string) (err error) {
 		cfg.I2P.FromSection(s)
 		s, _ = c.Section("storage")
 		cfg.Storage.FromSection(s)
+		s, _ = c.Section("rpc")
+		cfg.RPC.FromSection(s)
 	} else {
 		cfg.I2P.FromSection(nil)
 		cfg.Storage.FromSection(nil)

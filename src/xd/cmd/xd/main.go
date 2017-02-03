@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net"
+	"net/rpc"
+	_ "net/rpc/jsonrpc"
 	"os"
 	"time"
 	"xd/lib/bittorrent/swarm"
@@ -69,6 +72,21 @@ func main() {
 			time.Sleep(time.Second)
 		}
 	}()
+
+	// start rpc
+	if conf.RPC.Enabled {
+		log.Infof("RPC enabled")
+		go func() {
+			r := new(rpc.Server)
+			r.Register(sw.GetRPC())
+			r.HandleHTTP("/", "/debug")
+			_, e := net.Listen("tcp", conf.RPC.Bind)
+			if e == nil {
+			} else {
+				log.Warnf("failed to start rpc: %s", e)
+			}
+		}()
+	}
 
 	net := conf.I2P.CreateSession()
 	log.Info("opening i2p session")

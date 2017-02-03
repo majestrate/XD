@@ -147,6 +147,13 @@ func (sw *Swarm) SetNetwork(net network.Network) {
 	sw.net = net
 }
 
+// get rpc context
+func (sw *Swarm) GetRPC() *RPC {
+	return &RPC{
+		sw: sw,
+	}
+}
+
 // create a new swarm using a storage backend for storing downloads and torrent metadata
 func NewSwarm(storage storage.Storage) *Swarm {
 	sw := &Swarm{

@@ -178,13 +178,14 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 			return err
 		}
 		idx := pc.Index * int64(sz)
+		log.Debugf("seek to %d", idx)
 		_, err = f.Seek(idx, 0)
 		if err != nil {
 			log.Errorf("Failed to seek in %s:, %s", t.FilePath())
 			f.Close()
 			return err
 		}
-		_, err = f.Write(pc.Data)
+		_, err = f.Write(pc.Data[:])
 		f.Close()
 	} else {
 		idx := int64(0)
