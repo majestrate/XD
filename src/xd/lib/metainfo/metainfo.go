@@ -54,7 +54,7 @@ type Info struct {
 // check if a piece is valid against the pieces in this info section
 func (i Info) CheckPiece(p *common.Piece) bool {
 	idx := int(p.Index * 20)
-	if idx+20 < len(i.Pieces) {
+	if (idx + 20) <= len(i.Pieces) {
 		h := sha1.Sum(p.Data)
 		return bytes.Equal(h[:], i.Pieces[idx:idx+20])
 	}
@@ -64,7 +64,11 @@ func (i Info) CheckPiece(p *common.Piece) bool {
 
 // get total size of files from torrent info section
 func (i Info) TotalSize() int64 {
-	return int64(len(i.Pieces)) * int64(i.PieceLength)
+	return int64(len(i.Pieces)/20) * int64(i.PieceLength)
+}
+
+func (i Info) NumPieces() int {
+	return len(i.Pieces) / 20
 }
 
 // a torrent file

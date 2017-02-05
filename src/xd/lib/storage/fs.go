@@ -37,6 +37,7 @@ func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
 func (t *fsTorrent) Allocate() (err error) {
 	log.Infof("allocate files for %s", t.meta.TorrentName())
 	if t.meta.IsSingleFile() {
+		log.Debugf("file is %d bytes", t.meta.Info.Length)
 		err = util.EnsureFile(t.FilePath(), t.meta.Info.Length)
 	} else {
 		for _, f := range t.meta.Info.Files {
@@ -54,7 +55,7 @@ func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 	if t.bf == nil {
 		if !t.st.HasBitfield(t.ih) {
 			// we have no pieces
-			t.st.CreateNewBitfield(t.ih, len(t.meta.Info.Pieces))
+			t.st.CreateNewBitfield(t.ih, t.meta.Info.NumPieces())
 		}
 		t.bf = t.st.FindBitfield(t.ih)
 	}
@@ -123,7 +124,7 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 				f, err := os.Open(fpath)
 				if err == nil {
 					defer f.Close()
-					if info.Length < left {
+					if info.Length <= left {
 						_, err = io.ReadFull(f, p.Data[idx:idx+info.Length])
 						idx += info.Length
 						left -= info.Length
@@ -198,7 +199,7 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 				f, err := os.OpenFile(fpath, os.O_WRONLY, 0640)
 				if err == nil {
 					defer f.Close()
-					if info.Length < left {
+					if info.Length <= left {
 						_, err = f.Write(pc.Data[idx : idx+info.Length])
 						//err = util.WriteFull(f, pc.Data[idx:idx+info.Length])
 						idx += info.Length
@@ -234,13 +235,17 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 
 func (t *fsTorrent) VerifyAll(force bool) (err error) {
 	log.Infof("verify all pieces for %s", t.meta.TorrentName())
-	pieces := len(t.meta.Info.Pieces)
+	pieces := t.meta.Info.NumPieces()
 	sz := t.meta.Info.PieceLength
 	bf := t.Bitfield()
 	pc := new(common.Piece)
 	pc.Data = make([]byte, sz)
+	tl := t.meta.Info.TotalSize()
+	log.Debugf("piece size is %d", sz)
+	log.Debugf("got %d pieces", pieces)
 	if t.meta.IsSingleFile() {
 		var f *os.File
+		var r int64
 		f, err = os.Open(t.FilePath())
 		if err != nil {
 			log.Errorf("failed to open: %s", err)
@@ -248,14 +253,22 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 		}
 		defer f.Close()
 		for pc.Index < int64(pieces) {
-			_, err = io.ReadFull(f, pc.Data[:])
-			if err != nil && err != io.EOF {
-				return
+			var n int
+			if pc.Index == int64(pieces-1) {
+				// last piece
+				idx := tl - r
+				pc.Data = make([]byte, idx)
+				n, err = io.ReadFull(f, pc.Data)
+			} else {
+				n, err = io.ReadFull(f, pc.Data)
+				if err != nil {
+					log.Errorf("verify failed: %s", err)
+					return
+				}
 			}
-			if err == io.EOF {
-				err = nil
-			}
+			r += int64(n)
 			if bf.Has(int(pc.Index)) || force {
+				log.Debugf("hash piece %d at %d", pc.Index, r)
 				if !t.meta.Info.CheckPiece(pc) {
 					err = errors.New(fmt.Sprintf("piece %d is invalid", pc.Index))
 					return
@@ -288,15 +301,9 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 						var n int
 						if left >= int64(sz) {
 							n, err = io.ReadFull(f, pc.Data[pos:])
-							if err == io.EOF {
-								err = nil
-							}
 							pos = int64(0)
 						} else {
 							n, err = io.ReadFull(f, pc.Data[pos:])
-							if err == io.EOF {
-								err = nil
-							}
 							pos += int64(n)
 							f.Close()
 							break
@@ -321,10 +328,6 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 		}
 	}
 	if err != nil {
-		if err == io.EOF {
-			err = nil
-			return
-		}
 		log.Errorf("failed to verify %s: %s", t.Name(), err)
 	}
 	return

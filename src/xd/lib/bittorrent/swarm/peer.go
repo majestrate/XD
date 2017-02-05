@@ -53,6 +53,7 @@ func (c *PeerConn) start() {
 // send a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
 	if c.send == nil {
+		log.Errorf("%s has no send channel but tried to send", c.id)
 		return
 	}
 	c.send <- msg
@@ -157,7 +158,7 @@ func (c *PeerConn) runReader() {
 			msgid := msg.MessageID()
 			log.Debugf("%s from %s", msgid.String(), c.id.String())
 			if msgid == bittorrent.BitField {
-				c.bf = bittorrent.NewBitfield(len(c.t.MetaInfo().Info.Pieces), msg.Payload())
+				c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 				log.Debugf("got bitfield from %s", c.id.String())
 				var m *bittorrent.WireMessage
 				// TODO: determine if we are really interested
@@ -280,6 +281,8 @@ func (c *PeerConn) runWriter() {
 					log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
 					err = msg.Send(c.c)
 				}
+			} else {
+				break
 			}
 		}
 	}
@@ -308,7 +311,7 @@ func (c *PeerConn) runDownload() {
 		}
 		remote := c.bf
 		if remote == nil {
-			log.Debugf("%s has not bitfield", c.id.String())
+			log.Debugf("%s has no bitfield", c.id.String())
 			time.Sleep(time.Second)
 			continue
 		}
