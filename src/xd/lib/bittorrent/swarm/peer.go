@@ -328,8 +328,8 @@ func (c *PeerConn) runDownload() {
 			// this blocks
 			c.getPiece(uint32(set))
 		} else {
-			// wut
-			log.Debugf("%s could not request %d", c.id.String(), set)
+			// we are done
+			break
 		}
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())
