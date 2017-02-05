@@ -328,8 +328,7 @@ func (c *PeerConn) runDownload() {
 			// this blocks
 			c.getPiece(uint32(set))
 		} else {
-			// we are done
-			break
+			time.Sleep(time.Second)
 		}
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())
