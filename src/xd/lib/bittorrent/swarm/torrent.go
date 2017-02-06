@@ -170,13 +170,21 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 					continue
 				}
 				// no error resolving
-				go t.AddPeer(a, p.ID)
+				go t.PersistPeer(a, p.ID)
 			} else {
 				log.Warnf("failed to resolve peer %s", e.Error())
 			}
 		}
 	} else {
 		log.Warnf("failed to announce to %s: %s", tr.Name(), err)
+	}
+}
+
+// persit a connection to a peer
+func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
+	log.Debugf("persisting peer %s", id)
+	for !t.Done() {
+		t.AddPeer(a, id)
 	}
 }
 
