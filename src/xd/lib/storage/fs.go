@@ -65,7 +65,7 @@ func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 func (t *fsTorrent) DownloadRemaining() (r int64) {
 	bf := t.Bitfield()
 	have := int64(bf.CountSet()) * int64(t.meta.Info.PieceLength)
-	r = t.meta.Info.TotalSize() - have
+	r = t.meta.TotalSize() - have
 	return
 }
 
@@ -237,14 +237,24 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	check := t.st.FindBitfield(t.ih)
 	if check == nil {
 		// no stored bitfield, calculate it
+		log.Infof("no bitfield for %s", t.Name())
 		check = bittorrent.NewBitfield(t.meta.Info.NumPieces(), nil).Inverted()
 	}
 	// verify
+	log.Infof("verify local data for %s", t.Name())
 	t.bf, err = t.verifyBitfield(check)
-	t.bfmtx.Unlock()
 	if err == nil {
-		err = t.Flush()
+		if t.bf.Equals(check) {
+			log.Infof("%s check okay", t.Name())
+		} else {
+			log.Infof("%s has miss matched data", t.Name())
+		}
+	} else {
+		t.bfmtx.Unlock()
+		return
 	}
+	t.bfmtx.Unlock()
+	err = t.Flush()
 	return
 }
 
@@ -254,7 +264,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 	sz := t.meta.Info.PieceLength
 	pc := new(common.Piece)
 	pc.Data = make([]byte, sz)
-	tl := t.meta.Info.TotalSize()
+	tl := t.meta.TotalSize()
 	if t.meta.IsSingleFile() {
 		var f *os.File
 		var r int64
@@ -283,59 +293,67 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 				log.Debugf("hash piece %d at %d", pc.Index, r)
 				if t.meta.Info.CheckPiece(pc) {
 					has.Set(int(pc.Index))
+					log.Debugf("piece %d hash okay", pc.Index)
+				} else {
+					log.Warnf("piece %d hash missmatch", pc.Index)
 				}
 			}
 			pc.Index++
 		}
 	} else {
-		// were we are in the current piece
+		// were we are in the total
 		pos := int64(0)
-		for _, info := range t.meta.Info.Files {
+		flen := len(t.meta.Info.Files)
+		for fidx, info := range t.meta.Info.Files {
 			var f *os.File
 			fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
 			log.Debugf("open %s", fpath)
 			f, err = os.Open(fpath)
 			if err == nil {
-				// read short file
-				if info.Length < int64(sz)-pos {
-					_, err = io.ReadFull(f, pc.Data[pos:pos+info.Length])
-					if err != nil {
-						log.Errorf("error reading short file %s: %s", fpath, err)
-						return
+				left := info.Length
+				for left > 0 {
+
+					var n int
+					i := pos % int64(sz)
+					log.Debugf("%d left pos=%d i=%d", left, pos, i)
+					if left >= int64(sz) {
+						n, err = io.ReadFull(f, pc.Data[i:])
+						pos += int64(n)
+					} else {
+						log.Debugf("%s straddles piece %d", fpath, pc.Index)
+						n, err = io.ReadFull(f, pc.Data[i:i+left])
+						pos += int64(n)
+						log.Debugf("%d read", n)
+						f.Close()
+						break
 					}
-					pos += info.Length
-					f.Close()
-					continue
-				} else {
-					left := info.Length
-					for left > 0 {
-						var n int
-						if left >= int64(sz) {
-							n, err = io.ReadFull(f, pc.Data[pos:])
-							pos = int64(0)
+					left -= int64(n)
+
+					if bf.Has(int(pc.Index)) {
+						if t.meta.Info.CheckPiece(pc) {
+							has.Set(int(pc.Index))
+							log.Debugf("piece %d is okay", pc.Index)
 						} else {
-							n, err = io.ReadFull(f, pc.Data[pos:])
-							pos += int64(n)
-							f.Close()
-							break
+							log.Warnf("piece %d hash missmatch", pc.Index)
 						}
-						if err != nil {
-							log.Errorf("error reading long file %s: %s", fpath, err)
-							return
-						}
-						left -= int64(n)
-						if bf.Has(int(pc.Index)) {
-							log.Debugf("hash piece %d", pc.Index)
-							if t.meta.Info.CheckPiece(pc) {
-								has.Set(int(pc.Index))
-							}
-						}
-						pc.Index++
-						pos = int64(0)
+					} else {
+						log.Debugf("Don't check %d not in bitfield", pc.Index)
 					}
+
+					pc.Index++
 				}
 			} else {
 				log.Errorf("error opening file %s: %s", fpath, err)
+			}
+			if flen == (fidx+1) && bf.Has(int(pc.Index)) {
+
+				pc.Data = pc.Data[:tl%int64(sz)]
+				if t.meta.Info.CheckPiece(pc) {
+					has.Set(int(pc.Index))
+					log.Debugf("final piece %d is okay", pc.Index)
+				} else {
+					log.Warnf("final piece %d hash missmatch", pc.Index)
+				}
 			}
 		}
 	}
@@ -346,6 +364,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 }
 
 func (t *fsTorrent) Flush() error {
+	log.Infof("flush bitfield for %s", t.ih.Hex())
 	bf := t.Bitfield()
 	return t.st.flushBitfield(t.ih, bf)
 }
@@ -361,7 +380,7 @@ type FsStorage struct {
 func (st *FsStorage) flushBitfield(ih common.Infohash, bf *bittorrent.Bitfield) (err error) {
 	fname := st.bitfieldFilename(ih)
 	var f *os.File
-	f, err = os.OpenFile(fname, os.O_WRONLY, 0600)
+	f, err = os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0600)
 	if err == nil {
 		err = bf.BEncode(f)
 		f.Close()
@@ -448,7 +467,6 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 			t = nil
 			return
 		}
-		ft.Flush()
 		t = ft
 	}
 

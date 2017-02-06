@@ -62,11 +62,6 @@ func (i Info) CheckPiece(p *common.Piece) bool {
 	return false
 }
 
-// get total size of files from torrent info section
-func (i Info) TotalSize() int64 {
-	return int64(len(i.Pieces)/20) * int64(i.PieceLength)
-}
-
 func (i Info) NumPieces() int {
 	return len(i.Pieces) / 20
 }
@@ -80,6 +75,18 @@ type TorrentFile struct {
 	Comment      []byte     `bencode:"comment"`
 	CreatedBy    []byte     `bencode:"created by"`
 	Encoding     []byte     `bencode:"encoding"`
+}
+
+// get total size of files from torrent info section
+func (tf *TorrentFile) TotalSize() int64 {
+	if tf.IsSingleFile() {
+		return tf.Info.Length
+	}
+	total := int64(0)
+	for _, f := range tf.Info.Files {
+		total += f.Length
+	}
+	return total
 }
 
 func (tf *TorrentFile) GetAllAnnounceURLS() (l []string) {

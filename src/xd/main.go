@@ -31,7 +31,7 @@ func Run() {
 		return
 	}
 	log.Infof("loaded config %s", fname)
-	//log.SetLevel("debug")
+	log.SetLevel("debug")
 
 	st := conf.Storage.CreateStorage()
 

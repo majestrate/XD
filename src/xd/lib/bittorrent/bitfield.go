@@ -28,17 +28,18 @@ func NewBitfield(l int, d []byte) *Bitfield {
 
 // get as inverted
 func (bf *Bitfield) Inverted() (i *Bitfield) {
-	i = NewBitfield(bf.Length, bf.Data)
-	for idx, b := range bf.Data {
-		i.Data[idx] = ^b
+	i = NewBitfield(bf.Length, nil)
+	bit := 0
+	for bit < bf.Length {
+		if !bf.Has(bit) {
+			i.Set(bit)
+		}
+		bit++
 	}
 	return
 }
 
 func (bf *Bitfield) Equals(other *Bitfield) bool {
-	if bf.Length != other.Length {
-		return false
-	}
 	return bytes.Equal(bf.Data, other.Data)
 }
 
