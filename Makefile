@@ -1,9 +1,9 @@
 
-xd: test
+xd:
 	GOPATH=$(PWD) go build -v
 
 test:
-	GOPATH=$(PWD) go test -v
+	GOPATH=$(PWD) go test -v xd/...
 
 clean:
 	rm -f xd

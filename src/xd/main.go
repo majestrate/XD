@@ -1,6 +1,7 @@
 package xd
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -18,6 +19,10 @@ func Run() {
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
 		fname = os.Args[1]
+	}
+	if fname == "-h" || fname == "--help" {
+		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
+		return
 	}
 	util.EnsureFile(fname, 0)
 	err := conf.Load(fname)
