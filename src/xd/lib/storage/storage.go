@@ -13,7 +13,7 @@ type Torrent interface {
 	Allocate() error
 
 	// verify all piece data
-	VerifyAll(force bool) error
+	VerifyAll() error
 
 	// put a downloaded piece into the storage
 	PutPiece(p *common.Piece) error

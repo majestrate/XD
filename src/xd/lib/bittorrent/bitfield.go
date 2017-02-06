@@ -1,6 +1,7 @@
 package bittorrent
 
 import (
+	"bytes"
 	"github.com/zeebo/bencode"
 	"io"
 )
@@ -23,6 +24,22 @@ func NewBitfield(l int, d []byte) *Bitfield {
 		Length: l,
 		Data:   b,
 	}
+}
+
+// get as inverted
+func (bf *Bitfield) Inverted() (i *Bitfield) {
+	i = NewBitfield(bf.Length, bf.Data)
+	for idx, b := range bf.Data {
+		i.Data[idx] = ^b
+	}
+	return
+}
+
+func (bf *Bitfield) Equals(other *Bitfield) bool {
+	if bf.Length != other.Length {
+		return false
+	}
+	return bytes.Equal(bf.Data, other.Data)
 }
 
 // for fs storage

@@ -44,7 +44,7 @@ func Run() {
 			return
 		}
 		for _, t := range ts {
-			err := t.VerifyAll(true)
+			err := t.VerifyAll()
 			if err != nil {
 				log.Errorf("failed to verify: %s", err)
 				done <- err
@@ -68,7 +68,11 @@ func Run() {
 			for _, t := range nt {
 				name := t.MetaInfo().TorrentName()
 				log.Debugf("adding torrent %s", name)
-				err := sw.AddTorrent(t)
+				err := t.VerifyAll()
+				if err != nil {
+					log.Warnf("Failed to verify %s, %s", name, err)
+				}
+				err = sw.AddTorrent(t)
 				if err == nil {
 					log.Infof("added %s", name)
 				} else {

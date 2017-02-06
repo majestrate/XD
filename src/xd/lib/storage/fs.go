@@ -2,7 +2,6 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -233,16 +232,29 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 	return nil
 }
 
-func (t *fsTorrent) VerifyAll(force bool) (err error) {
-	log.Infof("verify all pieces for %s", t.meta.TorrentName())
+func (t *fsTorrent) VerifyAll() (err error) {
+	t.bfmtx.Lock()
+	check := t.st.FindBitfield(t.ih)
+	if check == nil {
+		// no stored bitfield, calculate it
+		check = bittorrent.NewBitfield(t.meta.Info.NumPieces(), nil).Inverted()
+	}
+	// verify
+	t.bf, err = t.verifyBitfield(check)
+	t.bfmtx.Unlock()
+	if err == nil {
+		err = t.Flush()
+	}
+	return
+}
+
+func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bitfield, err error) {
 	pieces := t.meta.Info.NumPieces()
+	has = bittorrent.NewBitfield(pieces, nil)
 	sz := t.meta.Info.PieceLength
-	bf := t.Bitfield()
 	pc := new(common.Piece)
 	pc.Data = make([]byte, sz)
 	tl := t.meta.Info.TotalSize()
-	log.Debugf("piece size is %d", sz)
-	log.Debugf("got %d pieces", pieces)
 	if t.meta.IsSingleFile() {
 		var f *os.File
 		var r int64
@@ -267,11 +279,10 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 				}
 			}
 			r += int64(n)
-			if bf.Has(int(pc.Index)) || force {
+			if bf.Has(int(pc.Index)) {
 				log.Debugf("hash piece %d at %d", pc.Index, r)
-				if !t.meta.Info.CheckPiece(pc) {
-					err = errors.New(fmt.Sprintf("piece %d is invalid", pc.Index))
-					return
+				if t.meta.Info.CheckPiece(pc) {
+					has.Set(int(pc.Index))
 				}
 			}
 			pc.Index++
@@ -313,9 +324,10 @@ func (t *fsTorrent) VerifyAll(force bool) (err error) {
 							return
 						}
 						left -= int64(n)
-						if bf.Has(int(pc.Index)) || force {
-							if !t.meta.Info.CheckPiece(pc) {
-								err = errors.New(fmt.Sprintf("piece %d failed check", pc.Index))
+						if bf.Has(int(pc.Index)) {
+							log.Debugf("hash piece %d", pc.Index)
+							if t.meta.Info.CheckPiece(pc) {
+								has.Set(int(pc.Index))
 							}
 						}
 						pc.Index++
