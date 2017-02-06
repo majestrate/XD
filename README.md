@@ -22,7 +22,7 @@ Eventually:
 
 
 
-## building
+## Building
 
 You can either use `make` or `go get` to build XD
 
