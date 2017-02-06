@@ -1,4 +1,4 @@
-package main
+package xd
 
 import (
 	"net"
@@ -12,7 +12,7 @@ import (
 	"xd/lib/util"
 )
 
-func main() {
+func Run() {
 	done := make(chan error)
 	conf := new(config.Config)
 	fname := "torrents.ini"
