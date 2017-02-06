@@ -9,6 +9,14 @@ import (
 	"xd/lib/log"
 )
 
+// connection statistics
+type PeerConnStats struct {
+	TX   float32
+	RX   float32
+	ID   common.PeerID
+	Addr net.Addr
+}
+
 // a peer connection
 type PeerConn struct {
 	c              net.Conn
@@ -20,16 +28,24 @@ type PeerConn struct {
 	peerInterested bool
 	usChoke        bool
 	usInterseted   bool
-	// done callback
-	Done func()
-	// keepalive ticker
-	keepalive *time.Ticker
-	// current request
-	req *bittorrent.PieceRequest
-	// current piece
-	piece *cachedPiece
-	// last time sent
-	lastSend time.Time
+	Done           func()
+	keepalive      *time.Ticker
+	req            *bittorrent.PieceRequest
+	piece          *cachedPiece
+	lastSend       time.Time
+	tx             float32
+	lastRecv       time.Time
+	rx             float32
+}
+
+// get stats for this connection
+func (c *PeerConn) Stats() (st *PeerConnStats) {
+	st = new(PeerConnStats)
+	st.TX = c.tx
+	st.RX = c.rx
+	st.Addr = c.c.RemoteAddr()
+	copy(st.ID[:], c.id[:])
+	return
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
@@ -64,6 +80,9 @@ func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
 	msg = new(bittorrent.WireMessage)
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
+	now := time.Now()
+	c.rx = float32(msg.Len()) / float32(now.Unix()-c.lastRecv.Unix())
+	c.lastRecv = now
 	return
 }
 
@@ -273,7 +292,9 @@ func (c *PeerConn) runWriter() {
 			err = c.sendKeepAlive()
 		case msg, ok := <-c.send:
 			if ok {
-				c.lastSend = time.Now()
+				now := time.Now()
+				c.tx = float32(msg.Len()) / float32(now.Unix()-c.lastSend.Unix())
+				c.lastSend = now
 				if c.RemoteChoking() && msg.MessageID() == bittorrent.Request {
 					// drop
 					log.Debugf("drop request because choke")

@@ -107,6 +107,18 @@ type Torrent struct {
 	pmtx    sync.RWMutex
 }
 
+func (t *Torrent) GetStatus() *TorrentStatus {
+	t.pmtx.Lock()
+	var peers []*PeerConnStats
+	for _, conn := range t.pending {
+		peers = append(peers, conn.Stats())
+	}
+	t.pmtx.Unlock()
+	return &TorrentStatus{
+		Peers: peers,
+	}
+}
+
 func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 	return t.st.Bitfield()
 }
@@ -183,13 +195,20 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 // persit a connection to a peer
 func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 	log.Debugf("persisting peer %s", id)
+	triesLeft := 10
 	for !t.Done() {
-		t.AddPeer(a, id)
+		err := t.AddPeer(a, id)
+		if err != nil {
+			triesLeft--
+		}
+		if triesLeft == 0 {
+			return
+		}
 	}
 }
 
 // connect to a new peer for this swarm, blocks
-func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
+func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 	c, err := t.Net.Dial(a.Network(), a.String())
 	if err == nil {
 		// connected
@@ -209,16 +228,16 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) {
 					pc := makePeerConn(c, t, h.PeerID)
 					pc.start()
 					t.onNewPeer(pc)
-					return
+					return nil
 				}
 			}
 		}
 		log.Warnf("didn't complete handshake with peer: %s", err)
 		// bad thing happened
 		c.Close()
-		return
 	}
 	log.Infof("didn't connect to %s: %s", a, err)
+	return err
 }
 
 // get metainfo for this torrent
