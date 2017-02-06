@@ -1,6 +1,6 @@
 package main
 
-import "xd/cmd/xd"
+import "xd"
 
 func main() {
 	xd.Run()
