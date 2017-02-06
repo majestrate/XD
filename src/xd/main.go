@@ -3,7 +3,7 @@ package xd
 import (
 	"net"
 	"net/rpc"
-	_ "net/rpc/jsonrpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"time"
 	"xd/lib/bittorrent/swarm"
@@ -78,10 +78,19 @@ func Run() {
 		log.Infof("RPC enabled")
 		go func() {
 			r := new(rpc.Server)
-			r.Register(sw.GetRPC())
+			er := r.Register(sw.GetRPC())
+			if er != nil {
+				log.Errorf("rpc register error: %s", er)
+				return
+			}
 			r.HandleHTTP("/", "/debug")
-			_, e := net.Listen("tcp", conf.RPC.Bind)
+			l, e := net.Listen("tcp", conf.RPC.Bind)
 			if e == nil {
+				var c net.Conn
+				for e == nil {
+					c, e = l.Accept()
+					go r.ServeCodec(jsonrpc.NewServerCodec(c))
+				}
 			} else {
 				log.Warnf("failed to start rpc: %s", e)
 			}
