@@ -2,27 +2,69 @@ package log
 
 import (
 	"fmt"
-	native "log"
+	"os"
+	"time"
 )
 
+type logLevel int
+
 const (
-	debug = 0
-	info  = 1
-	warn  = 2
-	error = 3
-	fatal = 4
+	debug = logLevel(0)
+	info  = logLevel(1)
+	warn  = logLevel(2)
+	error = logLevel(3)
+	fatal = logLevel(4)
 )
+
+func (l logLevel) Int() int {
+	return int(l)
+}
+
+func (l logLevel) Name() string {
+
+	switch l {
+	case debug:
+		return "DBG"
+	case info:
+		return "NFO"
+	case warn:
+		return "WRN"
+	case error:
+		return "ERR"
+	case fatal:
+		return "FTL"
+	default:
+		return "???"
+	}
+
+}
+
+func (l logLevel) Color() string {
+	switch l {
+	case debug:
+		return "\x1b[37;0m"
+	case info:
+		return "\x1b[37;1m"
+	case warn:
+		return "\x1b[33;1m"
+	default:
+		return "\x1b[31;1m"
+	}
+}
 
 var level = debug
 
-func accept(lvl int) bool {
-	return lvl >= level
+var out = os.Stderr
+
+func accept(lvl logLevel) bool {
+	return lvl.Int() >= level.Int()
 }
 
-func log(lvl int, f string, args ...interface{}) {
+func log(lvl logLevel, f string, args ...interface{}) {
 	if accept(lvl) {
 		m := fmt.Sprintf(f, args...)
-		native.Printf("[%d] %s", lvl, m)
+		t := time.Now()
+		fmt.Fprintf(out, "%s[%s] %s %s\x1b[0;0m\n", lvl.Color(), lvl.Name(), t, m)
 		if lvl == fatal {
 			panic(m)
 		}
