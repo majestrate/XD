@@ -194,7 +194,6 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 
 // persit a connection to a peer
 func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
-	log.Debugf("persisting peer %s", id)
 	triesLeft := 10
 	for !t.Done() {
 		err := t.AddPeer(a, id)
@@ -232,11 +231,11 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 				}
 			}
 		}
-		log.Warnf("didn't complete handshake with peer: %s", err)
+		log.Debugf("didn't complete handshake with peer: %s", err)
 		// bad thing happened
 		c.Close()
 	}
-	log.Infof("didn't connect to %s: %s", a, err)
+	log.Debugf("didn't connect to %s: %s", a, err)
 	return err
 }
 

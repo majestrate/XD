@@ -24,6 +24,7 @@ func (cfg *Config) Load(fname string) (err error) {
 	} else {
 		cfg.I2P.FromSection(nil)
 		cfg.Storage.FromSection(nil)
+		cfg.RPC.FromSection(nil)
 	}
 	return
 }

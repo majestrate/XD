@@ -30,7 +30,8 @@ func Run() {
 		log.Errorf("failed to config %s", err)
 		return
 	}
-	log.Info("loaded config")
+	log.Infof("loaded config %s", fname)
+	//log.SetLevel("debug")
 
 	st := conf.Storage.CreateStorage()
 

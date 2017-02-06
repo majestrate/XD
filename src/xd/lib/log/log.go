@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -52,7 +53,16 @@ func (l logLevel) Color() string {
 	}
 }
 
-var level = debug
+var level = info
+
+func SetLevel(l string) {
+	l = strings.ToLower(l)
+	if l == "debug" {
+		level = debug
+	} else {
+		level = info
+	}
+}
 
 var out = os.Stderr
 
