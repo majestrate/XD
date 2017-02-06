@@ -105,6 +105,9 @@ type Torrent struct {
 	// pending incomplete pieces and who is fetching them
 	pending map[uint32]*PeerConn
 	pmtx    sync.RWMutex
+	// active connections
+	conns map[string]bool
+	cmtx  sync.RWMutex
 }
 
 func (t *Torrent) GetStatus() *TorrentStatus {
@@ -177,10 +180,13 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 		for _, p := range resp.Peers {
 			a, e := p.Resolve(t.Net)
 			if e == nil {
-				if a.String() == t.Net.Addr().String() {
-					// don't connect to self
+				if a.String() == t.Net.Addr().String() || t.HasConn(a) {
+					// don't connect to self or a duplicate
 					continue
 				}
+				t.cmtx.Lock()
+				t.conns[a.String()] = false
+				t.cmtx.Unlock()
 				// no error resolving
 				go t.PersistPeer(a, p.ID)
 			} else {
@@ -194,16 +200,26 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 
 // persit a connection to a peer
 func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
+
 	triesLeft := 10
 	for !t.Done() {
 		err := t.AddPeer(a, id)
 		if err != nil {
 			triesLeft--
+		} else {
+			return
 		}
 		if triesLeft == 0 {
 			return
 		}
 	}
+}
+
+func (t *Torrent) HasConn(a net.Addr) (has bool) {
+	t.cmtx.Lock()
+	defer t.cmtx.Unlock()
+	_, has = t.conns[a.String()]
+	return
 }
 
 // connect to a new peer for this swarm, blocks
@@ -227,7 +243,12 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 					pc := makePeerConn(c, t, h.PeerID)
 					pc.start()
 					t.onNewPeer(pc)
+					t.cmtx.Lock()
+					t.conns[a.String()] = true
+					t.cmtx.Unlock()
 					return nil
+				} else {
+					log.Warn("Infohash missmatch")
 				}
 			}
 		}
