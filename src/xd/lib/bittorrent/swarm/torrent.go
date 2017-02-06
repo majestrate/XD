@@ -188,7 +188,7 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 			}
 		}
 	} else {
-		log.Warnf("failed to announce to %s: %s", tr.Name(), err)
+		log.Warnf("failed to announce to %s", tr.Name())
 	}
 }
 
