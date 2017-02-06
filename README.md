@@ -19,7 +19,7 @@ Eventually:
 
 * Maggot Support (?)
 * rtorrent compatible RPC (?)
-*
+
 
 
 ## building
