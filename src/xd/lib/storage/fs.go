@@ -88,6 +88,8 @@ func (t *fsTorrent) FilePath() string {
 
 func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 	sz := t.meta.Info.PieceLength
+	pieces := t.meta.Info.NumPieces()
+	tl := t.meta.TotalSize()
 	if t.meta.IsSingleFile() {
 		f, err := os.Open(t.FilePath())
 		if err != nil {
@@ -102,10 +104,15 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 			return
 		}
 
-		pc.Data = make([]byte, sz)
+		if num == uint32(pieces-1) {
+			pc.Data = make([]byte, tl%int64(sz))
+		} else {
+			pc.Data = make([]byte, sz)
+		}
 		_, err = io.ReadFull(f, pc.Data)
 		f.Close()
 		if err != nil {
+			log.Warnf("failed to get piece %d: %s", num, err)
 			return nil
 		}
 		p = pc
