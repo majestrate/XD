@@ -124,7 +124,7 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 				if err == nil {
 					defer f.Close()
 					if info.Length <= left {
-						_, err = io.ReadFull(f, p.Data[idx:idx+info.Length])
+						_, err = io.ReadFull(f, pc.Data[idx:idx+info.Length])
 						idx += info.Length
 						left -= info.Length
 						cur += info.Length
@@ -136,7 +136,7 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 						continue
 					} else {
 						f.Seek((piece_off-idx)-int64(sz), 0)
-						_, err = io.ReadFull(f, p.Data[idx:left])
+						_, err = io.ReadFull(f, pc.Data[idx:left])
 						if err != nil {
 							p = nil
 							log.Errorf("Failed to read %s: %s", fpath, err)
@@ -151,6 +151,7 @@ func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
 			}
 			cur += info.Length
 		}
+		p = pc
 
 	}
 	return
