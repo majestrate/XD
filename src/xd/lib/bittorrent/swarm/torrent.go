@@ -344,15 +344,22 @@ func (t *Torrent) Run() {
 				ev.c.Close()
 			} else {
 				// have the piece, send it
+				log.Debugf("piece %d datasize %d", r.Index, len(p.Data))
 				l := r.Length
 				dl := uint32(len(p.Data))
-				if dl < (l + r.Begin) {
-					l = dl
+				var d []byte
+				var piecedata []byte
+				if r.Length+r.Begin > uint32(len(p.Data)) {
+					log.Debugf("piece overrun use size %d instead", dl)
+					d = make([]byte, 8+dl)
+					piecedata = p.Data
+				} else {
+					d = make([]byte, 8+l)
+					piecedata = p.Data[r.Begin : r.Begin+r.Length]
 				}
-				d := make([]byte, 8+l)
 				binary.BigEndian.PutUint32(d, r.Index)
 				binary.BigEndian.PutUint32(d[4:], r.Begin)
-				copy(d[8:], p.Data[r.Begin:r.Begin+l])
+				copy(d[8:], piecedata)
 				msg := bittorrent.NewWireMessage(bittorrent.Piece, d)
 				ev.c.Send(msg)
 			}
