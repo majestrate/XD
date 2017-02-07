@@ -195,6 +195,7 @@ func (c *PeerConn) runReader() {
 			}
 			if msgid == bittorrent.Interested {
 				c.markInterested()
+				c.Unchoke()
 				continue
 			}
 			if msgid == bittorrent.NotInterested {
@@ -314,13 +315,6 @@ func (c *PeerConn) runWriter() {
 // run download loop
 func (c *PeerConn) runDownload() {
 	for !c.t.Done() && c.send != nil {
-		// check for choke
-		if c.t.Choke(c.id) {
-			c.Choke()
-			continue
-		} else {
-			c.Unchoke()
-		}
 
 		if c.RemoteChoking() {
 			time.Sleep(time.Second)
