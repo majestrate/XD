@@ -44,4 +44,4 @@ To autogenerate a new config and start:
 
 after started put torrent files into `./storage/downloads/` to start downloading
 
-seeding coming soon (tm)
+to seed torrents put data files into `./storage/downloads/` first then add torrent files
