@@ -86,7 +86,7 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData) {
+func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err error) {
 
 	files := t.meta.Info.GetFiles()
 
@@ -95,7 +95,6 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData) {
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length),
 	}
-	var err error
 	left := r.Length
 	idx := uint32(0)
 	for _, file := range files {
@@ -103,23 +102,27 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData) {
 		f, err = file.Path.Open(t.FilePath())
 		if err == nil {
 			l := uint32(file.Length)
+			var readbuf []byte
+			var n int
 			if left >= l {
 				// entire file
-				_, err = io.ReadFull(f, pc.Data[idx:idx+l])
-				left -= l
-				idx += l
+				readbuf = pc.Data[idx : idx+l]
 			} else {
 				// part of the file
-
+				readbuf = pc.Data[idx : idx+left]
+			}
+			n, err = io.ReadFull(f, readbuf)
+			if err == nil {
+				left -= uint32(n)
+				idx += uint32(n)
 			}
 			f.Close()
 		}
+		if left == 0 && err == nil {
+			p = pc
+			break
+		}
 	}
-
-	if err == nil {
-		p = pc
-	}
-
 	return
 }
 

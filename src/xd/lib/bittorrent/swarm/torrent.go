@@ -336,10 +336,10 @@ func (t *Torrent) Run() {
 		if r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 			// TODO: cache common pieces (?)
-			p := t.st.GetPiece(r)
+			p, err := t.st.GetPiece(r)
 			if p == nil {
 				// we don't have the piece
-				log.Infof("%s asked for a piece we don't have for %s", ev.c.id.String(), t.Name())
+				log.Infof("%s asked for a piece we don't have for %s: %s", ev.c.id.String(), t.Name(), err)
 				// TODO: should we close here?
 				ev.c.Close()
 			} else {

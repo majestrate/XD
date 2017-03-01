@@ -20,7 +20,7 @@ type Torrent interface {
 
 	// get a piece from storage
 	// returns nil if we don't have the data
-	GetPiece(r *common.PieceRequest) *common.PieceData
+	GetPiece(r *common.PieceRequest) (*common.PieceData, error)
 
 	// get metainfo
 	MetaInfo() *metainfo.TorrentFile
