@@ -48,6 +48,7 @@ func (p *cachedPiece) nextOffset() (has bool, idx uint32) {
 				p.progress[idx+i] = Pending
 				i++
 			}
+			has = true
 			return
 		}
 		idx += BlockSize
