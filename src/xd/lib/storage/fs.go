@@ -86,110 +86,69 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) GetPiece(num uint32) (p *common.Piece) {
-	sz := t.meta.Info.PieceLength
-	pieces := t.meta.Info.NumPieces()
-	tl := t.meta.TotalSize()
-	if t.meta.IsSingleFile() {
-		f, err := os.Open(t.FilePath())
-		if err != nil {
-			return
-		}
-		pc := new(common.Piece)
-		pc.Index = int64(num)
-		idx := pc.Index * int64(sz)
-		_, err = f.Seek(idx, 0)
-		if err != nil {
-			f.Close()
-			return
-		}
+func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData) {
 
-		if num == uint32(pieces-1) {
-			pc.Data = make([]byte, tl%int64(sz))
-		} else {
-			pc.Data = make([]byte, sz)
-		}
-		_, err = io.ReadFull(f, pc.Data)
-		f.Close()
-		if err != nil {
-			log.Warnf("failed to get piece %d: %s", num, err)
-			return nil
-		}
-		p = pc
-	} else {
-		pc := new(common.Piece)
-		pc.Data = make([]byte, sz)
-		pc.Index = int64(num)
-		idx := int64(0)
-		cur := int64(0)
-		left := int64(sz)
-		piece_off := int64(sz) * int64(num)
-		for _, info := range t.meta.Info.Files {
-			if info.Length+cur >= piece_off {
-				fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
-				f, err := os.Open(fpath)
-				if err == nil {
-					defer f.Close()
-					if info.Length <= left {
-						_, err = io.ReadFull(f, pc.Data[idx:idx+info.Length])
-						idx += info.Length
-						left -= info.Length
-						cur += info.Length
-						if err != nil {
-							p = nil
-							log.Errorf("Failed to read %s: %s", fpath, err)
-							return
-						}
-						continue
-					} else {
-						f.Seek((piece_off-idx)-int64(sz), 0)
-						_, err = io.ReadFull(f, pc.Data[idx:left])
-						if err != nil {
-							p = nil
-							log.Errorf("Failed to read %s: %s", fpath, err)
-							return
-						}
-						break
-					}
-				} else {
-					log.Errorf("Failed to open %s: %s", fpath, err)
-					return nil
-				}
-			}
-			cur += info.Length
-		}
-		p = pc
+	files := t.meta.Info.GetFiles()
 
+	pc := &common.PieceData{
+		Index: r.Index,
+		Begin: r.Begin,
+		Data:  make([]byte, r.Length),
 	}
+	var err error
+	left := r.Length
+	idx := uint32(0)
+	for _, file := range files {
+		var f *os.File
+		f, err = file.Path.Open(t.FilePath())
+		if err == nil {
+			l := uint32(file.Length)
+			if left >= l {
+				// entire file
+				_, err = io.ReadFull(f, pc.Data[idx:idx+l])
+				left -= l
+				idx += l
+			} else {
+				// part of the file
+
+			}
+			f.Close()
+		}
+	}
+
+	if err == nil {
+		p = pc
+	}
+
 	return
 }
 
-func (t *fsTorrent) checkPiece(pc *common.Piece) (err error) {
+func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 	if !t.meta.Info.CheckPiece(pc) {
 		err = common.ErrInvalidPiece
 	}
 	return
 }
 
-func (t *fsTorrent) PutPiece(pc *common.Piece) error {
+func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 
 	// check integrity
 	err := t.checkPiece(pc)
 	if err != nil {
 		return err
 	}
-	sz := t.meta.Info.PieceLength
+	sz := uint32(t.meta.Info.PieceLength)
 	if t.meta.IsSingleFile() {
 		f, err := os.OpenFile(t.FilePath(), os.O_WRONLY, 0640)
 		if err != nil {
-			log.Errorf("failed to open %s: %s", t.FilePath())
+			log.Errorf("failed to open %s: %s", t.FilePath(), err)
 			return err
 		}
-		idx := pc.Index * int64(sz)
+		idx := pc.Index * sz
 		log.Debugf("seek to %d", idx)
-		_, err = f.Seek(idx, 0)
+		_, err = f.Seek(int64(idx), 0)
 		if err != nil {
-			log.Errorf("Failed to seek in %s:, %s", t.FilePath())
+			log.Errorf("Failed to seek in %s:, %s", t.FilePath(), err)
 			f.Close()
 			return err
 		}
@@ -199,9 +158,9 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 		idx := int64(0)
 		cur := int64(0)
 		left := int64(sz)
-		piece_off := int64(sz) * int64(pc.Index)
+		pieceOff := int64(sz) * int64(pc.Index)
 		for _, info := range t.meta.Info.Files {
-			if info.Length+cur >= piece_off {
+			if info.Length+cur >= pieceOff {
 				fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
 				f, err := os.OpenFile(fpath, os.O_WRONLY, 0640)
 				if err == nil {
@@ -218,7 +177,7 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 						}
 						continue
 					} else {
-						f.Seek((piece_off-idx)-int64(sz), 0)
+						f.Seek((pieceOff-idx)-int64(sz), 0)
 						_, err = f.Write(pc.Data[idx:left])
 						// err = util.WriteFull(f, pc.Data[idx:left])
 						if err != nil {
@@ -236,7 +195,7 @@ func (t *fsTorrent) PutPiece(pc *common.Piece) error {
 		}
 	}
 	// set bitfield
-	t.bf.Set(int(pc.Index))
+	t.bf.Set(pc.Index)
 	return nil
 }
 
@@ -270,7 +229,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 	pieces := t.meta.Info.NumPieces()
 	has = bittorrent.NewBitfield(pieces, nil)
 	sz := t.meta.Info.PieceLength
-	pc := new(common.Piece)
+	pc := new(common.PieceData)
 	pc.Data = make([]byte, sz)
 	tl := t.meta.TotalSize()
 	if t.meta.IsSingleFile() {
@@ -282,9 +241,9 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 			return
 		}
 		defer f.Close()
-		for pc.Index < int64(pieces) {
+		for pc.Index < pieces {
 			var n int
-			if pc.Index == int64(pieces-1) {
+			if pc.Index == pieces-1 {
 				// last piece
 				idx := tl - r
 				pc.Data = make([]byte, idx)
@@ -297,10 +256,10 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 				}
 			}
 			r += int64(n)
-			if bf.Has(int(pc.Index)) {
+			if bf.Has(pc.Index) {
 				log.Debugf("hash piece %d at %d", pc.Index, r)
 				if t.meta.Info.CheckPiece(pc) {
-					has.Set(int(pc.Index))
+					has.Set(pc.Index)
 					log.Debugf("piece %d hash okay", pc.Index)
 				} else {
 					log.Warnf("piece %d hash missmatch", pc.Index)
@@ -337,9 +296,9 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 					}
 					left -= int64(n)
 
-					if bf.Has(int(pc.Index)) {
+					if bf.Has(pc.Index) {
 						if t.meta.Info.CheckPiece(pc) {
-							has.Set(int(pc.Index))
+							has.Set(pc.Index)
 							log.Debugf("piece %d is okay", pc.Index)
 						} else {
 							log.Warnf("piece %d hash missmatch", pc.Index)
@@ -353,11 +312,11 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 			} else {
 				log.Errorf("error opening file %s: %s", fpath, err)
 			}
-			if flen == (fidx+1) && bf.Has(int(pc.Index)) {
+			if flen == (fidx+1) && bf.Has(pc.Index) {
 
 				pc.Data = pc.Data[:tl%int64(sz)]
 				if t.meta.Info.CheckPiece(pc) {
-					has.Set(int(pc.Index))
+					has.Set(pc.Index)
 					log.Debugf("final piece %d is okay", pc.Index)
 				} else {
 					log.Warnf("final piece %d hash missmatch", pc.Index)
@@ -432,7 +391,7 @@ func (st *FsStorage) HasBitfield(ih common.Infohash) bool {
 	return err == nil
 }
 
-func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits int) {
+func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits uint32) {
 	fname := st.bitfieldFilename(ih)
 	bf := bittorrent.NewBitfield(bits, nil)
 	f, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0600)

@@ -22,7 +22,7 @@ type PeerConn struct {
 	c              net.Conn
 	id             common.PeerID
 	t              *Torrent
-	send           chan *bittorrent.WireMessage
+	send           chan *common.WireMessage
 	bf             *bittorrent.Bitfield
 	peerChoke      bool
 	peerInterested bool
@@ -30,7 +30,7 @@ type PeerConn struct {
 	usInterseted   bool
 	Done           func()
 	keepalive      *time.Ticker
-	req            *bittorrent.PieceRequest
+	req            *common.PieceRequest
 	piece          *cachedPiece
 	lastSend       time.Time
 	tx             float32
@@ -55,7 +55,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan *bittorrent.WireMessage, 8)
+	p.send = make(chan *common.WireMessage, 8)
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
 }
@@ -67,7 +67,7 @@ func (c *PeerConn) start() {
 }
 
 // send a bittorrent wire message to this peer
-func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
+func (c *PeerConn) Send(msg *common.WireMessage) {
 	if c.send == nil {
 		log.Errorf("%s has no send channel but tried to send", c.id)
 		return
@@ -76,8 +76,8 @@ func (c *PeerConn) Send(msg *bittorrent.WireMessage) {
 }
 
 // recv a bittorrent wire message (blocking)
-func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
-	msg = new(bittorrent.WireMessage)
+func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
+	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	now := time.Now()
@@ -90,7 +90,7 @@ func (c *PeerConn) Recv() (msg *bittorrent.WireMessage, err error) {
 func (c *PeerConn) Choke() {
 	if !c.usChoke {
 		log.Debugf("choke peer %s", c.id.String())
-		c.Send(bittorrent.NewWireMessage(bittorrent.Choke, nil))
+		c.Send(common.NewWireMessage(common.Choke, nil))
 		c.usChoke = true
 	}
 }
@@ -99,12 +99,12 @@ func (c *PeerConn) Choke() {
 func (c *PeerConn) Unchoke() {
 	if c.usChoke {
 		log.Debugf("unchoke peer %s", c.id.String())
-		c.Send(bittorrent.NewWireMessage(bittorrent.UnChoke, nil))
+		c.Send(common.NewWireMessage(common.UnChoke, nil))
 		c.usChoke = false
 	}
 }
 
-func (c *PeerConn) HasPiece(piece int) bool {
+func (c *PeerConn) HasPiece(piece uint32) bool {
 	if c.bf == nil {
 		// no bitfield
 		return false
@@ -157,7 +157,7 @@ func (c *PeerConn) Close() {
 		time.Sleep(time.Second / 10)
 		close(chnl)
 		if c.piece != nil {
-			c.t.cancelPiece(uint32(c.piece.piece.Index))
+			c.t.cancelPiece(c.piece.piece.Index)
 		}
 	}
 	c.c.Close()
@@ -167,7 +167,7 @@ func (c *PeerConn) Close() {
 func (c *PeerConn) runReader() {
 	var err error
 	for err == nil {
-		var msg *bittorrent.WireMessage
+		var msg *common.WireMessage
 		msg, err = c.Recv()
 		if err == nil {
 			if msg.KeepAlive() {
@@ -176,44 +176,44 @@ func (c *PeerConn) runReader() {
 			}
 			msgid := msg.MessageID()
 			log.Debugf("%s from %s", msgid.String(), c.id.String())
-			if msgid == bittorrent.BitField {
+			if msgid == common.BitField {
 				c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 				log.Debugf("got bitfield from %s", c.id.String())
-				var m *bittorrent.WireMessage
+				var m *common.WireMessage
 				// TODO: determine if we are really interested
-				m = bittorrent.NewWireMessage(bittorrent.Interested, nil)
+				m = common.NewWireMessage(common.Interested, nil)
 				c.Send(m)
 				continue
 			}
-			if msgid == bittorrent.Choke {
+			if msgid == common.Choke {
 				c.remoteChoke()
 				continue
 			}
-			if msgid == bittorrent.UnChoke {
+			if msgid == common.UnChoke {
 				c.remoteUnchoke()
 				continue
 			}
-			if msgid == bittorrent.Interested {
+			if msgid == common.Interested {
 				c.markInterested()
 				c.Unchoke()
 				continue
 			}
-			if msgid == bittorrent.NotInterested {
+			if msgid == common.NotInterested {
 				c.markNotInterested()
 				continue
 			}
-			if msgid == bittorrent.Request {
+			if msgid == common.Request {
 				ev := msg.GetPieceRequest()
 				c.t.onPieceRequest(c, ev)
 				continue
 			}
-			if msgid == bittorrent.Piece {
+			if msgid == common.Piece {
 				d := msg.GetPieceData()
 				if c.req == nil {
 					// no pending request
 					log.Warnf("got unwarranted piece data from %s", c.id.String())
 				} else if d.Index == c.req.Index && d.Begin == c.req.Begin {
-					c.piece.put(int(d.Begin), d.Data)
+					c.piece.put(d.Begin, d.Data)
 					if c.piece.done() {
 						c.t.storePiece(c.piece.piece)
 						c.piece = nil
@@ -224,7 +224,7 @@ func (c *PeerConn) runReader() {
 							c.Send(c.req.ToWireMessage())
 						} else {
 							log.Warnf("%s failed to get next block", c.id.String())
-							c.t.cancelPiece(uint32(c.piece.piece.Index))
+							c.t.cancelPiece(c.piece.piece.Index)
 							c.piece = nil
 						}
 					}
@@ -233,8 +233,9 @@ func (c *PeerConn) runReader() {
 				}
 				continue
 			}
-			if msgid == bittorrent.Have {
-
+			if msgid == common.Have {
+				// update bitfield
+				c.bf.Set(msg.GetHave())
 				continue
 			}
 		}
@@ -254,22 +255,22 @@ func (c *PeerConn) getPiece(idx uint32) {
 	c.t.markPieceInProgress(idx, c)
 	sz := c.t.MetaInfo().Info.PieceLength
 	c.piece = new(cachedPiece)
-	c.piece.piece = &common.Piece{
-		Index: int64(idx),
+	c.piece.piece = &common.PieceData{
+		Index: idx,
 		Data:  make([]byte, sz),
 	}
 	c.piece.progress = make([]byte, sz)
 	c.req = c.nextBlock()
 	c.Send(c.req.ToWireMessage())
 }
-func (c *PeerConn) nextBlock() *bittorrent.PieceRequest {
-	off := c.piece.nextOffset()
-	if off == -1 {
+func (c *PeerConn) nextBlock() *common.PieceRequest {
+	has, off := c.piece.nextOffset()
+	if !has {
 		return nil
 	}
 	b := uint32(off)
-	return &bittorrent.PieceRequest{
-		Index:  uint32(c.piece.piece.Index),
+	return &common.PieceRequest{
+		Index:  c.piece.piece.Index,
 		Begin:  b,
 		Length: BlockSize,
 	}
@@ -279,7 +280,7 @@ func (c *PeerConn) sendKeepAlive() error {
 	tm := time.Now().Add(0 - (time.Minute * 2))
 	if c.lastSend.After(tm) {
 		log.Debugf("send keepalive to %s", c.id.String())
-		return bittorrent.KeepAlive().Send(c.c)
+		return common.KeepAlive().Send(c.c)
 	}
 	return nil
 }
@@ -296,7 +297,7 @@ func (c *PeerConn) runWriter() {
 				now := time.Now()
 				c.tx = float32(msg.Len()) / float32(now.Unix()-c.lastSend.Unix())
 				c.lastSend = now
-				if c.RemoteChoking() && msg.MessageID() == bittorrent.Request {
+				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop
 					log.Debugf("drop request because choke")
 				} else {
@@ -331,9 +332,9 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		local := c.t.Bitfield()
-		set := 0
+		set := uint32(0)
 		for remote.Has(set) {
-			if local.Has(set) || c.t.pieceRequested(uint32(set)) {
+			if local.Has(set) || c.t.pieceRequested(set) {
 				set++
 			} else {
 				break
@@ -341,7 +342,7 @@ func (c *PeerConn) runDownload() {
 		}
 		if set < local.Length {
 			// this blocks
-			c.getPiece(uint32(set))
+			c.getPiece(set)
 		} else {
 			time.Sleep(time.Second)
 		}

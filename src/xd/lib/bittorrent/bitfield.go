@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"github.com/zeebo/bencode"
 	"io"
+	"xd/lib/common"
 )
 
 type Bitfield struct {
 	// length in bits
-	Length int `bencode:"bits"`
+	Length uint32 `bencode:"bits"`
 	// bitfield data
 	Data []byte `bencode:"bitfield"`
 }
 
 // create new bitfield
-func NewBitfield(l int, d []byte) *Bitfield {
+func NewBitfield(l uint32, d []byte) *Bitfield {
 	if d == nil {
 		d = make([]byte, (l/8)+1)
 	}
@@ -29,7 +30,7 @@ func NewBitfield(l int, d []byte) *Bitfield {
 // get as inverted
 func (bf *Bitfield) Inverted() (i *Bitfield) {
 	i = NewBitfield(bf.Length, nil)
-	bit := 0
+	bit := uint32(0)
 	for bit < bf.Length {
 		if !bf.Has(bit) {
 			i.Set(bit)
@@ -58,14 +59,15 @@ func (bf *Bitfield) BDecode(r io.Reader) (err error) {
 }
 
 // serialize to wire message
-func (bf *Bitfield) ToWireMessage() *WireMessage {
-	return NewWireMessage(BitField, bf.Data[:])
+func (bf *Bitfield) ToWireMessage() *common.WireMessage {
+	return common.NewWireMessage(common.BitField, bf.Data[:])
 }
 
-func (bf *Bitfield) Set(p int) {
+func (bf *Bitfield) Set(p uint32) {
+	dl := uint32(len(bf.Data))
 	if p < bf.Length {
 		idx := p >> 3
-		if idx < len(bf.Data) {
+		if idx < dl {
 			bf.Data[idx] |= (1 << (7 - uint(p)&7))
 		}
 	}
@@ -84,10 +86,11 @@ func (bf *Bitfield) CountSet() (sum int) {
 	return
 }
 
-func (bf *Bitfield) Has(p int) bool {
+func (bf *Bitfield) Has(p uint32) bool {
+	dl := uint32(len(bf.Data))
 	if p < bf.Length {
 		idx := p >> 3
-		if idx < len(bf.Data) {
+		if idx < dl {
 			return bf.Data[idx]&(1<<(7-uint(p)&7)) != 0
 		}
 	}

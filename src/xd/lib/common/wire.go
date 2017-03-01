@@ -1,4 +1,4 @@
-package bittorrent
+package common
 
 import (
 	"encoding/binary"
@@ -144,13 +144,6 @@ func (msg *WireMessage) Send(w io.Writer) (err error) {
 	return
 }
 
-// a piece request
-type PieceRequest struct {
-	Index  uint32
-	Begin  uint32
-	Length uint32
-}
-
 // convert piece request to wire message
 func (req *PieceRequest) ToWireMessage() *WireMessage {
 	var body [12]byte
@@ -158,12 +151,6 @@ func (req *PieceRequest) ToWireMessage() *WireMessage {
 	binary.BigEndian.PutUint32(body[4:], req.Begin)
 	binary.BigEndian.PutUint32(body[8:], req.Length)
 	return NewWireMessage(Request, body[:])
-}
-
-type PieceData struct {
-	Index uint32
-	Begin uint32
-	Data  []byte
 }
 
 func (msg *WireMessage) GetPieceData() *PieceData {
@@ -197,4 +184,15 @@ func (msg *WireMessage) GetPieceRequest() *PieceRequest {
 	req.Begin = binary.BigEndian.Uint32(data[4:])
 	req.Length = binary.BigEndian.Uint32(data[8:])
 	return req
+}
+
+// get as have message
+func (msg *WireMessage) GetHave() (h uint32) {
+	if msg.MessageID() == Have {
+		data := msg.Payload()
+		if len(data) == 4 {
+			h = binary.BigEndian.Uint32(data[:])
+		}
+	}
+	return
 }

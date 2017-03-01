@@ -25,24 +25,25 @@ const Obtained = 2
 // an event triggered when we get an inbound wire message from a peer we are connected with on this torrent asking for a piece
 type pieceEvent struct {
 	c *PeerConn
-	r *bittorrent.PieceRequest
+	r *common.PieceRequest
 }
 
 // cached downloading piece
 type cachedPiece struct {
-	piece    *common.Piece
+	piece    *common.PieceData
 	progress []byte
 	mtx      sync.RWMutex
 }
 
 // get unfilled available block offset
-func (p *cachedPiece) nextOffset() (idx int) {
+func (p *cachedPiece) nextOffset() (has bool, idx uint32) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	for idx < len(p.progress) {
+	l := uint32(len(p.progress))
+	for idx < l {
 		if p.progress[idx] == Missing {
 			// mark progress as pending
-			var i int
+			var i uint32
 			for i < BlockSize {
 				p.progress[idx+i] = Pending
 				i++
@@ -51,9 +52,8 @@ func (p *cachedPiece) nextOffset() (idx int) {
 		}
 		idx += BlockSize
 	}
-	if idx >= len(p.progress) {
-		// fail
-		idx = -1
+	if idx < l {
+		has = true
 	}
 	return
 }
@@ -69,13 +69,14 @@ func (p *cachedPiece) done() bool {
 }
 
 // put a slice of data at offset
-func (p *cachedPiece) put(offset int, data []byte) {
-	if offset+len(data) <= len(p.progress) {
+func (p *cachedPiece) put(offset uint32, data []byte) {
+	l := uint32(len(p.progress))
+	if offset+uint32(len(data)) <= l {
 		// put data
 		copy(p.piece.Data[offset:], data)
 		// put progress
-		for idx, _ := range data {
-			p.progress[idx+offset] = Obtained
+		for idx := range data {
+			p.progress[uint32(idx)+offset] = Obtained
 		}
 	} else {
 		log.Warnf("block out of range %d", offset)
@@ -83,8 +84,9 @@ func (p *cachedPiece) put(offset int, data []byte) {
 }
 
 // cancel a slice
-func (p *cachedPiece) cancel(offset, length int) {
-	if offset+length <= len(p.progress) {
+func (p *cachedPiece) cancel(offset, length uint32) {
+	l := uint32(len(p.progress))
+	if offset+length <= l {
 		for length > 0 {
 			length--
 			p.progress[offset+length] = Missing
@@ -277,16 +279,14 @@ func (t *Torrent) Close() {
 	t.st.Flush()
 }
 
-func (t *Torrent) storePiece(p *common.Piece) {
+func (t *Torrent) storePiece(p *common.PieceData) {
 	n := t.MetaInfo().Info.NumPieces()
 	log.Infof("storing piece %d of %d for %s", p.Index, n, t.st.Infohash().Hex())
 	err := t.st.PutPiece(p)
 	if err != nil {
 		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
 	}
-	t.pmtx.Lock()
-	delete(t.pending, uint32(p.Index))
-	t.pmtx.Unlock()
+	t.cancelPiece(p.Index)
 	t.st.Flush()
 }
 
@@ -317,7 +317,7 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 }
 
 // handle a piece request
-func (t *Torrent) onPieceRequest(c *PeerConn, req *bittorrent.PieceRequest) {
+func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
 	if t.piece != nil {
 		t.piece <- pieceEvent{c, req}
 	}
@@ -335,8 +335,8 @@ func (t *Torrent) Run() {
 		r := ev.r
 		if r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
-			// TODO: cache common pieces
-			p := t.st.GetPiece(r.Index)
+			// TODO: cache common pieces (?)
+			p := t.st.GetPiece(r)
 			if p == nil {
 				// we don't have the piece
 				log.Infof("%s asked for a piece we don't have for %s", ev.c.id.String(), t.Name())
@@ -344,23 +344,13 @@ func (t *Torrent) Run() {
 				ev.c.Close()
 			} else {
 				// have the piece, send it
-				log.Debugf("piece %d datasize %d", r.Index, len(p.Data))
-				l := r.Length
-				dl := uint32(len(p.Data))
-				var d []byte
-				var piecedata []byte
-				if r.Length+r.Begin > uint32(len(p.Data)) {
-					log.Debugf("piece overrun use size %d instead", dl)
-					d = make([]byte, 8+dl)
-					piecedata = p.Data
-				} else {
-					d = make([]byte, 8+l)
-					piecedata = p.Data[r.Begin : r.Begin+r.Length]
-				}
-				binary.BigEndian.PutUint32(d, r.Index)
-				binary.BigEndian.PutUint32(d[4:], r.Begin)
-				copy(d[8:], piecedata)
-				msg := bittorrent.NewWireMessage(bittorrent.Piece, d)
+				dl := len(p.Data)
+				d := make([]byte, 8+dl)
+				log.Debugf("piece %d datasize %d", p.Index, dl)
+				binary.BigEndian.PutUint32(d, p.Index)
+				binary.BigEndian.PutUint32(d[4:], p.Begin)
+				copy(d[8:], p.Data[:])
+				msg := common.NewWireMessage(common.Piece, d)
 				ev.c.Send(msg)
 			}
 		} else {

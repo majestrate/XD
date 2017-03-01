@@ -16,11 +16,11 @@ type Torrent interface {
 	VerifyAll() error
 
 	// put a downloaded piece into the storage
-	PutPiece(p *common.Piece) error
+	PutPiece(p *common.PieceData) error
 
 	// get a piece from storage
 	// returns nil if we don't have the data
-	GetPiece(ind uint32) *common.Piece
+	GetPiece(r *common.PieceRequest) *common.PieceData
 
 	// get metainfo
 	MetaInfo() *metainfo.TorrentFile

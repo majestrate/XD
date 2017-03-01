@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"github.com/zeebo/bencode"
 	"io"
+	"os"
 	"path/filepath"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -14,14 +15,12 @@ type FilePath []string
 
 // get filepath
 func (f FilePath) FilePath() string {
-	/*
-		var parts []string
-		for _, part := range f {
-			parts = append(parts, string(part))
-		}
-		return filepath.Join(parts...)
-	*/
 	return filepath.Join(f...)
+}
+
+/** open file using base path */
+func (f FilePath) Open(base string) (*os.File, error) {
+	return os.OpenFile(filepath.Join(base, f.FilePath()), os.O_RDWR|os.O_CREATE, 0600)
 }
 
 type FileInfo struct {
@@ -51,8 +50,22 @@ type Info struct {
 	Sum []byte `bencode:"md5sum,omitempty"`
 }
 
+// get fileinfos from this info section
+func (i Info) GetFiles() (infos []FileInfo) {
+	if i.Length > 0 {
+		infos = append(infos, FileInfo{
+			Length: i.Length,
+			Path:   FilePath([]string{i.Path}),
+			Sum:    i.Sum,
+		})
+	} else {
+		infos = append(infos, i.Files...)
+	}
+	return
+}
+
 // check if a piece is valid against the pieces in this info section
-func (i Info) CheckPiece(p *common.Piece) bool {
+func (i Info) CheckPiece(p *common.PieceData) bool {
 	idx := int(p.Index * 20)
 	if (idx + 20) <= len(i.Pieces) {
 		h := sha1.Sum(p.Data)
@@ -62,8 +75,8 @@ func (i Info) CheckPiece(p *common.Piece) bool {
 	return false
 }
 
-func (i Info) NumPieces() int {
-	return len(i.Pieces) / 20
+func (i Info) NumPieces() uint32 {
+	return uint32(len(i.Pieces) / 20)
 }
 
 // a torrent file
