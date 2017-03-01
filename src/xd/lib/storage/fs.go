@@ -98,6 +98,7 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 	left := r.Length
 	idx := uint32(0)
 	for _, file := range files {
+		fp := file.Path.FilePath()
 		var f *os.File
 		f, err = file.Path.Open(t.st.DataDir)
 		if err == nil {
@@ -111,10 +112,13 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 				// part of the file
 				readbuf = pc.Data[idx : idx+left]
 			}
+			log.Debugf("GetPiece() %s %d %d", fp, idx, left)
 			n, err = io.ReadFull(f, readbuf)
 			if err == nil {
 				left -= uint32(n)
 				idx += uint32(n)
+			} else {
+				log.Warnf("GetPiece(): error reading %s, %s", fp, err)
 			}
 			f.Close()
 		}
