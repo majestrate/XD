@@ -161,9 +161,8 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 		if pc.done() {
 			err := pt.st.PutPiece(&pc.piece)
 			if err == nil {
-				bf := pt.st.Bitfield()
-				bf.Set(d.Index)
 				pt.removePiece(d.Index)
+				pt.st.Flush()
 			} else {
 				log.Warnf("put piece %d failed: %s", pc.piece.Index, err)
 				// try again
