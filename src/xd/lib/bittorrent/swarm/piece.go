@@ -50,11 +50,12 @@ func (p *cachedPiece) put(offset uint32, data []byte) {
 
 // cancel a slice
 func (p *cachedPiece) cancel(offset, length uint32) {
+	p.mtx.Lock()
 	p.set(offset, length, Missing)
+	p.mtx.Unlock()
 }
 
 func (p *cachedPiece) set(offset, length uint32, b byte) {
-	p.mtx.Lock()
 	l := uint32(len(p.progress))
 	if offset+length <= l {
 		for length > 0 {
@@ -64,10 +65,11 @@ func (p *cachedPiece) set(offset, length uint32, b byte) {
 	} else {
 		log.Warnf("invalid cached piece range: %d %d %d", offset, length, l)
 	}
-	p.mtx.Unlock()
 }
 
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
 	l := uint32(len(p.progress))
 	r = &common.PieceRequest{
 		Index:  p.piece.Index,
