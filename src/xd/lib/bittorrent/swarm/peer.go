@@ -347,7 +347,14 @@ func (c *PeerConn) runDownload() {
 			time.Sleep(time.Second)
 		}
 	}
-	log.Debugf("peer %s is 'done'", c.id.String())
+	if c.send == nil {
+		c.Close()
+		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
+		go c.t.AddPeer(c.c.RemoteAddr(), c.id)
+		return
+	} else {
+		log.Debugf("peer %s is 'done'", c.id.String())
+	}
 	// done downloading
 	if c.Done != nil {
 		c.Done()

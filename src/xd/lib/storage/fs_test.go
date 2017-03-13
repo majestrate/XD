@@ -115,6 +115,11 @@ func TestFS(t *testing.T) {
 			t.Errorf("seed torrent getpiece failed: %s", err)
 		}
 	}
+
+	if err == nil {
+		err = leechTorrent.VerifyAll(false)
+	}
+
 	if err != nil {
 		t.Fail()
 	}
