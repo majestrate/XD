@@ -87,6 +87,9 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	if r.Begin+r.Length >= l {
 		r.Length = l - r.Begin
 	}
+	if p.progress[r.Begin] == Pending {
+		return nil
+	}
 	p.set(r.Begin, r.Length, Pending)
 	return
 }
@@ -149,7 +152,9 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 			}
 			pt.mtx.Unlock()
 			r = cp.nextRequest()
-			return
+			if r != nil && r.Length > 0 {
+				return
+			}
 		}
 		idx++
 	}
