@@ -13,7 +13,7 @@ type Torrent interface {
 	Allocate() error
 
 	// verify all piece data
-	VerifyAll() error
+	VerifyAll(fresh bool) error
 
 	// put a downloaded piece into the storage
 	PutPiece(p *common.PieceData) error
@@ -32,7 +32,7 @@ type Torrent interface {
 	Bitfield() *bittorrent.Bitfield
 
 	// get number of bytes remaining we need to download
-	DownloadRemaining() int64
+	DownloadRemaining() uint64
 
 	// flush bitfield to disk
 	Flush() error

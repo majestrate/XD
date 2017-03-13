@@ -25,7 +25,7 @@ func (f FilePath) Open(base string) (*os.File, error) {
 
 type FileInfo struct {
 	// length of file
-	Length int64 `bencode:"length"`
+	Length uint64 `bencode:"length"`
 	// relative path of file
 	Path FilePath `bencode:"path"`
 	// md5sum
@@ -35,7 +35,7 @@ type FileInfo struct {
 // info section of torrent file
 type Info struct {
 	// length of pices in bytes
-	PieceLength int `bencode:"piece length"`
+	PieceLength uint32 `bencode:"piece length"`
 	// piece data
 	Pieces []byte `bencode:"pieces"`
 	// name of root file
@@ -45,7 +45,7 @@ type Info struct {
 	// private torrent
 	Private int64 `bencode:"private,omitempty"`
 	// length of file in signle file mode
-	Length int64 `bencode:"length,omitempty"`
+	Length uint64 `bencode:"length,omitempty"`
 	// md5sum
 	Sum []byte `bencode:"md5sum,omitempty"`
 }
@@ -91,11 +91,11 @@ type TorrentFile struct {
 }
 
 // get total size of files from torrent info section
-func (tf *TorrentFile) TotalSize() int64 {
+func (tf *TorrentFile) TotalSize() uint64 {
 	if tf.IsSingleFile() {
 		return tf.Info.Length
 	}
-	total := int64(0)
+	total := uint64(0)
 	for _, f := range tf.Info.Files {
 		total += f.Length
 	}

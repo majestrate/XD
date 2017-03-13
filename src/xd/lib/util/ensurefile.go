@@ -8,7 +8,7 @@ import (
 )
 
 // ensure a file and its parent directory exists
-func EnsureFile(fpath string, size int64) (err error) {
+func EnsureFile(fpath string, size uint64) (err error) {
 	d, _ := filepath.Split(fpath)
 	if d != "" {
 		err = EnsureDir(d)
@@ -22,7 +22,7 @@ func EnsureFile(fpath string, size int64) (err error) {
 			if err == nil {
 				// fill with zeros
 				if size > 0 {
-					_, err = io.CopyN(f, Zero, size)
+					_, err = io.CopyN(f, Zero, int64(size))
 				}
 				f.Close()
 			}
