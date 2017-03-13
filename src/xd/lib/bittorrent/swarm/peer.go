@@ -30,12 +30,11 @@ type PeerConn struct {
 	usInterseted   bool
 	Done           func()
 	keepalive      *time.Ticker
-	req            *common.PieceRequest
-	piece          *cachedPiece
 	lastSend       time.Time
 	tx             float32
 	lastRecv       time.Time
 	rx             float32
+	r              *common.PieceRequest
 }
 
 // get stats for this connection
@@ -156,9 +155,6 @@ func (c *PeerConn) Close() {
 		c.send = nil
 		time.Sleep(time.Second / 10)
 		close(chnl)
-		if c.piece != nil {
-			c.t.cancelPiece(c.piece.piece.Index)
-		}
 	}
 	c.c.Close()
 }
@@ -209,28 +205,13 @@ func (c *PeerConn) runReader() {
 			}
 			if msgid == common.Piece {
 				d := msg.GetPieceData()
-				if c.req == nil {
-					// no pending request
-					log.Warnf("got unwarranted piece data from %s", c.id.String())
-				} else if d.Index == c.req.Index && d.Begin == c.req.Begin {
-					c.piece.put(d.Begin, d.Data)
-					if c.piece.done() {
-						c.t.storePiece(c.piece.piece)
-						c.piece = nil
-						c.req = nil
-					} else {
-						c.req = c.nextBlock()
-						if c.req != nil {
-							c.Send(c.req.ToWireMessage())
-						} else {
-							log.Warnf("%s failed to get next block", c.id.String())
-							c.t.cancelPiece(c.piece.piece.Index)
-							c.piece = nil
-						}
-					}
+				if c.r != nil && c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
+					c.t.pt.handlePieceData(d)
 				} else {
-					log.Warnf("got undesired piece data from %s", c.id.String())
+					log.Warnf("unwarrented piece data from %s", c.id.String())
+					c.Close()
 				}
+				c.r = nil
 				continue
 			}
 			if msgid == common.Have {
@@ -244,36 +225,6 @@ func (c *PeerConn) runReader() {
 		log.Errorf("%s read error: %s", c.id, err)
 	}
 	c.Close()
-}
-
-func (c *PeerConn) busy() bool {
-	return c.piece != nil || c.req != nil
-}
-
-func (c *PeerConn) getPiece(idx uint32) {
-	log.Debugf("%s get piece %d", c.id.String(), idx)
-	c.t.markPieceInProgress(idx, c)
-	sz := c.t.MetaInfo().Info.PieceLength
-	c.piece = new(cachedPiece)
-	c.piece.piece = &common.PieceData{
-		Index: idx,
-		Data:  make([]byte, sz),
-	}
-	c.piece.progress = make([]byte, sz)
-	c.req = c.nextBlock()
-	c.Send(c.req.ToWireMessage())
-}
-func (c *PeerConn) nextBlock() *common.PieceRequest {
-	has, off := c.piece.nextOffset()
-	if !has {
-		return nil
-	}
-	b := uint32(off)
-	return &common.PieceRequest{
-		Index:  c.piece.piece.Index,
-		Begin:  b,
-		Length: BlockSize,
-	}
 }
 
 func (c *PeerConn) sendKeepAlive() error {
@@ -316,35 +267,19 @@ func (c *PeerConn) runWriter() {
 // run download loop
 func (c *PeerConn) runDownload() {
 	for !c.t.Done() && c.send != nil {
-
 		if c.RemoteChoking() {
 			time.Sleep(time.Second)
 			continue
 		}
-		if c.busy() {
-			time.Sleep(time.Second)
+		// pending request
+		if c.r != nil {
+			time.Sleep(time.Millisecond * 100)
 			continue
 		}
-		remote := c.bf
-		if remote == nil {
-			log.Debugf("%s has no bitfield", c.id.String())
-			time.Sleep(time.Second)
-			continue
-		}
-		local := c.t.Bitfield()
-		set := uint32(0)
-		for remote.Has(set) {
-			if local.Has(set) || c.t.pieceRequested(set) {
-				set++
-			} else {
-				break
-			}
-		}
-		if set < local.Length {
-			// this blocks
-			c.getPiece(set)
-		} else {
-			time.Sleep(time.Second)
+		c.r = c.t.pt.nextRequestForDownload(c.bf)
+		if c.r != nil {
+			log.Debugf("ask %s for %d %d %d", c.id.String(), c.r.Index, c.r.Begin, c.r.Length)
+			c.Send(c.r.ToWireMessage())
 		}
 	}
 	if c.send == nil {
@@ -352,9 +287,9 @@ func (c *PeerConn) runDownload() {
 		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
 		go c.t.AddPeer(c.c.RemoteAddr(), c.id)
 		return
-	} else {
-		log.Debugf("peer %s is 'done'", c.id.String())
 	}
+	log.Debugf("peer %s is 'done'", c.id.String())
+
 	// done downloading
 	if c.Done != nil {
 		c.Done()

@@ -51,9 +51,10 @@ func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
 					return
 				}
 				sw.WaitForNetwork()
-				sw.Torrents.addTorrent(t)
 				tr := sw.Torrents.GetTorrent(t.Infohash())
-				if tr != nil {
+
+				if tr == nil {
+					sw.Torrents.addTorrent(t)
 					sw.startTorrent(tr)
 				}
 			}

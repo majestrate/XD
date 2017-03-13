@@ -17,12 +17,7 @@ type Holder struct {
 func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Lock()
 	defer h.access.Unlock()
-	tr := &Torrent{
-		st:      t,
-		piece:   make(chan pieceEvent, 8),
-		pending: make(map[uint32]*PeerConn),
-		conns:   make(map[string]bool),
-	}
+	tr := newTorrent(t)
 	h.torrents[t.Infohash()] = tr
 	go h.sw.startTorrent(tr)
 }

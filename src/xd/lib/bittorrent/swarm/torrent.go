@@ -15,86 +15,6 @@ import (
 	"xd/lib/tracker"
 )
 
-// how big should we download pieces at a time (bytes)?
-const BlockSize = 1024 * 16
-
-const Missing = 0
-const Pending = 1
-const Obtained = 2
-
-// an event triggered when we get an inbound wire message from a peer we are connected with on this torrent asking for a piece
-type pieceEvent struct {
-	c *PeerConn
-	r *common.PieceRequest
-}
-
-// cached downloading piece
-type cachedPiece struct {
-	piece    *common.PieceData
-	progress []byte
-	mtx      sync.RWMutex
-}
-
-// get unfilled available block offset
-func (p *cachedPiece) nextOffset() (has bool, idx uint32) {
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
-	l := uint32(len(p.progress))
-	for idx < l {
-		if p.progress[idx] == Missing {
-			// mark progress as pending
-			var i uint32
-			for i < BlockSize {
-				p.progress[idx+i] = Pending
-				i++
-			}
-			has = true
-			return
-		}
-		idx += BlockSize
-	}
-	if idx < l {
-		has = true
-	}
-	return
-}
-
-// is this piece done downloading ?
-func (p *cachedPiece) done() bool {
-	for _, b := range p.progress {
-		if b != Obtained {
-			return false
-		}
-	}
-	return true
-}
-
-// put a slice of data at offset
-func (p *cachedPiece) put(offset uint32, data []byte) {
-	l := uint32(len(p.progress))
-	if offset+uint32(len(data)) <= l {
-		// put data
-		copy(p.piece.Data[offset:], data)
-		// put progress
-		for idx := range data {
-			p.progress[uint32(idx)+offset] = Obtained
-		}
-	} else {
-		log.Warnf("block out of range %d", offset)
-	}
-}
-
-// cancel a slice
-func (p *cachedPiece) cancel(offset, length uint32) {
-	l := uint32(len(p.progress))
-	if offset+length <= l {
-		for length > 0 {
-			length--
-			p.progress[offset+length] = Missing
-		}
-	}
-}
-
 // single torrent tracked in a swarm
 type Torrent struct {
 	// network context
@@ -105,19 +25,30 @@ type Torrent struct {
 	id    common.PeerID
 	st    storage.Torrent
 	piece chan pieceEvent
-	// pending incomplete pieces and who is fetching them
-	pending map[uint32]*PeerConn
-	pmtx    sync.RWMutex
+	pmtx  sync.RWMutex
 	// active connections
-	conns map[string]bool
+	conns map[string]*PeerConn
 	cmtx  sync.RWMutex
+	// piece tracker
+	pt *pieceTracker
+}
+
+func newTorrent(st storage.Torrent) *Torrent {
+	return &Torrent{
+		st:    st,
+		piece: make(chan pieceEvent, 8),
+		conns: make(map[string]*PeerConn),
+		pt:    createPieceTracker(st),
+	}
 }
 
 func (t *Torrent) GetStatus() *TorrentStatus {
 	t.pmtx.Lock()
 	var peers []*PeerConnStats
-	for _, conn := range t.pending {
-		peers = append(peers, conn.Stats())
+	for _, conn := range t.conns {
+		if conn != nil {
+			peers = append(peers, conn.Stats())
+		}
 	}
 	t.pmtx.Unlock()
 	return &TorrentStatus{
@@ -188,7 +119,7 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 					continue
 				}
 				t.cmtx.Lock()
-				t.conns[a.String()] = false
+				t.conns[a.String()] = nil
 				t.cmtx.Unlock()
 				// no error resolving
 				go t.PersistPeer(a, p.ID)
@@ -247,7 +178,7 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 					pc.start()
 					t.onNewPeer(pc)
 					t.cmtx.Lock()
-					t.conns[a.String()] = true
+					t.conns[a.String()] = pc
 					t.cmtx.Unlock()
 					return nil
 				} else {
@@ -287,27 +218,7 @@ func (t *Torrent) storePiece(p *common.PieceData) {
 	if err != nil {
 		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
 	}
-	t.cancelPiece(p.Index)
 	t.st.Flush()
-}
-
-func (t *Torrent) cancelPiece(idx uint32) {
-	t.pmtx.Lock()
-	delete(t.pending, idx)
-	t.pmtx.Unlock()
-}
-
-func (t *Torrent) markPieceInProgress(idx uint32, c *PeerConn) {
-	t.pmtx.Lock()
-	t.pending[idx] = c
-	t.pmtx.Unlock()
-}
-
-func (t *Torrent) pieceRequested(idx uint32) bool {
-	t.pmtx.Lock()
-	_, ok := t.pending[idx]
-	t.pmtx.Unlock()
-	return ok
 }
 
 // callback called when we get a new inbound peer
