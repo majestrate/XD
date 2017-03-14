@@ -91,6 +91,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 		return nil
 	}
 	p.set(r.Begin, r.Length, Pending)
+	log.Debugf("next piece request made: idx=%d offset=%d len=%d", r.Index, r.Begin, r.Length)
 	return
 }
 
@@ -117,12 +118,13 @@ func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 
 func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	info := pt.st.MetaInfo()
-	np := info.Info.NumPieces()
-	sz := uint64(info.Info.PieceLength)
-	if piece+1 == np {
-		sz = uint64(np)*sz - info.TotalSize()
-	}
-	log.Debugf("new cached piece of size %d", sz)
+	//np := info.Info.NumPieces()
+	pl := info.Info.PieceLength
+	sz := uint64(pl)
+	//if piece+1 == np {
+	//	sz = (uint64(np) * sz) - info.TotalSize()
+	//}
+	//log.Debugf("new cached piece of size %d vs piece length of %d", sz, pl)
 	cp = &cachedPiece{
 		progress: make([]byte, sz),
 	}
@@ -168,13 +170,11 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 		if pc.done() {
 			err := pt.st.PutPiece(&pc.piece)
 			if err == nil {
-				pt.removePiece(d.Index)
 				pt.st.Flush()
 			} else {
 				log.Warnf("put piece %d failed: %s", pc.piece.Index, err)
-				// try again
-				pc.cancel(0, uint32(len(pc.progress)))
 			}
+			pt.removePiece(d.Index)
 		}
 	}
 }
