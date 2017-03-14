@@ -199,7 +199,9 @@ func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
 	t.cmtx.Lock()
 	for _, conn := range t.conns {
-		go conn.Send(msg)
+		if conn != nil {
+			go conn.Send(msg)
+		}
 	}
 	t.cmtx.Unlock()
 }
