@@ -157,6 +157,15 @@ func (t *Torrent) HasConn(a net.Addr) (has bool) {
 	return
 }
 
+func (t *Torrent) removePeer(a net.Addr) {
+	t.cmtx.Lock()
+	defer t.cmtx.Unlock()
+	_, ok := t.conns[a.String()]
+	if ok {
+		delete(t.conns, a.String())
+	}
+}
+
 // connect to a new peer for this swarm, blocks
 func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 	c, err := t.Net.Dial(a.Network(), a.String())

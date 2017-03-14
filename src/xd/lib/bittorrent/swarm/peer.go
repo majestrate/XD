@@ -148,6 +148,7 @@ func (c *PeerConn) markNotInterested() {
 }
 
 func (c *PeerConn) Close() {
+	addr := c.c.RemoteAddr()
 	if c.r != nil {
 		pc := c.t.pt.getPiece(c.r.Index)
 		pc.cancel(c.r.Begin, c.r.Length)
@@ -161,6 +162,7 @@ func (c *PeerConn) Close() {
 		close(chnl)
 	}
 	c.c.Close()
+	c.t.removePeer(addr)
 }
 
 // run read loop
