@@ -25,7 +25,6 @@ type Torrent struct {
 	id    common.PeerID
 	st    storage.Torrent
 	piece chan pieceEvent
-	pmtx  sync.RWMutex
 	// active connections
 	conns map[string]*PeerConn
 	cmtx  sync.RWMutex
@@ -34,23 +33,25 @@ type Torrent struct {
 }
 
 func newTorrent(st storage.Torrent) *Torrent {
-	return &Torrent{
+	t := &Torrent{
 		st:    st,
 		piece: make(chan pieceEvent, 8),
 		conns: make(map[string]*PeerConn),
 		pt:    createPieceTracker(st),
 	}
+	t.pt.have = t.broadcastHave
+	return t
 }
 
 func (t *Torrent) GetStatus() *TorrentStatus {
-	t.pmtx.Lock()
+	t.cmtx.Lock()
 	var peers []*PeerConnStats
 	for _, conn := range t.conns {
 		if conn != nil {
 			peers = append(peers, conn.Stats())
 		}
 	}
-	t.pmtx.Unlock()
+	t.cmtx.Unlock()
 	return &TorrentStatus{
 		Peers: peers,
 	}
@@ -194,6 +195,15 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 	return err
 }
 
+func (t *Torrent) broadcastHave(idx uint32) {
+	msg := common.NewHave(idx)
+	t.cmtx.Lock()
+	for _, conn := range t.conns {
+		go conn.Send(msg)
+	}
+	t.cmtx.Unlock()
+}
+
 // get metainfo for this torrent
 func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 	return t.st.MetaInfo()
@@ -208,16 +218,6 @@ func (t *Torrent) Close() {
 	chnl := t.piece
 	t.piece = nil
 	close(chnl)
-	t.st.Flush()
-}
-
-func (t *Torrent) storePiece(p *common.PieceData) {
-	n := t.MetaInfo().Info.NumPieces()
-	log.Infof("storing piece %d of %d for %s", p.Index, n, t.st.Infohash().Hex())
-	err := t.st.PutPiece(p)
-	if err != nil {
-		log.Errorf("failed to put piece for %s: %s", t.Name(), err)
-	}
 	t.st.Flush()
 }
 

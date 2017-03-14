@@ -196,3 +196,10 @@ func (msg *WireMessage) GetHave() (h uint32) {
 	}
 	return
 }
+
+// create new have message
+func NewHave(idx uint32) *WireMessage {
+	var body [4]byte
+	binary.BigEndian.PutUint32(body[:], idx)
+	return NewWireMessage(Have, body[:])
+}

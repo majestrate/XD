@@ -99,6 +99,7 @@ type pieceTracker struct {
 	mtx      sync.RWMutex
 	requests map[uint32]*cachedPiece
 	st       storage.Torrent
+	have     func(uint32)
 }
 
 func createPieceTracker(st storage.Torrent) (pt *pieceTracker) {
@@ -170,6 +171,9 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 			err := pt.st.PutPiece(&pc.piece)
 			if err == nil {
 				pt.st.Flush()
+				if pt.have != nil {
+					pt.have(d.Index)
+				}
 			} else {
 				log.Warnf("put piece %d failed: %s", pc.piece.Index, err)
 			}
