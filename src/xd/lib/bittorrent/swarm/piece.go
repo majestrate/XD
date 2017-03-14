@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"math/rand"
 	"sync"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
@@ -143,8 +144,26 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 	bf := pt.st.Bitfield()
 	i := pt.st.MetaInfo()
 	np := i.Info.NumPieces()
-	var idx uint32
+	start := rand.Uint32() % np
+	idx := start
 	for idx < np {
+		if remote.Has(idx) && !bf.Has(idx) {
+			pt.mtx.Lock()
+			cp, has := pt.requests[idx]
+			if !has {
+				cp = pt.newPiece(idx)
+				pt.requests[idx] = cp
+			}
+			pt.mtx.Unlock()
+			r = cp.nextRequest()
+			if r != nil && r.Length > 0 {
+				return
+			}
+		}
+		idx++
+	}
+	idx = 0
+	for idx < start {
 		if remote.Has(idx) && !bf.Has(idx) {
 			pt.mtx.Lock()
 			cp, has := pt.requests[idx]
