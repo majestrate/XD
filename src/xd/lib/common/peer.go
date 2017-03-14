@@ -20,7 +20,14 @@ func (id PeerID) Bytes() []byte {
 // generate a new peer id
 func GeneratePeerID() (id PeerID) {
 	io.ReadFull(rand.Reader, id[:])
-	copy(id[:], []byte(version.Version+"|"))
+	id[0] = '-'
+	id[1] = 'X'
+	id[2] = 'D'
+	id[3] = version.Major[0]
+	id[4] = version.Minor[0]
+	id[5] = version.Patch[0]
+	id[6] = '0'
+	id[7] = '-'
 	return
 }
 
