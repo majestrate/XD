@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/url"
 	"strings"
-	"xd/lib/i2p"
 	"xd/lib/network"
+	"xd/lib/network/i2p"
 	"xd/lib/version"
 )
 

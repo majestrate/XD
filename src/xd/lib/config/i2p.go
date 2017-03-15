@@ -2,8 +2,8 @@ package config
 
 import (
 	"xd/lib/configparser"
-	"xd/lib/i2p"
 	"xd/lib/log"
+	"xd/lib/network/i2p"
 	"xd/lib/util"
 )
 
