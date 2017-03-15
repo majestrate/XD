@@ -6,6 +6,7 @@ import (
 
 // i2p network session
 type Session interface {
+
 	// get session name
 	Name() string
 	// open a new control socket
@@ -21,8 +22,8 @@ type Session interface {
 	// implements network.Network
 	Accept() (net.Conn, error)
 
-	// implements network.Network
-	Lookup(name string) (net.Addr, error)
+	// implements network.Session
+	Lookup(name string, port int) (net.Addr, error)
 
 	// lookup an i2p address
 	LookupI2P(name string) (I2PAddr, error)

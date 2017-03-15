@@ -47,7 +47,7 @@ func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 		a = i2p.I2PAddr(parts[0])
 	} else {
 		// try compact
-		a, err = n.Lookup(p.Compact.String())
+		a, err = n.Lookup(p.Compact.String(), p.Port)
 	}
 	return
 }

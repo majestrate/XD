@@ -11,5 +11,5 @@ type Network interface {
 	Open() error
 	Close() error
 	Addr() net.Addr
-	Lookup(name string) (net.Addr, error)
+	Lookup(name string, port int) (net.Addr, error)
 }

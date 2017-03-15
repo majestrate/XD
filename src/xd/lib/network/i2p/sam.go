@@ -175,7 +175,7 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	return
 }
 
-func (s *samSession) Lookup(name string) (a net.Addr, err error) {
+func (s *samSession) Lookup(name string, port int) (a net.Addr, err error) {
 	a, err = s.LookupI2P(name)
 	return
 }
