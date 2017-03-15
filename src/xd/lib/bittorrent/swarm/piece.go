@@ -154,8 +154,9 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 	bf := pt.st.Bitfield()
 	i := pt.st.MetaInfo()
 	np := i.Info.NumPieces()
-	var idx uint32
-	for idx < np {
+	idx := np
+	for idx > 0 {
+		idx--
 		if remote.Has(idx) && !bf.Has(idx) {
 			pt.mtx.Lock()
 			cp, has := pt.requests[idx]
@@ -169,7 +170,6 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 				return
 			}
 		}
-		idx++
 	}
 	return
 }

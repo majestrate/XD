@@ -31,7 +31,7 @@ func Run() {
 		return
 	}
 	log.Infof("loaded config %s", fname)
-	log.SetLevel("debug")
+	log.SetLevel(conf.Log.Level)
 	st := conf.Storage.CreateStorage()
 
 	sw := swarm.NewSwarm(st)
