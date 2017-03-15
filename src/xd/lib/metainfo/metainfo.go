@@ -66,10 +66,11 @@ func (i Info) GetFiles() (infos []FileInfo) {
 
 // check if a piece is valid against the pieces in this info section
 func (i Info) CheckPiece(p *common.PieceData) bool {
-	idx := int(p.Index * 20)
-	if (idx + 20) <= len(i.Pieces) {
+	idx := p.Index * 20
+	if i.NumPieces() > p.Index {
 		h := sha1.Sum(p.Data)
-		return bytes.Equal(h[:], i.Pieces[idx:idx+20])
+		expected := i.Pieces[idx : idx+20]
+		return bytes.Equal(h[:], expected)
 	}
 	log.Error("piece index out of bounds")
 	return false

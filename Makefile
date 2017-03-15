@@ -8,7 +8,5 @@ test:
 test-storage:
 	GOPATH=$(PWD) go test -v xd/lib/storage
 
-
-
 clean:
 	rm -f xd
