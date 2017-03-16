@@ -228,6 +228,12 @@ func (c *PeerConn) runReader() {
 				}
 				continue
 			}
+			if msgid == common.Cancel {
+				// TODO: check validity
+				r := msg.GetPieceRequest()
+				c.t.pt.canceledRequest(r)
+				continue
+			}
 		}
 	}
 	if err != io.EOF {
