@@ -220,7 +220,7 @@ func (c *PeerConn) runReader() {
 				c.r = nil
 				continue
 			}
-			if msgid == common.Have {
+			if msgid == common.Have && c.bf != nil {
 				// update bitfield
 				c.bf.Set(msg.GetHave())
 				continue
