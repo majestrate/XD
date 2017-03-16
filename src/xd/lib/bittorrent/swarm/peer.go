@@ -285,6 +285,7 @@ func (c *PeerConn) runDownload() {
 		c.r = c.t.pt.nextRequestForDownload(c.bf)
 		if c.r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
+			c.Send(common.NewNotInterested())
 			time.Sleep(time.Second)
 		} else {
 			log.Debugf("ask %s for %d %d %d", c.id.String(), c.r.Index, c.r.Begin, c.r.Length)

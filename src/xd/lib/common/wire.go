@@ -203,3 +203,7 @@ func NewHave(idx uint32) *WireMessage {
 	binary.BigEndian.PutUint32(body[:], idx)
 	return NewWireMessage(Have, body[:])
 }
+
+func NewNotInterested() *WireMessage {
+	return NewWireMessage(NotInterested, nil)
+}
