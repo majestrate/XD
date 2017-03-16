@@ -174,6 +174,17 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 	return
 }
 
+// cancel previously requested piece request
+func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
+	if r == nil {
+		return
+	}
+	pc := pt.getPiece(r.Index)
+	if pc != nil {
+		pc.cancel(r.Begin, r.Length)
+	}
+}
+
 func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 	pc := pt.getPiece(d.Index)
 	if pc != nil {

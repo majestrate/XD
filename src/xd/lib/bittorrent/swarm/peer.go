@@ -223,6 +223,12 @@ func (c *PeerConn) runReader() {
 			if msgid == common.Have && c.bf != nil {
 				// update bitfield
 				c.bf.Set(msg.GetHave())
+				if c.bf.AND(c.t.Bitfield()).CountSet() == 0 {
+					// not interested
+					c.Send(common.NewNotInterested())
+				} else {
+					c.Send(common.NewInterested())
+				}
 				continue
 			}
 		}
@@ -257,6 +263,8 @@ func (c *PeerConn) runWriter() {
 				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop
 					log.Debugf("drop request because choke")
+					c.t.pt.canceledRequest(c.r)
+					c.r = nil
 				} else {
 					log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
 					err = msg.Send(c.c)
@@ -285,7 +293,6 @@ func (c *PeerConn) runDownload() {
 		c.r = c.t.pt.nextRequestForDownload(c.bf)
 		if c.r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
-			c.Send(common.NewNotInterested())
 			time.Sleep(time.Second)
 		} else {
 			log.Debugf("ask %s for %d %d %d", c.id.String(), c.r.Index, c.r.Begin, c.r.Length)

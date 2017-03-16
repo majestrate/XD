@@ -40,6 +40,18 @@ func (bf *Bitfield) Inverted() (i *Bitfield) {
 	return
 }
 
+// bitwise AND
+func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
+	if bf.Length == other.Length {
+		b := NewBitfield(bf.Length, bf.Data)
+		for idx := range other.Data {
+			b.Data[idx] &= other.Data[idx]
+		}
+		return b
+	}
+	return nil
+}
+
 func (bf *Bitfield) Equals(other *Bitfield) bool {
 	return bytes.Equal(bf.Data, other.Data)
 }

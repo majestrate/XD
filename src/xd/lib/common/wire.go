@@ -207,3 +207,7 @@ func NewHave(idx uint32) *WireMessage {
 func NewNotInterested() *WireMessage {
 	return NewWireMessage(NotInterested, nil)
 }
+
+func NewInterested() *WireMessage {
+	return NewWireMessage(Interested, nil)
+}
