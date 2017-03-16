@@ -149,10 +149,7 @@ func (c *PeerConn) markNotInterested() {
 
 func (c *PeerConn) Close() {
 	addr := c.c.RemoteAddr()
-	if c.r != nil {
-		pc := c.t.pt.getPiece(c.r.Index)
-		pc.cancel(c.r.Begin, c.r.Length)
-	}
+	c.t.pt.canceledRequest(c.r)
 	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
 	if c.send != nil {
