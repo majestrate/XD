@@ -14,7 +14,7 @@ type PeerConnStats struct {
 	TX   float32
 	RX   float32
 	ID   common.PeerID
-	Addr net.Addr
+	Addr string
 }
 
 // a peer connection
@@ -42,7 +42,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st = new(PeerConnStats)
 	st.TX = c.tx
 	st.RX = c.rx
-	st.Addr = c.c.RemoteAddr()
+	st.Addr = c.c.RemoteAddr().String()
 	copy(st.ID[:], c.id[:])
 	return
 }
@@ -76,7 +76,8 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
-	msg = new(common.WireMessage)
+	// hack
+	msg = common.KeepAlive()
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	now := time.Now()
@@ -178,9 +179,8 @@ func (c *PeerConn) runReader() {
 			if msgid == common.BitField {
 				c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 				log.Debugf("got bitfield from %s", c.id.String())
-				var m *common.WireMessage
 				// TODO: determine if we are really interested
-				m = common.NewWireMessage(common.Interested, nil)
+				m := common.NewInterested()
 				c.Send(m)
 				continue
 			}
@@ -305,7 +305,6 @@ func (c *PeerConn) runDownload() {
 	if c.send == nil {
 		c.Close()
 		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
-		go c.t.AddPeer(c.c.RemoteAddr(), c.id)
 		return
 	}
 	log.Debugf("peer %s is 'done'", c.id.String())

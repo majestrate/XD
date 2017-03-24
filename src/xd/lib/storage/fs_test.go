@@ -5,10 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 	"xd/lib/common"
+	"xd/lib/log"
 	"xd/lib/metainfo"
 )
 
 func TestFS(t *testing.T) {
+	log.SetLevel("debug")
 	tf := new(metainfo.TorrentFile)
 	p := filepath.Join("test", "test.rand.bin.torrent")
 	f, err := os.Open(p)
@@ -98,13 +100,17 @@ func TestFS(t *testing.T) {
 	var req common.PieceRequest
 
 	pCount := tf.Info.NumPieces()
-	t.Logf("we have %d pieces", pCount)
 	req.Length = tf.Info.PieceLength
+	d := uint64(tf.Info.PieceLength) - (uint64(pCount)*uint64(req.Length) - tf.TotalSize())
+	t.Logf("we have %d pieces, diff=%d", pCount, d)
 	var pc *common.PieceData
 	for err == nil && pCount > req.Index {
+		if req.Index == pCount-1 {
+			req.Length = uint32(d)
+		}
 		pc, err = seedTorrent.GetPiece(&req)
 		if err == nil {
-			t.Logf("put piece idx=%d begin=%d len=%d", pc.Index, pc.Begin, len(pc.Data))
+			t.Logf("put piece idx=%d begin=%d len=%d diff=%d", pc.Index, pc.Begin, len(pc.Data), req.Length-uint32(len(pc.Data)))
 			err = leechTorrent.PutPiece(pc)
 			if err == nil {
 				req.Index++

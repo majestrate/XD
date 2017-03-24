@@ -3,6 +3,7 @@ package swarm
 import (
 	"errors"
 	"xd/lib/common"
+	"xd/lib/log"
 )
 
 var ErrNoTorrent = errors.New("no such torrent")
@@ -11,15 +12,30 @@ type RPC struct {
 	sw *Swarm
 }
 
+const RPCName = "XD"
+
+const RPCListTorrents = RPCName + ".ListTorrents"
+
+func (r *RPC) ListTorrents(limit *int, swarms *TorrentsList) (err error) {
+	r.sw.Torrents.ForEachTorrent(func(t *Torrent) {
+		swarms.Infohashes = append(swarms.Infohashes, t.MetaInfo().Infohash().Hex())
+	})
+	return
+}
+
+const RPCTorrentStatus = RPCName + ".TorrentStatus"
+
 func (r *RPC) TorrentStatus(infohash *string, status *TorrentStatus) (err error) {
 	var ih common.Infohash
-	err = ih.Decode(*infohash)
+	ih, err = common.DecodeInfohash(*infohash)
 	if err == nil {
+		log.Debugf("find torrent %s", ih.Hex())
 		t := r.sw.Torrents.GetTorrent(ih)
 		if t == nil {
 			err = ErrNoTorrent
 		} else {
-			status = t.GetStatus()
+			st := t.GetStatus()
+			status.Peers = st.Peers
 		}
 	}
 	return

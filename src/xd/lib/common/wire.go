@@ -68,14 +68,12 @@ func (t WireMessageType) String() string {
 
 // bittorrent wire message
 type WireMessage struct {
-	length uint32
-	data   []byte
+	data []byte
 }
 
 func KeepAlive() *WireMessage {
 	return &WireMessage{
-		length: 0,
-		data:   []byte{},
+		data: []byte{0, 0, 0, 0},
 	}
 }
 
@@ -84,29 +82,32 @@ func NewWireMessage(id WireMessageType, body []byte) *WireMessage {
 	if body == nil {
 		body = []byte{}
 	}
+	l := uint32(len(body)) + 5
 	msg := &WireMessage{
-		length: uint32(1 + len(body)),
+		data: make([]byte, l),
 	}
-	msg.data = make([]byte, msg.length)
-	msg.data[0] = byte(id)
-	copy(msg.data[1:], body)
+	binary.BigEndian.PutUint32(msg.data, l-4)
+	msg.data[4] = byte(id)
+	if len(body) > 0 {
+		copy(msg.data[5:], body)
+	}
 	return msg
 }
 
 // return true if this message is a keepalive message
 func (msg *WireMessage) KeepAlive() bool {
-	return msg.length == 0
+	return len(msg.data) == 4
 }
 
 // return the length of the body of this message
 func (msg *WireMessage) Len() uint32 {
-	return msg.length
+	return binary.BigEndian.Uint32(msg.data)
 }
 
 // return the body of this message
 func (msg *WireMessage) Payload() []byte {
-	if msg.length > 0 {
-		return msg.data[1:]
+	if msg.Len() > 0 {
+		return msg.data[5:]
 	} else {
 		return nil
 	}
@@ -114,20 +115,21 @@ func (msg *WireMessage) Payload() []byte {
 
 // return the id of this message (aka the type of message this is)
 func (msg *WireMessage) MessageID() WireMessageType {
-	return WireMessageType(msg.data[0])
+	return WireMessageType(msg.data[4])
 }
 
 // read message from reader
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
-	var buff [4]byte
-	_, err = io.ReadFull(r, buff[:])
+	_, err = io.ReadFull(r, msg.data[:4])
 	if err == nil {
-		msg.length = binary.BigEndian.Uint32(buff[:])
-		if msg.length > 0 {
-			msg.data = make([]byte, int(msg.length))
+		l := binary.BigEndian.Uint32(msg.data[:])
+		if l > 0 {
+			data := make([]byte, 4+l)
+			binary.BigEndian.PutUint32(data[:], l)
 			// read body
-			_, err = io.ReadFull(r, msg.data)
+			_, err = io.ReadFull(r, data[4:])
+			msg.data = data
 		}
 	}
 	return
@@ -135,13 +137,16 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 
 // send via writer
 func (msg *WireMessage) Send(w io.Writer) (err error) {
-	var buff [4]byte
-	binary.BigEndian.PutUint32(buff[:], msg.length)
-	err = util.WriteFull(w, buff[:])
-	if err == nil && msg.length > 0 {
-		err = util.WriteFull(w, msg.data)
-	}
+	err = util.WriteFull(w, msg.data[:])
 	return
+}
+
+func (p *PieceData) ToWireMessage() *WireMessage {
+	body := make([]byte, len(p.Data)+8)
+	copy(body[8:], p.Data)
+	binary.BigEndian.PutUint32(body[:], p.Index)
+	binary.BigEndian.PutUint32(body[4:], p.Begin)
+	return NewWireMessage(Piece, body)
 }
 
 // convert piece request to wire message
@@ -163,8 +168,7 @@ func (msg *WireMessage) GetPieceData() *PieceData {
 		p := new(PieceData)
 		p.Index = binary.BigEndian.Uint32(data)
 		p.Begin = binary.BigEndian.Uint32(data[4:])
-		p.Data = make([]byte, len(data)-8)
-		copy(p.Data, data[8:])
+		p.Data = data[8:]
 		return p
 	}
 	return nil

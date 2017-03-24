@@ -15,5 +15,5 @@ func (cfg *RPCConfig) FromSection(s *configparser.Section) {
 		return
 	}
 	cfg.Bind = s.Get("bind", "127.0.0.1:1188")
-	cfg.Enabled = s.Get("enabled", "0") == "1"
+	cfg.Enabled = s.Get("enabled", "1") == "1"
 }

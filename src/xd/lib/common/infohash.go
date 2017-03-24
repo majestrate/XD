@@ -15,7 +15,7 @@ func (ih Infohash) Hex() string {
 	return hex.EncodeToString(ih.Bytes())
 }
 
-func (ih Infohash) Decode(hexstr string) (err error) {
+func DecodeInfohash(hexstr string) (ih Infohash, err error) {
 	var dec []byte
 	dec, err = hex.DecodeString(hexstr)
 	if len(dec) == 20 {

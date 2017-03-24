@@ -17,9 +17,9 @@ const Obtained = 2
 
 // cached downloading piece
 type cachedPiece struct {
-	piece    common.PieceData
+	piece    *common.PieceData
 	progress []byte
-	mtx      sync.RWMutex
+	mtx      sync.Mutex
 }
 
 // is this piece done downloading ?
@@ -35,15 +35,15 @@ func (p *cachedPiece) done() bool {
 // put a slice of data at offset
 func (p *cachedPiece) put(offset uint32, data []byte) {
 	p.mtx.Lock()
-	if offset+uint32(len(data)) <= uint32(len(p.progress)) {
+	l := uint32(len(data))
+	if offset+l <= uint32(len(p.progress)) {
 		// put data
-		slice := p.piece.Data[offset:]
-		copy(slice, data)
-		log.Debugf("put %d in %d of %d at %d", len(data), len(slice), len(p.piece.Data), offset)
-		// put progress
-		for idx := range data {
-			p.progress[uint32(idx)+offset] = Obtained
+		c := copy(p.piece.Data[offset:], data)
+		if c != len(data) {
+			log.Errorf("copied invalid length of slice: len=%d", c)
 		}
+		// put progress
+		p.set(offset, l, Obtained)
 	} else {
 		log.Warnf("block out of range %d, %d %d", offset, len(data), len(p.progress))
 	}
@@ -71,19 +71,10 @@ func (p *cachedPiece) set(offset, length uint32, b byte) {
 
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
-	defer p.mtx.Unlock()
 	l := uint32(len(p.progress))
 	r = &common.PieceRequest{
 		Index:  p.piece.Index,
 		Length: BlockSize,
-	}
-
-	// non standard size, probably last piece
-	// get it in one go
-	if len(p.progress)%BlockSize > 0 {
-		r.Length = uint32(len(p.progress))
-		p.set(r.Begin, r.Length, Pending)
-		return
 	}
 
 	for r.Begin+r.Length < l {
@@ -95,10 +86,14 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 
 		r.Begin += BlockSize
 	}
-	if p.progress[r.Begin] != Missing {
-		return nil
+
+	// probably a last piece, round to best fit
+	if r.Begin+r.Length > l {
+		r.Length = l - r.Begin
 	}
+
 	p.set(r.Begin, r.Length, Pending)
+	p.mtx.Unlock()
 	log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
 	return
 }
@@ -120,8 +115,8 @@ func createPieceTracker(st storage.Torrent) (pt *pieceTracker) {
 
 func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 	pt.mtx.Lock()
-	defer pt.mtx.Unlock()
 	cp, _ = pt.requests[piece]
+	pt.mtx.Unlock()
 	return
 }
 
@@ -131,23 +126,26 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	pl := info.Info.PieceLength
 	sz := uint64(pl)
 	ts := info.TotalSize()
+
 	if piece+1 == np {
-		sz = (uint64(np) * uint64(pl)) - ts
+		sz = uint64(pl) - (uint64(np)*uint64(pl) - ts)
 	}
 
 	log.Debugf("new piece total=%d idx=%d len=%d", ts, piece, sz)
 	cp = &cachedPiece{
 		progress: make([]byte, sz),
+		piece: &common.PieceData{
+			Data:  make([]byte, sz),
+			Index: piece,
+		},
 	}
-	cp.piece.Data = make([]byte, sz)
-	cp.piece.Index = piece
 	return
 }
 
 func (pt *pieceTracker) removePiece(piece uint32) {
 	pt.mtx.Lock()
-	defer pt.mtx.Unlock()
 	delete(pt.requests, piece)
+	pt.mtx.Unlock()
 }
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
@@ -190,7 +188,7 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 	if pc != nil {
 		pc.put(d.Begin, d.Data)
 		if pc.done() {
-			err := pt.st.PutPiece(&pc.piece)
+			err := pt.st.PutPiece(pc.piece)
 			if err == nil {
 				pt.st.Flush()
 				if pt.have != nil {

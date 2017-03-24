@@ -2,7 +2,6 @@ package swarm
 
 import (
 	"bytes"
-	"encoding/binary"
 	"net"
 	"sync"
 	"time"
@@ -27,7 +26,7 @@ type Torrent struct {
 	piece chan pieceEvent
 	// active connections
 	conns map[string]*PeerConn
-	cmtx  sync.RWMutex
+	mtx   *sync.Mutex
 	// piece tracker
 	pt *pieceTracker
 }
@@ -38,20 +37,22 @@ func newTorrent(st storage.Torrent) *Torrent {
 		piece: make(chan pieceEvent, 8),
 		conns: make(map[string]*PeerConn),
 		pt:    createPieceTracker(st),
+		mtx:   new(sync.Mutex),
 	}
 	t.pt.have = t.broadcastHave
 	return t
 }
 
 func (t *Torrent) GetStatus() *TorrentStatus {
-	t.cmtx.Lock()
+	t.mtx.Lock()
 	var peers []*PeerConnStats
+	log.Debugf("get status: we have %d conns", len(t.conns))
 	for _, conn := range t.conns {
 		if conn != nil {
 			peers = append(peers, conn.Stats())
 		}
 	}
-	t.cmtx.Unlock()
+	t.mtx.Unlock()
 	return &TorrentStatus{
 		Peers: peers,
 	}
@@ -64,7 +65,7 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
 	for _, tr := range t.Trackers {
-		t.Announce(tr, "started")
+		go t.Announce(tr, "started")
 	}
 	if t.announcer == nil {
 		t.announcer = time.NewTicker(time.Second)
@@ -78,7 +79,7 @@ func (t *Torrent) StopAnnouncing() {
 		t.announcer.Stop()
 	}
 	for _, tr := range t.Trackers {
-		t.Announce(tr, "stopped")
+		go t.Announce(tr, "stopped")
 	}
 }
 
@@ -115,13 +116,10 @@ func (t *Torrent) Announce(tr tracker.Announcer, event string) {
 		for _, p := range resp.Peers {
 			a, e := p.Resolve(t.Net)
 			if e == nil {
-				if a.String() == t.Net.Addr().String() || t.HasConn(a) {
+				if a.String() == t.Net.Addr().String() {
 					// don't connect to self or a duplicate
 					continue
 				}
-				t.cmtx.Lock()
-				t.conns[a.String()] = nil
-				t.cmtx.Unlock()
 				// no error resolving
 				go t.PersistPeer(a, p.ID)
 			} else {
@@ -151,19 +149,19 @@ func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 }
 
 func (t *Torrent) HasConn(a net.Addr) (has bool) {
-	t.cmtx.Lock()
-	defer t.cmtx.Unlock()
+	t.mtx.Lock()
 	_, has = t.conns[a.String()]
+	t.mtx.Unlock()
 	return
 }
 
 func (t *Torrent) removePeer(a net.Addr) {
-	t.cmtx.Lock()
-	defer t.cmtx.Unlock()
+	t.mtx.Lock()
 	_, ok := t.conns[a.String()]
 	if ok {
 		delete(t.conns, a.String())
 	}
+	t.mtx.Unlock()
 }
 
 // connect to a new peer for this swarm, blocks
@@ -187,9 +185,6 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 					pc := makePeerConn(c, t, h.PeerID)
 					pc.start()
 					t.onNewPeer(pc)
-					t.cmtx.Lock()
-					t.conns[a.String()] = pc
-					t.cmtx.Unlock()
 					return nil
 				} else {
 					log.Warn("Infohash missmatch")
@@ -206,13 +201,17 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 
 func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
-	t.cmtx.Lock()
+	t.mtx.Lock()
+	var conns []*PeerConn
 	for _, conn := range t.conns {
 		if conn != nil {
-			go conn.Send(msg)
+			conns = append(conns, conn)
 		}
 	}
-	t.cmtx.Unlock()
+	t.mtx.Unlock()
+	for _, conn := range conns {
+		go conn.Send(msg)
+	}
 }
 
 // get metainfo for this torrent
@@ -234,9 +233,18 @@ func (t *Torrent) Close() {
 
 // callback called when we get a new inbound peer
 func (t *Torrent) onNewPeer(c *PeerConn) {
+	a := c.c.RemoteAddr()
+	if t.HasConn(a) {
+		log.Infof("duplicate peer from %s", a)
+		c.Close()
+		return
+	}
+	t.mtx.Lock()
+	t.conns[a.String()] = c
+	t.mtx.Unlock()
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	// send our bitfields to them
-	c.Send(t.Bitfield().ToWireMessage())
+	go c.Send(t.Bitfield().ToWireMessage())
 }
 
 // handle a piece request
@@ -267,14 +275,8 @@ func (t *Torrent) Run() {
 				ev.c.Close()
 			} else {
 				// have the piece, send it
-				dl := len(p.Data)
-				d := make([]byte, 8+dl)
-				log.Debugf("piece %d datasize %d", p.Index, dl)
-				binary.BigEndian.PutUint32(d, p.Index)
-				binary.BigEndian.PutUint32(d[4:], p.Begin)
-				copy(d[8:], p.Data[:])
-				msg := common.NewWireMessage(common.Piece, d)
-				ev.c.Send(msg)
+				ev.c.Send(p.ToWireMessage())
+				log.Debugf("%s queued piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 			}
 		} else {
 			log.Infof("%s asked for a zero length piece", ev.c.id.String())

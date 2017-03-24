@@ -87,12 +87,11 @@ func Run() {
 		log.Infof("RPC enabled")
 		go func() {
 			r := new(rpc.Server)
-			er := r.Register(sw.GetRPC())
+			er := r.RegisterName(swarm.RPCName, sw.GetRPC())
 			if er != nil {
 				log.Errorf("rpc register error: %s", er)
 				return
 			}
-			r.HandleHTTP("/", "/debug")
 			l, e := net.Listen("tcp", conf.RPC.Bind)
 			if e == nil {
 				var c net.Conn

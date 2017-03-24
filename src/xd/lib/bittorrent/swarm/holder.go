@@ -10,22 +10,26 @@ import (
 type Holder struct {
 	sw       *Swarm
 	st       storage.Storage
-	access   sync.Mutex
-	torrents map[common.Infohash]*Torrent
+	access   sync.RWMutex
+	torrents map[string]*Torrent
 }
 
 func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Lock()
 	defer h.access.Unlock()
 	tr := newTorrent(t)
-	h.torrents[t.Infohash()] = tr
+	h.torrents[t.Infohash().Hex()] = tr
 	go h.sw.startTorrent(tr)
 }
 
 func (h *Holder) ForEachTorrent(visit func(*Torrent)) {
+	var torrents []*Torrent
 	h.access.Lock()
-	defer h.access.Unlock()
 	for _, t := range h.torrents {
+		torrents = append(torrents, t)
+	}
+	h.access.Unlock()
+	for _, t := range torrents {
 		visit(t)
 	}
 }
@@ -34,7 +38,7 @@ func (h *Holder) ForEachTorrent(visit func(*Torrent)) {
 // returns nil if we don't have a torrent with this infohash
 func (h *Holder) GetTorrent(ih common.Infohash) (t *Torrent) {
 	h.access.Lock()
-	defer h.access.Unlock()
-	t, _ = h.torrents[ih]
+	t, _ = h.torrents[ih.Hex()]
+	h.access.Unlock()
 	return
 }

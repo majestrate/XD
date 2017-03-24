@@ -1,14 +1,19 @@
 package util
 
-import "io"
+import (
+	"io"
+	"xd/lib/log"
+)
 
-// ensure a byteslice is written in full
+// ensure a byteslices is written in full
 func WriteFull(w io.Writer, d []byte) (err error) {
 	var n int
-	for n < len(d) {
+	l := len(d)
+	for n < l {
 		var o int
 		o, err = w.Write(d[n:])
 		if err == nil {
+			log.Debugf("wrote %d of %d", o, l)
 			n += o
 		} else {
 			break

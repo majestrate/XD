@@ -351,7 +351,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 }
 
 func (t *fsTorrent) Flush() error {
-	log.Infof("flush bitfield for %s", t.ih.Hex())
+	log.Debugf("flush bitfield for %s", t.ih.Hex())
 	bf := t.Bitfield()
 	return t.st.flushBitfield(t.ih, bf)
 }

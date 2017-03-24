@@ -160,7 +160,7 @@ func NewSwarm(storage storage.Storage) *Swarm {
 	sw := &Swarm{
 		Torrents: &Holder{
 			st:       storage,
-			torrents: make(map[common.Infohash]*Torrent),
+			torrents: make(map[string]*Torrent),
 		},
 	}
 	sw.Torrents.sw = sw
