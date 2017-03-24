@@ -11,18 +11,21 @@ Current:
 
 Soon:
 
-* Make downloads store files properly [see issue #1](https://github.com/majestrate/XD/issues/1)
-* DHT/Magnet Support
 * Some Slick Logo thing for propaganda purposes
+* DHT/Magnet Support
 
 Eventually:
 
 * Maggot Support (?)
 * rtorrent compatible RPC (?)
 
+## Dependencies
 
+* go >= 1.3
+* GNU Make
 
 ## Building
+
 
 You can either use `make` or `go get` to build XD
 
@@ -35,6 +38,13 @@ the `make` way (preferred):
 the `go get` way, requires `$GOPATH` to be set properly
 
     $ go get -u -v github.com/majestrate/XD
+
+### cross compile for Raspberry PI
+
+Set `GOARCH` and `GOOS` when building with make:
+
+    $ make GOARCH=arm GOOS=linux
+
 
 ## Usage
 
