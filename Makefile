@@ -12,4 +12,4 @@ rpc:
 	GOPATH=$(PWD) go build -v xd/cmd/rpcdebug
 
 clean:
-	rm -f xd
+	rm -f XD rpcdebug
