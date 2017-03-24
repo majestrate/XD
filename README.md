@@ -35,7 +35,7 @@ the `make` way (preferred):
     $ cd XD
     $ make
 
-the `go get` way, requires `$GOPATH` to be set properly
+the `go get` way, requires go 1.6 or higher because it uses vendored packages
 
     $ go get -u -v github.com/majestrate/XD
 
