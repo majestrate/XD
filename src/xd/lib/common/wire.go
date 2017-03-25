@@ -36,8 +36,8 @@ const Piece = WireMessageType(7)
 // cancel a REQUEST message
 const Cancel = WireMessageType(8)
 
-// extention
-const Port = WireMessageType(9)
+// extended options message
+const Extended = WireMessageType(20)
 
 func (t WireMessageType) String() string {
 	switch t {
@@ -59,8 +59,8 @@ func (t WireMessageType) String() string {
 		return "Piece"
 	case Cancel:
 		return "Cancel"
-	case Port:
-		return "Port"
+	case Extended:
+		return "Extended"
 	default:
 		return "???"
 	}

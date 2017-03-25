@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 	"xd/lib/bittorrent"
+	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/metainfo"
@@ -117,13 +118,16 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		c.Close()
 		return
 	}
-
-	// make peer conn
-	p := makePeerConn(c, t, h.PeerID)
-
+	var opts *extensions.ExtendedOptions
+	if h.Reserved.Has(bittorrent.Extension) {
+		opts = extensions.New()
+	}
 	// reply to handshake
 	copy(h.PeerID[:], sw.id[:])
 	err = h.Send(c)
+	// make peer conn
+	p := makePeerConn(c, t, h.PeerID, opts)
+
 	if err != nil {
 		log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
 		// write error

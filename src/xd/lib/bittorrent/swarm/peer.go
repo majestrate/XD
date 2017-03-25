@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 	"xd/lib/bittorrent"
+	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
 )
@@ -35,6 +36,8 @@ type PeerConn struct {
 	lastRecv       time.Time
 	rx             float32
 	r              *common.PieceRequest
+	ourOpts        *extensions.ExtendedOptions
+	theirOpts      *extensions.ExtendedOptions
 }
 
 // get stats for this connection
@@ -47,10 +50,11 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	return
 }
 
-func makePeerConn(c net.Conn, t *Torrent, id common.PeerID) *PeerConn {
+func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.ExtendedOptions) *PeerConn {
 	p := new(PeerConn)
 	p.c = c
 	p.t = t
+	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
@@ -234,12 +238,25 @@ func (c *PeerConn) runReader() {
 				c.t.pt.canceledRequest(r)
 				continue
 			}
+			if msgid == common.Extended {
+				// handle extended options
+				opts := extensions.FromWireMessage(msg)
+				if opts == nil {
+					log.Warnf("failed to parse extended options for %s", c.id.String())
+				} else {
+					c.handleExtendedOpts(opts)
+				}
+			}
 		}
 	}
 	if err != io.EOF {
 		log.Errorf("%s read error: %s", c.id, err)
 	}
 	c.Close()
+}
+
+func (c *PeerConn) handleExtendedOpts(opts *extensions.ExtendedOptions) {
+	log.Debugf("got extended opts from '%s'", opts.Version)
 }
 
 func (c *PeerConn) sendKeepAlive() error {

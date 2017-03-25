@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 	"xd/lib/bittorrent"
+	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/metainfo"
@@ -29,15 +30,18 @@ type Torrent struct {
 	mtx   *sync.Mutex
 	// piece tracker
 	pt *pieceTracker
+	// our extended options default settings
+	defaultOpts *extensions.ExtendedOptions
 }
 
 func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
-		st:    st,
-		piece: make(chan pieceEvent, 8),
-		conns: make(map[string]*PeerConn),
-		pt:    createPieceTracker(st),
-		mtx:   new(sync.Mutex),
+		st:          st,
+		piece:       make(chan pieceEvent, 8),
+		conns:       make(map[string]*PeerConn),
+		pt:          createPieceTracker(st),
+		mtx:         new(sync.Mutex),
+		defaultOpts: extensions.New(),
 	}
 	t.pt.have = t.broadcastHave
 	return t
@@ -172,6 +176,8 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 		ih := t.st.Infohash()
 		// build handshake
 		h := new(bittorrent.Handshake)
+		// enable bittorrent extensions
+		h.Reserved.Set(bittorrent.Extension)
 		copy(h.Infohash[:], ih[:])
 		copy(h.PeerID[:], t.id[:])
 		// send handshake
@@ -182,7 +188,11 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 			if err == nil {
 				if bytes.Equal(ih[:], h.Infohash[:]) {
 					// infohashes match
-					pc := makePeerConn(c, t, h.PeerID)
+					var opts *extensions.ExtendedOptions
+					if h.Reserved.Has(bittorrent.Extension) {
+						opts = t.defaultOpts.Copy()
+					}
+					pc := makePeerConn(c, t, h.PeerID, opts)
 					pc.start()
 					t.onNewPeer(pc)
 					return nil
