@@ -212,13 +212,18 @@ func (c *PeerConn) runReader() {
 			}
 			if msgid == common.Piece {
 				d := msg.GetPieceData()
-				if c.r != nil && c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
-					c.t.pt.handlePieceData(d)
-				} else {
-					log.Warnf("unwarrented piece data from %s", c.id.String())
+				if d == nil || d.Data == nil {
+					log.Warnf("invalid piece data message from %s", c.id.String())
 					c.Close()
+				} else {
+					if c.r != nil && c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
+						c.t.pt.handlePieceData(d)
+					} else {
+						log.Warnf("unwarrented piece data from %s", c.id.String())
+						c.Close()
+					}
+					c.r = nil
 				}
-				c.r = nil
 				continue
 			}
 			if msgid == common.Have && c.bf != nil {
