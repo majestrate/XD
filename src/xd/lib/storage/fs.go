@@ -199,7 +199,7 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 							log.Errorf("Failed to write %s: %s", fpath, err)
 							return err
 						}
-						idx -= uint64(n)
+						idx += uint64(n)
 						break
 					}
 				} else {
