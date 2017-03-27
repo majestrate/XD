@@ -93,7 +93,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 					interval = cresp.Interval
 					l := len(cresp.Peers) / 32
 					for l > 0 {
-						p := new(common.Peer)
+						var p common.Peer
 						// TODO: bounds check
 						copy(p.Compact[:], cresp.Peers[(l-1)*32:l*32])
 						resp.Peers = append(resp.Peers, p)

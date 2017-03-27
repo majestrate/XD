@@ -22,9 +22,9 @@ type Request struct {
 }
 
 type Response struct {
-	Interval int            `bencode:"interval"`
-	Peers    []*common.Peer `bencode:"peers"`
-	Error    string         `bencode:"failure reason"`
+	Interval int           `bencode:"interval"`
+	Peers    []common.Peer `bencode:"peers"`
+	Error    string        `bencode:"failure reason"`
 }
 
 // bittorrent announcer, gets peers and announces presence in swarm
