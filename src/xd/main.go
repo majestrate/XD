@@ -33,6 +33,7 @@ func Run() {
 			log.Errorf("failed to save initial config: %s", err)
 			return
 		}
+		log.Infof("auto-generated new config at %s", fname)
 	}
 	err = conf.Load(fname)
 	if err != nil {
