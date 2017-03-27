@@ -172,6 +172,11 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 		idx := uint64(0)
 		cur := uint64(0)
 		left := uint64(sz)
+		i := t.MetaInfo()
+		np := uint64(i.Info.NumPieces())
+		if uint64(pc.Index)+1 == np {
+			left -= (sz * np) - i.TotalSize()
+		}
 		pieceOff := sz * uint64(pc.Index)
 		for _, info := range t.meta.Info.Files {
 			if info.Length+cur >= pieceOff {
