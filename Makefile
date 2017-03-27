@@ -1,7 +1,7 @@
 REPO = $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-build:
-	GOPATH=$(REPO) go build -v xd
+XD:
+	GOPATH=$(REPO) go build -v
 
 test:
 	GOPATH=$(REPO) go test -v xd/...
@@ -13,4 +13,4 @@ rpc:
 	GOPATH=$(REPO) go build -v xd/cmd/rpcdebug
 
 clean:
-	GOPATH=$(REPO) go clean -v xd/...
+	GOPATH=$(REPO) go clean -v
