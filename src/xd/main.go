@@ -48,6 +48,12 @@ func Run() {
 	st := conf.Storage.CreateStorage()
 
 	sw := swarm.NewSwarm(st)
+
+	go func() {
+		// run swarm
+		done <- sw.Run()
+	}()
+
 	go func() {
 		ts, e := st.OpenAllTorrents()
 		if e != nil {
@@ -69,8 +75,6 @@ func Run() {
 				return
 			}
 		}
-		// run swarm
-		done <- sw.Run()
 	}()
 
 	// torrent auto adder
