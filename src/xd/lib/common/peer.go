@@ -11,13 +11,15 @@ import (
 	"xd/lib/version"
 )
 
+// PeerID is a buffer for bittorrent peerid
 type PeerID [20]byte
 
+// Bytes gets buffer as byteslice
 func (id PeerID) Bytes() []byte {
 	return id[:]
 }
 
-// generate a new peer id
+// GeneratePeerID generates a new peer id for XD
 func GeneratePeerID() (id PeerID) {
 	io.ReadFull(rand.Reader, id[:])
 	id[0] = '-'
@@ -31,7 +33,7 @@ func (id PeerID) String() string {
 	return url.QueryEscape(string(id.Bytes()))
 }
 
-// swarm peer
+// Peer provides info for a bittorrent swarm peer
 type Peer struct {
 	Compact i2p.Base32Addr `bencode:"-"`
 	IP      string         `bencode:"ip"`
@@ -39,7 +41,7 @@ type Peer struct {
 	ID      PeerID         `bencode:"id"`
 }
 
-// resolve network address
+// Resolve resolves network address of peer
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 	if len(p.IP) > 0 {
 		// prefer ip

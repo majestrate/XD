@@ -1,2 +1,2 @@
-// common datastructures
+// Package common provides common data structures
 package common

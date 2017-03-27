@@ -6,37 +6,37 @@ import (
 	"xd/lib/util"
 )
 
-// type for wire message id
+// WireMessageType is type for wire message id
 type WireMessageType byte
 
-// choke message
+// Chock is message id for choke message
 const Choke = WireMessageType(0)
 
-// unchoke message
+// UnChoke is message id for unchoke message
 const UnChoke = WireMessageType(1)
 
-// peer is interested message
+// Interested is messageid for interested message
 const Interested = WireMessageType(2)
 
-// peer is not interested message
+// NotInterested is messageid for not-interested message
 const NotInterested = WireMessageType(3)
 
-// have message
+// Have is messageid for have message
 const Have = WireMessageType(4)
 
-// bitfield message
+// BitField is messageid for bitfield message
 const BitField = WireMessageType(5)
 
-// request piece message
+// Request is messageid for piece request message
 const Request = WireMessageType(6)
 
-// response to REQUEST message
+// Piece is messageid for response to Request message
 const Piece = WireMessageType(7)
 
-// cancel a REQUEST message
+// Cancel is messageid for a Cancel message, used to cancel a pending request
 const Cancel = WireMessageType(8)
 
-// extended options message
+// Extended is messageid for ExtendedOptions message
 const Extended = WireMessageType(20)
 
 func (t WireMessageType) String() string {
@@ -66,18 +66,19 @@ func (t WireMessageType) String() string {
 	}
 }
 
-// bittorrent wire message
+// WireMessage is a serializable bittorrent wire message
 type WireMessage struct {
 	data []byte
 }
 
+// KeepAlive makes a WireMessage of size 0
 func KeepAlive() *WireMessage {
 	return &WireMessage{
 		data: []byte{0, 0, 0, 0},
 	}
 }
 
-// create new wire message
+// NewWireMessage creates new wire message with id and body
 func NewWireMessage(id WireMessageType, body []byte) *WireMessage {
 	if body == nil {
 		body = []byte{}
@@ -94,17 +95,17 @@ func NewWireMessage(id WireMessageType, body []byte) *WireMessage {
 	return msg
 }
 
-// return true if this message is a keepalive message
+// KeepAlive returns true if this message is a keepalive message
 func (msg *WireMessage) KeepAlive() bool {
-	return len(msg.data) == 4
+	return msg.Len() == 0
 }
 
-// return the length of the body of this message
+// Len returns the length of the body of this message
 func (msg *WireMessage) Len() uint32 {
 	return binary.BigEndian.Uint32(msg.data)
 }
 
-// return the body of this message
+// Payload returns a byteslice for the body of this message
 func (msg *WireMessage) Payload() []byte {
 	if msg.Len() > 0 {
 		return msg.data[5:]
@@ -113,12 +114,12 @@ func (msg *WireMessage) Payload() []byte {
 	}
 }
 
-// return the id of this message (aka the type of message this is)
+// MessageID returns the id of this message
 func (msg *WireMessage) MessageID() WireMessageType {
 	return WireMessageType(msg.data[4])
 }
 
-// read message from reader
+// Recv reads message from reader
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
 	_, err = io.ReadFull(r, msg.data[:4])
@@ -135,12 +136,13 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	return
 }
 
-// send via writer
+// Send writes WireMessage via writer
 func (msg *WireMessage) Send(w io.Writer) (err error) {
 	err = util.WriteFull(w, msg.data[:])
 	return
 }
 
+// ToWireMessage serialize to BitTorrent wire message
 func (p *PieceData) ToWireMessage() *WireMessage {
 	body := make([]byte, len(p.Data)+8)
 	copy(body[8:], p.Data)
@@ -149,7 +151,7 @@ func (p *PieceData) ToWireMessage() *WireMessage {
 	return NewWireMessage(Piece, body)
 }
 
-// convert piece request to wire message
+// ToWireMessage serialize to BitTorrent wire message
 func (req *PieceRequest) ToWireMessage() *WireMessage {
 	var body [12]byte
 	binary.BigEndian.PutUint32(body[:], req.Index)
@@ -158,6 +160,7 @@ func (req *PieceRequest) ToWireMessage() *WireMessage {
 	return NewWireMessage(Request, body[:])
 }
 
+// GetPieceData gets this wire message as a PieceData if applicable
 func (msg *WireMessage) GetPieceData() *PieceData {
 
 	if msg.MessageID() != Piece {
@@ -174,7 +177,7 @@ func (msg *WireMessage) GetPieceData() *PieceData {
 	return nil
 }
 
-// get piece request from wire message or nil if malformed or not a piece request
+// GetPieceRequest gets piece request from wire message or nil if malformed or not a piece request
 func (msg *WireMessage) GetPieceRequest() *PieceRequest {
 	if msg.MessageID() != Request {
 		return nil
@@ -190,7 +193,7 @@ func (msg *WireMessage) GetPieceRequest() *PieceRequest {
 	return req
 }
 
-// get as have message
+// GetHave gets the piece index of a have message
 func (msg *WireMessage) GetHave() (h uint32) {
 	if msg.MessageID() == Have {
 		data := msg.Payload()
@@ -201,17 +204,19 @@ func (msg *WireMessage) GetHave() (h uint32) {
 	return
 }
 
-// create new have message
+// NewHave creates a new have message
 func NewHave(idx uint32) *WireMessage {
 	var body [4]byte
 	binary.BigEndian.PutUint32(body[:], idx)
 	return NewWireMessage(Have, body[:])
 }
 
+// NewNotInterested creates a new NotInterested message
 func NewNotInterested() *WireMessage {
 	return NewWireMessage(NotInterested, nil)
 }
 
+// NewInterested creates a new Interested message
 func NewInterested() *WireMessage {
 	return NewWireMessage(Interested, nil)
 }
