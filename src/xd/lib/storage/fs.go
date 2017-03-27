@@ -197,7 +197,7 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 						continue
 					} else {
 						var n int
-						n, err = f.WriteAt(pc.Data[idx:idx+left], int64(pieceOff-idx)-int64(left))
+						n, err = f.WriteAt(pc.Data[idx:idx+left], int64(pieceOff-cur)-int64(left))
 						// err = util.WriteFull(f, pc.Data[idx:left])
 						if err != nil {
 							log.Errorf("Failed to write %s: %s", fpath, err)
@@ -212,7 +212,6 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 				}
 			}
 			cur += info.Length
-			pieceOff -= info.Length
 		}
 	}
 	// set bitfield
