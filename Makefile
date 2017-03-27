@@ -1,5 +1,7 @@
 REPO = $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
+build: clean XD
+
 XD:
 	GOPATH=$(REPO) go build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD)"
 
