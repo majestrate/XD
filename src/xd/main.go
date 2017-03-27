@@ -25,8 +25,15 @@ func Run() {
 		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
 		return
 	}
-	util.EnsureFile(fname, 0)
-	err := conf.Load(fname)
+	var err error
+	if !util.CheckFile(fname) {
+		err = conf.Save(fname)
+		if err != nil {
+			log.Errorf("failed to save initial config: %s", err)
+			return
+		}
+	}
+	err = conf.Load(fname)
 	if err != nil {
 		log.Errorf("failed to config %s", err)
 		return

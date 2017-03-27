@@ -31,6 +31,15 @@ func (cfg *StorageConfig) FromSection(s *configparser.Section) {
 	}
 }
 
+func (cfg *StorageConfig) Options() map[string]string {
+
+	return map[string]string{
+		"rootdir":   cfg.Root,
+		"metadata":  cfg.Meta,
+		"downloads": cfg.Downloads,
+	}
+}
+
 func (cfg *StorageConfig) CreateStorage() storage.Storage {
 	util.EnsureDir(cfg.Root)
 	util.EnsureDir(cfg.Downloads)

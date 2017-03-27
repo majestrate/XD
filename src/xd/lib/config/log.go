@@ -15,3 +15,9 @@ func (cfg *LogConfig) FromSection(s *configparser.Section) {
 		cfg.Level = s.Get("level", "info")
 	}
 }
+
+func (cfg *LogConfig) Options() map[string]string {
+	return map[string]string{
+		"level": cfg.Level,
+	}
+}
