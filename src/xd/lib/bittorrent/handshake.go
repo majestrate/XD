@@ -1,19 +1,21 @@
 package bittorrent
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"xd/lib/common"
 	"xd/lib/util"
 )
 
-const _handshake_v1 = "BitTorrent protocol"
+const handshakeV1 = "BitTorrent protocol"
 
-// reserved data
+// Reserved is reserved data in handshake
 type Reserved struct {
 	data [8]uint8
 }
 
-// bit set in reserved data
+// ReservedBit is a bit set in reserved data
 type ReservedBit uint8
 
 func (b ReservedBit) mask() uint8 {
@@ -24,43 +26,53 @@ func (b ReservedBit) index() uint8 {
 	return uint8(b-1) / 8
 }
 
-// return true if reserved bit is set
+// Has returns true if reserved bit is set
 func (r Reserved) Has(bit ReservedBit) bool {
 	return r.data[bit.index()]&bit.mask() == bit.mask()
 }
 
-// set a reserved bit
+// Set sets a reserved bit
 func (r *Reserved) Set(bit ReservedBit) {
 	r.data[bit.index()] |= bit.mask()
 }
 
+// Extension is ReservedBit for bittorrent extensions
 const Extension = ReservedBit(44)
+
+// DHT is ReservedBit for BT DHT
 const DHT = ReservedBit(64)
 
-// bittorrent protocol handshake info
+// ErrInvalidHandshake is returned when a handshake contained invalid format
+var ErrInvalidHandshake = errors.New("invalid bittorrent handshake")
+
+// Handshake is a bittorrent protocol handshake info
 type Handshake struct {
 	Reserved Reserved
 	Infohash common.Infohash
 	PeerID   common.PeerID
 }
 
-// recv handshake via reader
+// Recv reads handshake via reader
 func (h *Handshake) Recv(r io.Reader) (err error) {
 	var buff [68]byte
 	_, err = io.ReadFull(r, buff[:])
 	if err == nil {
-		copy(h.Reserved.data[:], buff[20:28])
-		copy(h.Infohash[:], buff[28:48])
-		copy(h.PeerID[:], buff[48:68])
+		if buff[0] == 19 && bytes.Equal(buff[1:20], []byte(handshakeV1)) {
+			copy(h.Reserved.data[:], buff[20:28])
+			copy(h.Infohash[:], buff[28:48])
+			copy(h.PeerID[:], buff[48:68])
+		} else {
+			err = ErrInvalidHandshake
+		}
 	}
 	return
 }
 
-// send handshake via writer
+// Send sends handshake via writer
 func (h *Handshake) Send(w io.Writer) (err error) {
 	var buff [68]byte
 	buff[0] = 19
-	copy(buff[1:], []byte(_handshake_v1))
+	copy(buff[1:], []byte(handshakeV1))
 	copy(buff[20:28], h.Reserved.data[:])
 	copy(buff[28:48], h.Infohash[:])
 	copy(buff[48:68], h.PeerID[:])

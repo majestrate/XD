@@ -2,11 +2,13 @@ package bittorrent
 
 import (
 	"bytes"
-	"github.com/zeebo/bencode"
 	"io"
 	"xd/lib/common"
+
+	"github.com/zeebo/bencode"
 )
 
+// Bitfield is a serializable bitmap for bittorrent
 type Bitfield struct {
 	// length in bits
 	Length uint32 `bencode:"bits"`
@@ -14,20 +16,20 @@ type Bitfield struct {
 	Data []byte `bencode:"bitfield"`
 }
 
-// create new bitfield
-func NewBitfield(l uint32, d []byte) *Bitfield {
-	if d == nil {
-		d = make([]byte, (l/8)+1)
+// NewBitfield creates new bitfield given number of bits and initial value
+func NewBitfield(bits uint32, value []byte) *Bitfield {
+	if value == nil {
+		value = make([]byte, (bits/8)+1)
 	}
-	b := make([]byte, len(d))
-	copy(b, d)
+	b := make([]byte, len(value))
+	copy(b, value)
 	return &Bitfield{
-		Length: l,
+		Length: bits,
 		Data:   b,
 	}
 }
 
-// get as inverted
+// Inverted gets copy of current Bitfield with all bits inverted
 func (bf *Bitfield) Inverted() (i *Bitfield) {
 	i = NewBitfield(bf.Length, nil)
 	bit := uint32(0)
@@ -40,7 +42,7 @@ func (bf *Bitfield) Inverted() (i *Bitfield) {
 	return
 }
 
-// bitwise AND
+// AND returns copy of Bitfield with bitwise AND applied from other Bitfield
 func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 	if bf.Length == other.Length {
 		b := NewBitfield(bf.Length, bf.Data)
@@ -52,40 +54,42 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 	return nil
 }
 
+// Equals checks if a Bitfield is equal to anoter
 func (bf *Bitfield) Equals(other *Bitfield) bool {
 	return bytes.Equal(bf.Data, other.Data)
 }
 
-// for fs storage
+// BEncode for fs storage
 func (bf *Bitfield) BEncode(w io.Writer) (err error) {
 	enc := bencode.NewEncoder(w)
 	err = enc.Encode(bf)
 	return
 }
 
-// for fs storage
+// BDecode for fs storage
 func (bf *Bitfield) BDecode(r io.Reader) (err error) {
 	dec := bencode.NewDecoder(r)
 	err = dec.Decode(bf)
 	return
 }
 
-// serialize to wire message
+// ToWireMessage serializes to bittorrent wire message
 func (bf *Bitfield) ToWireMessage() *common.WireMessage {
 	return common.NewWireMessage(common.BitField, bf.Data[:])
 }
 
-func (bf *Bitfield) Set(p uint32) {
+// Set sets a big at index
+func (bf *Bitfield) Set(index uint32) {
 	dl := uint32(len(bf.Data))
-	if p < bf.Length {
-		idx := p >> 3
+	if index < bf.Length {
+		idx := index >> 3
 		if idx < dl {
-			bf.Data[idx] |= (1 << (7 - uint(p)&7))
+			bf.Data[idx] |= (1 << (7 - uint(index)&7))
 		}
 	}
 }
 
-// count how many bits are set
+// CountSet counts how many bits are set
 func (bf *Bitfield) CountSet() (sum int) {
 	l := bf.Length
 	for l > 0 {
@@ -98,17 +102,19 @@ func (bf *Bitfield) CountSet() (sum int) {
 	return
 }
 
-func (bf *Bitfield) Has(p uint32) bool {
+// Has returns true if we have a bit at index set
+func (bf *Bitfield) Has(index uint32) bool {
 	dl := uint32(len(bf.Data))
-	if p < bf.Length {
-		idx := p >> 3
+	if index < bf.Length {
+		idx := index >> 3
 		if idx < dl {
-			return bf.Data[idx]&(1<<(7-uint(p)&7)) != 0
+			return bf.Data[idx]&(1<<(7-uint(index)&7)) != 0
 		}
 	}
 	return false
 }
 
+// Completed returns true if this Bitfield is 100% set
 func (bf *Bitfield) Completed() bool {
 	l := bf.Length
 	for l > 0 {

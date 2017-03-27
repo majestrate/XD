@@ -13,6 +13,7 @@ import (
 	"xd/lib/util"
 )
 
+// Run runs XD main function
 func Run() {
 	done := make(chan error)
 	conf := new(config.Config)
@@ -36,23 +37,23 @@ func Run() {
 
 	sw := swarm.NewSwarm(st)
 	go func() {
-		ts, err := st.OpenAllTorrents()
-		if err != nil {
-			log.Errorf("error opening all torrents: %s", err)
-			done <- err
+		ts, e := st.OpenAllTorrents()
+		if e != nil {
+			log.Errorf("error opening all torrents: %s", e)
+			done <- e
 			return
 		}
 		for _, t := range ts {
-			err := t.VerifyAll(false)
-			if err != nil {
-				log.Errorf("failed to verify: %s", err)
-				done <- err
+			e = t.VerifyAll(false)
+			if e != nil {
+				log.Errorf("failed to verify: %s", e)
+				done <- e
 				return
 			}
-			err = sw.AddTorrent(t)
-			if err != nil {
-				log.Errorf("error adding torrent: %s", err)
-				done <- err
+			e = sw.AddTorrent(t)
+			if e != nil {
+				log.Errorf("error adding torrent: %s", e)
+				done <- e
 				return
 			}
 		}
@@ -67,15 +68,15 @@ func Run() {
 			for _, t := range nt {
 				name := t.MetaInfo().TorrentName()
 				log.Debugf("adding torrent %s", name)
-				err := t.VerifyAll(true)
-				if err != nil {
-					log.Warnf("Failed to verify %s, %s", name, err)
+				e := t.VerifyAll(true)
+				if e != nil {
+					log.Warnf("Failed to verify %s, %s", name, e)
 				}
-				err = sw.AddTorrent(t)
-				if err == nil {
+				e = sw.AddTorrent(t)
+				if e == nil {
 					log.Infof("added %s", name)
 				} else {
-					log.Errorf("Failed to add %s: %s", name, err)
+					log.Errorf("Failed to add %s: %s", name, e)
 				}
 			}
 			time.Sleep(time.Second)

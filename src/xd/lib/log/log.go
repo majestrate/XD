@@ -55,6 +55,7 @@ func (l logLevel) Color() string {
 
 var level = info
 
+// SetLevel sets global logger level
 func SetLevel(l string) {
 	l = strings.ToLower(l)
 	if l == "debug" {
@@ -81,42 +82,52 @@ func log(lvl logLevel, f string, args ...interface{}) {
 	}
 }
 
+// Debug prints debug message
 func Debug(msg string) {
 	log(debug, msg)
 }
 
+// Debugf prints formatted debug message
 func Debugf(f string, args ...interface{}) {
 	log(debug, f, args...)
 }
 
+// Info prints info log message
 func Info(msg string) {
 	log(info, msg)
 }
 
+// Infof prints formatted info log message
 func Infof(f string, args ...interface{}) {
 	log(info, f, args...)
 }
 
+// Warn prints warn log message
 func Warn(msg string) {
 	log(warn, msg)
 }
 
+// Warnf prints formatted warn log message
 func Warnf(f string, args ...interface{}) {
 	log(warn, f, args...)
 }
 
+// Error prints error log message
 func Error(msg string) {
 	log(error, msg)
 }
 
+// Errorf prints formatted error log message
 func Errorf(f string, args ...interface{}) {
 	log(error, f, args...)
 }
 
+// Fatal print fatal error and panic
 func Fatal(msg string) {
 	log(fatal, msg)
 }
 
+// Fatalf print formatted fatal error and panic
 func Fatalf(f string, args ...interface{}) {
 	log(fatal, f, args...)
 }
