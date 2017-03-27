@@ -8,11 +8,11 @@ import (
 )
 
 type I2PConfig struct {
-	Addr             string
-	Keyfile          string
-	Name             string
-	nameWasGenerated bool
-	I2CPOptions      map[string]string
+	Addr            string
+	Keyfile         string
+	Name            string
+	nameWasProvided bool
+	I2CPOptions     map[string]string
 }
 
 func (cfg *I2PConfig) FromSection(section *configparser.Section) {
@@ -26,7 +26,7 @@ func (cfg *I2PConfig) FromSection(section *configparser.Section) {
 		cfg.Keyfile = section.Get("keyfile", "")
 		gen := util.RandStr(5)
 		cfg.Name = section.Get("session", gen)
-		cfg.nameWasGenerated = cfg.Name == gen
+		cfg.nameWasProvided = cfg.Name != gen
 		opts := section.Options()
 		for k, v := range opts {
 			if k == "address" || k == "keyfile" || k == "session" {
@@ -45,8 +45,10 @@ func (cfg *I2PConfig) Options() map[string]string {
 		}
 	}
 	opts["address"] = cfg.Addr
-	opts["keyfile"] = cfg.Keyfile
-	if !cfg.nameWasGenerated {
+	if cfg.Keyfile != "" {
+		opts["keyfile"] = cfg.Keyfile
+	}
+	if cfg.nameWasProvided {
 		opts["session"] = cfg.Name
 	}
 	return opts

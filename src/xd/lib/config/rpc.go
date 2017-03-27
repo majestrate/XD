@@ -23,8 +23,11 @@ func (cfg *RPCConfig) Options() map[string]string {
 	if cfg.Enabled {
 		enabled = "1"
 	}
-	return map[string]string{
-		"bind":    cfg.Bind,
+	opts := map[string]string{
 		"enabled": enabled,
 	}
+	if cfg.Bind != "" {
+		opts["bind"] = cfg.Bind
+	}
+	return opts
 }

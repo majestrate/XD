@@ -27,6 +27,7 @@ func Run() {
 	}
 	var err error
 	if !util.CheckFile(fname) {
+		conf.Load(fname)
 		err = conf.Save(fname)
 		if err != nil {
 			log.Errorf("failed to save initial config: %s", err)
