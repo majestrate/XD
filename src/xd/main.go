@@ -11,10 +11,12 @@ import (
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/util"
+	"xd/lib/version"
 )
 
 // Run runs XD main function
 func Run() {
+	v := version.Version()
 	done := make(chan error)
 	conf := new(config.Config)
 	fname := "torrents.ini"
@@ -25,6 +27,7 @@ func Run() {
 		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
 		return
 	}
+	log.Infof("starting %s", v)
 	var err error
 	if !util.CheckFile(fname) {
 		conf.Load(fname)

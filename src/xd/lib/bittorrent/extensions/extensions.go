@@ -51,7 +51,7 @@ func (opts *ExtendedOptions) ToWireMessage() *common.WireMessage {
 // New creates new valid ExtendedOptions instance
 func New() *ExtendedOptions {
 	return &ExtendedOptions{
-		Version:    version.Version,
+		Version:    version.Version(),
 		Extensions: make(map[Extension]uint8),
 	}
 }

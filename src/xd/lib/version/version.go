@@ -1,11 +1,17 @@
 package version
 
+import "fmt"
+
 const Name = "XD"
 
 const Major = "0"
 
 const Minor = "0"
 
-const Patch = "1"
+const Patch = "2"
 
-const Version = Name + "-" + Major + "." + Minor + "." + Patch
+var Git string
+
+func Version() string {
+	return fmt.Sprintf("%s-%s.%s.%s%s", Name, Major, Minor, Patch, Git)
+}
