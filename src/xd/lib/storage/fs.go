@@ -192,12 +192,14 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) error {
 						continue
 					} else {
 						f.Seek(int64(pieceOff-idx)-int64(sz), 0)
-						_, err = f.Write(pc.Data[idx:left])
+						var n int
+						n, err = f.Write(pc.Data[idx : idx+left])
 						// err = util.WriteFull(f, pc.Data[idx:left])
 						if err != nil {
 							log.Errorf("Failed to write %s: %s", fpath, err)
 							return err
 						}
+						idx -= uint64(n)
 						break
 					}
 				} else {
