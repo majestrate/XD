@@ -221,16 +221,16 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 		log.Infof("no bitfield for %s", t.Name())
 		check = bittorrent.NewBitfield(t.meta.Info.NumPieces(), nil).Inverted()
 		if fresh {
-			t.st.flushBitfield(t.ih, check.Inverted())
+			var has *bittorrent.Bitfield
+			has, err = t.verifyBitfield(check, false)
+			t.st.flushBitfield(t.ih, has)
 			t.bfmtx.Unlock()
-			// RECURSION  :=DDD
-			err = t.VerifyAll(false)
 			return
 		}
 	}
 	// verify
 	log.Infof("verify local data for %s", t.Name())
-	t.bf, err = t.verifyBitfield(check)
+	t.bf, err = t.verifyBitfield(check, true)
 	if err == nil {
 		if t.bf.Equals(check) {
 			log.Infof("%s check okay", t.Name())
@@ -246,7 +246,7 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 	return
 }
 
-func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bitfield, err error) {
+func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bittorrent.Bitfield, err error) {
 	pieces := t.meta.Info.NumPieces()
 	has = bittorrent.NewBitfield(pieces, nil)
 	sz := uint64(t.meta.Info.PieceLength)
@@ -282,7 +282,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 				if t.meta.Info.CheckPiece(pc) {
 					has.Set(pc.Index)
 					log.Debugf("piece %d hash okay", pc.Index)
-				} else {
+				} else if warn {
 					log.Warnf("piece %d hash missmatch", pc.Index)
 				}
 			}
@@ -320,7 +320,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 						if t.meta.Info.CheckPiece(pc) {
 							has.Set(pc.Index)
 							log.Debugf("piece %d is okay", pc.Index)
-						} else {
+						} else if warn {
 							log.Warnf("piece %d hash missmatch", pc.Index)
 						}
 					} else {
@@ -338,7 +338,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield) (has *bittorrent.Bit
 				if t.meta.Info.CheckPiece(pc) {
 					has.Set(pc.Index)
 					log.Debugf("final piece %d is okay", pc.Index)
-				} else {
+				} else if warn {
 					log.Warnf("final piece %d hash missmatch", pc.Index)
 				}
 			}
