@@ -96,18 +96,18 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length),
 	}
-	offset := uint64(r.Index*sz) + uint64(r.Begin)
+	offset := (uint64(r.Index) * uint64(sz)) + uint64(r.Begin)
 	pos := uint64(0)
 	var at int64
 	if !t.meta.IsSingleFile() {
 		at = -1
 	}
 	readbuf := pc.Data[:]
-	log.Debugf("offset=%d", offset)
+	log.Debugf("offset=%d idx=%d begin=%d", offset, pc.Index, pc.Begin)
 	for _, file := range files {
 		log.Debugf("file.Length=%d", file.Length)
 		fp := file.Path.FilePath()
-		if pos+file.Length < offset {
+		if pos+file.Length < offset && at == -1 {
 			pos += file.Length
 			log.Debugf("skip file %s", fp)
 			continue
@@ -154,6 +154,9 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 
 func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 	if pc == nil || !t.meta.Info.CheckPiece(pc) {
+		if pc == nil {
+			log.Errorf("tried to store nil piece for %s", t.Name())
+		}
 		err = common.ErrInvalidPiece
 	}
 	return

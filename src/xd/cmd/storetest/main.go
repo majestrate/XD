@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/storage"
 )
 
-func check(t storage.Torrent) (err error) {
+func check(t storage.Torrent, bf *bittorrent.Bitfield) (err error) {
 	name := t.Name()
-
-	bf := t.Bitfield()
 	i := t.MetaInfo()
 	if i.IsSingleFile() {
 		return
@@ -23,7 +22,7 @@ func check(t storage.Torrent) (err error) {
 	idx := uint32(0)
 	skipped := uint32(0)
 	for idx < np {
-		if bf.Has(idx) {
+		if bf == nil || bf.Has(idx) {
 			l := i.Info.PieceLength
 			if idx == np-1 {
 				l -= uint32((uint64(np) * uint64(i.Info.PieceLength)) - i.TotalSize())
@@ -47,12 +46,15 @@ func check(t storage.Torrent) (err error) {
 				if err == nil {
 					if !pc.Equals(pcAfter) {
 						log.Errorf("piece %d storage missmatch", idx)
+						return
 					}
 				} else {
 					log.Errorf("get piece %d returned nil after store", idx)
+					return
 				}
 			} else {
 				log.Errorf("failed to put piece %d for %s: %s", idx, name, err)
+				return
 			}
 		} else {
 			skipped++
@@ -86,17 +88,8 @@ func main() {
 		if i.IsSingleFile() {
 			continue
 		}
-		name := t.Name()
-		log.Infof("verify %s", name)
-		err = t.VerifyAll(true)
-		if err == nil {
-			t.Flush()
-			err = check(t)
-			if err != nil {
-				return
-			}
-		} else {
-			log.Errorf("failed to verify %s: %s", name, err)
+		err = check(t, nil)
+		if err != nil {
 			return
 		}
 	}
@@ -108,7 +101,7 @@ func main() {
 	}
 
 	for _, t := range ts {
-		err = check(t)
+		err = check(t, t.Bitfield())
 		if err != nil {
 			return
 		}
