@@ -166,7 +166,6 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
 	if err == nil {
-
 		files := t.meta.Info.GetFiles()
 		sz := t.meta.Info.PieceLength
 		offset := uint64(pc.Index * sz)
@@ -207,6 +206,7 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 					log.Debugf("write part %d at %d", n, at)
 				} else {
 					// done
+					t.bf.Set(pc.Index)
 					break
 				}
 				log.Debugf("PutPiece() %s %d %d", fp, pos, left)

@@ -13,9 +13,6 @@ import (
 func check(t storage.Torrent, bf *bittorrent.Bitfield) (err error) {
 	name := t.Name()
 	i := t.MetaInfo()
-	if i.IsSingleFile() {
-		return
-	}
 	np := i.Info.NumPieces()
 	log.Infof("checking %s", name)
 	log.Infof("%d pieces, %d bytes per piece, %d bytes total", np, i.Info.PieceLength, i.TotalSize())
@@ -84,10 +81,6 @@ func main() {
 	st := conf.Storage.CreateStorage()
 	var ts []storage.Torrent
 	for _, t := range st.PollNewTorrents() {
-		i := t.MetaInfo()
-		if i.IsSingleFile() {
-			continue
-		}
 		err = check(t, nil)
 		if err != nil {
 			return
