@@ -98,42 +98,48 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 	}
 	offset := uint64(r.Index*sz) + uint64(r.Begin)
 	pos := uint64(0)
-	at := int64(-1)
-	readbuf := pc.Data
+	var at int64
+	if !t.meta.IsSingleFile() {
+		at = -1
+	}
+	readbuf := pc.Data[:]
+	log.Debugf("offset=%d", offset)
 	for _, file := range files {
+		log.Debugf("file.Length=%d", file.Length)
+		fp := file.Path.FilePath()
 		if pos+file.Length < offset {
 			pos += file.Length
+			log.Debugf("skip file %s", fp)
 			continue
 		}
-		fp := file.Path.FilePath()
 		var f *os.File
-		f, err = file.Path.Open(t.st.DataDir)
-		if err == nil {
-			if at < 0 {
-				if pos > offset {
-					at = int64(pos - offset)
+		if t.meta.IsSingleFile() {
+			f, err = file.Path.Open(t.st.DataDir)
+			at = int64(offset)
+		} else {
+			f, err = file.Path.Open(t.FilePath())
+			if at == -1 {
+				if pos < offset {
+					at = int64(offset - pos)
 				} else {
 					at = int64(offset)
 				}
-			} else {
-				at = int64(pos)
 			}
+		}
+		log.Debugf("open %s", f.Name())
+		if err == nil {
 			var n int
-			log.Debugf("GetPiece() %s pos=%d offset=%d at=%d", fp, pos, offset, at)
-
-			if uint64(len(readbuf)) > file.Length {
-				n, err = f.ReadAt(readbuf[:file.Length], at)
-			} else {
-				n, err = f.ReadAt(readbuf, at)
-			}
+			log.Debugf("GetPiece() %s pos=%d offset=%d at=%d left=%d", fp, pos, offset, at, len(readbuf))
+			n, err = f.ReadAt(readbuf, at)
 			log.Debugf("Read %d", n)
 			if err == io.EOF {
+				at = 0
 				err = nil
 			}
-			if err == nil && n > 0 {
+			if err == nil {
 				pos += uint64(n)
 				readbuf = readbuf[n:]
-			} else if n != 0 {
+			} else {
 				log.Warnf("GetPiece(): error reading %s, %s, read %d", fp, err, n)
 			}
 			f.Close()
