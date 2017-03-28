@@ -69,7 +69,7 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
 	for _, tr := range t.Trackers {
-		go t.Announce(tr, "started")
+		go t.Announce(tr, tracker.Started)
 	}
 	if t.announcer == nil {
 		t.announcer = time.NewTicker(time.Second)
@@ -83,7 +83,7 @@ func (t *Torrent) StopAnnouncing() {
 		t.announcer.Stop()
 	}
 	for _, tr := range t.Trackers {
-		go t.Announce(tr, "stopped")
+		go t.Announce(tr, tracker.Stopped)
 	}
 }
 
@@ -97,14 +97,14 @@ func (t *Torrent) pollAnnounce() {
 		}
 		for _, tr := range t.Trackers {
 			if tr.ShouldAnnounce() {
-				go t.Announce(tr, "")
+				go t.Announce(tr, tracker.Nop)
 			}
 		}
 	}
 }
 
 // do an announce
-func (t *Torrent) Announce(tr tracker.Announcer, event string) {
+func (t *Torrent) Announce(tr tracker.Announcer, event tracker.Event) {
 	req := &tracker.Request{
 		Infohash: t.st.Infohash(),
 		PeerID:   t.id,
@@ -264,6 +264,17 @@ func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
 }
 
 func (t *Torrent) Run() {
+	go t.handlePieces()
+	for !t.Done() {
+		time.Sleep(time.Minute)
+	}
+	log.Infof("%s is seeding")
+	for _, tr := range t.Trackers {
+		go t.Announce(tr, "completed")
+	}
+}
+
+func (t *Torrent) handlePieces() {
 	log.Infof("%s running", t.Name())
 	for {
 		ev, ok := <-t.piece
@@ -296,13 +307,6 @@ func (t *Torrent) Run() {
 	}
 }
 
-// implements client.Algorithm
 func (t *Torrent) Done() bool {
 	return t.Bitfield().Completed()
-}
-
-// implements client.Algorithm
-func (t *Torrent) Choke(id common.PeerID) bool {
-	// TODO: implement choking
-	return false
 }

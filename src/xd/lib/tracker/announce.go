@@ -8,6 +8,17 @@ import (
 	"xd/lib/network"
 )
 
+type Event string
+
+const Started = Event("started")
+const Stopped = Event("stopped")
+const Completed = Event("completed")
+const Nop = Event("")
+
+func (ev Event) String() string {
+	return string(ev)
+}
+
 type Request struct {
 	Infohash   common.Infohash
 	PeerID     common.PeerID
@@ -16,7 +27,7 @@ type Request struct {
 	Uploaded   uint64
 	Downloaded uint64
 	Left       uint64
-	Event      string
+	Event      Event
 	NumWant    int
 	Compact    bool
 }

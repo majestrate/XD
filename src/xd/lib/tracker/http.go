@@ -69,8 +69,8 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v.Add("port", fmt.Sprintf("%d", req.Port))
 		v.Add("numwant", fmt.Sprintf("%d", req.NumWant))
 		v.Add("left", fmt.Sprintf("%d", req.Left))
-		if len(req.Event) > 0 {
-			v.Add("event", req.Event)
+		if req.Event != Nop {
+			v.Add("event", req.Event.String())
 		}
 		v.Add("downloaded", fmt.Sprintf("%d", req.Downloaded))
 		v.Add("uploaded", fmt.Sprintf("%d", req.Uploaded))
