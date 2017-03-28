@@ -11,8 +11,15 @@ test:
 test-storage:
 	GOPATH=$(REPO) go test -v xd/lib/storage
 
-rpc:
+rpc: rpcdebug
+
+rpcdebug:
 	GOPATH=$(REPO) go build -v xd/cmd/rpcdebug
+
+storetest:
+	GOPATH=$(REPO) go build -v xd/cmd/storetest
+
 
 clean:
 	GOPATH=$(REPO) go clean -v
+	rm -f storetest rpcdebug

@@ -36,6 +36,9 @@ type Torrent interface {
 
 	// flush bitfield to disk
 	Flush() error
+
+	// get name of this torrent
+	Name() string
 }
 
 // torrent storage driver
