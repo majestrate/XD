@@ -268,7 +268,7 @@ func (t *Torrent) Run() {
 	for !t.Done() {
 		time.Sleep(time.Minute)
 	}
-	log.Infof("%s is seeding")
+	log.Infof("%s is seeding", t.Name())
 	for _, tr := range t.Trackers {
 		go t.Announce(tr, "completed")
 	}

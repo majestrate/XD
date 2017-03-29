@@ -43,7 +43,7 @@ type Info struct {
 	// file metadata
 	Files []FileInfo `bencode:"files,omitempty"`
 	// private torrent
-	Private int64 `bencode:"private,omitempty"`
+	Private *uint64 `bencode:"private,omitempty"`
 	// length of file in signle file mode
 	Length uint64 `bencode:"length,omitempty"`
 	// md5sum
@@ -119,7 +119,7 @@ func (tf *TorrentFile) GetAllAnnounceURLS() (l []string) {
 }
 
 func (tf *TorrentFile) TorrentName() string {
-	return string(tf.Info.Path)
+	return tf.Info.Path
 }
 
 // calculate infohash
