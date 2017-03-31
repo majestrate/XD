@@ -37,7 +37,7 @@ func (r *RPC) TorrentStatus(infohash *string, status *TorrentStatus) (err error)
 			err = ErrNoTorrent
 		} else {
 			st := t.GetStatus()
-			status.Peers = st.Peers
+			*status = *st
 		}
 	}
 	return

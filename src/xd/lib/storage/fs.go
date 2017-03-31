@@ -169,7 +169,7 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 		pos := uint64(0)
 		buf := pc.Data[:]
 		at := int64(-1)
-		for _, file := range files {
+		for idx, file := range files {
 			if pos+file.Length < offset {
 				pos += file.Length
 				continue
@@ -184,12 +184,8 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 				defer f.Close()
 				var n int
 				left := uint64(len(buf))
-				if at < 0 {
-					if pos > offset {
-						at = int64(pos - offset)
-					} else {
-						at = int64(offset)
-					}
+				if at < 0 && idx > 0 {
+					at = int64(pos - offset)
 				} else {
 					at = int64(pos)
 				}

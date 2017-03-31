@@ -58,9 +58,15 @@ func (t *Torrent) GetStatus() *TorrentStatus {
 	}
 	t.mtx.Unlock()
 	log.Debugf("unlocked torrent mutex for %s", name)
+	state := Downloading
+	if t.Done() {
+		state = Seeding
+	}
 	return &TorrentStatus{
-		Peers: peers,
-		Name:  name,
+		Peers:    peers,
+		Name:     name,
+		State:    state,
+		Infohash: t.MetaInfo().Infohash().Hex(),
 	}
 
 }

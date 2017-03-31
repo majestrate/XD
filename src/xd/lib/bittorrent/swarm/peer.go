@@ -10,14 +10,6 @@ import (
 	"xd/lib/log"
 )
 
-// connection statistics
-type PeerConnStats struct {
-	TX   float32
-	RX   float32
-	ID   common.PeerID
-	Addr string
-}
-
 // a peer connection
 type PeerConn struct {
 	c              net.Conn
