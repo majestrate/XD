@@ -1,9 +1,7 @@
 package swarm
 
 import (
-	"bytes"
 	"strings"
-	"xd/lib/common"
 )
 
 type TorrentPeers []*PeerConnStats
@@ -24,12 +22,12 @@ func (p *TorrentPeers) Swap(i, j int) {
 type PeerConnStats struct {
 	TX   float32
 	RX   float32
-	ID   common.PeerID
+	ID   string
 	Addr string
 }
 
 func (p *PeerConnStats) Less(o *PeerConnStats) bool {
-	return bytes.Compare(p.ID[:], o.ID[:]) < 0
+	return strings.Compare(p.ID, o.ID) < 0
 }
 
 type TorrentState string

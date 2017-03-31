@@ -187,7 +187,7 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 				if at < 0 && idx > 0 {
 					at = int64(pos - offset)
 				} else {
-					at = int64(pos)
+					at = int64(offset)
 				}
 				if left < file.Length {
 					// entire file

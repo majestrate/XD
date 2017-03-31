@@ -80,7 +80,7 @@ func main() {
 		fmt.Printf("%s [%s]\n", status.Name, status.Infohash)
 		sort.Stable(&status.Peers)
 		for _, peer := range status.Peers {
-			fmt.Printf("%s tx=%s rx=%s\n", peer.ID.String(), formatRate(peer.TX), formatRate(peer.RX))
+			fmt.Printf("%s tx=%s rx=%s\n", peer.ID, formatRate(peer.TX), formatRate(peer.RX))
 			tx += peer.TX
 			rx += peer.RX
 		}

@@ -12,6 +12,8 @@ import (
 
 // a peer connection
 type PeerConn struct {
+	inbound        bool
+	closing        bool
 	c              net.Conn
 	id             common.PeerID
 	t              *Torrent
@@ -38,7 +40,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st.TX = c.tx
 	st.RX = c.rx
 	st.Addr = c.c.RemoteAddr().String()
-	copy(st.ID[:], c.id[:])
+	st.ID = c.id.String()
 	return
 }
 
@@ -63,11 +65,9 @@ func (c *PeerConn) start() {
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *common.WireMessage) {
-	if c.send == nil {
-		log.Errorf("%s has no send channel but tried to send", c.id)
-		return
+	if !c.closing {
+		c.send <- msg
 	}
-	c.send <- msg
 }
 
 // recv a bittorrent wire message (blocking)
@@ -145,18 +145,21 @@ func (c *PeerConn) markNotInterested() {
 }
 
 func (c *PeerConn) Close() {
-	addr := c.c.RemoteAddr()
+	c.closing = true
 	c.t.pt.canceledRequest(c.r)
 	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
 	if c.send != nil {
 		chnl := c.send
 		c.send = nil
-		time.Sleep(time.Second / 10)
 		close(chnl)
 	}
 	c.c.Close()
-	c.t.removePeer(addr)
+	if c.inbound {
+		c.t.removeIBConn(c)
+	} else {
+		c.t.removeOBConn(c)
+	}
 }
 
 // run read loop
@@ -268,7 +271,7 @@ func (c *PeerConn) sendKeepAlive() error {
 // run write loop
 func (c *PeerConn) runWriter() {
 	var err error
-	for err == nil {
+	for err == nil && !c.closing {
 		select {
 		case <-c.keepalive.C:
 			err = c.sendKeepAlive()

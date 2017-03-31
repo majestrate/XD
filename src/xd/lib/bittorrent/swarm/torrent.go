@@ -17,20 +17,16 @@ import (
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	// network context
-	Net       network.Network
-	Trackers  []tracker.Announcer
-	announcer *time.Ticker
-	// our peer id
-	id    common.PeerID
-	st    storage.Torrent
-	piece chan pieceEvent
-	// active connections
-	conns map[string]*PeerConn
-	mtx   sync.Mutex
-	// piece tracker
-	pt *pieceTracker
-	// our extended options default settings
+	Net         network.Network
+	Trackers    []tracker.Announcer
+	announcer   *time.Ticker
+	id          common.PeerID
+	st          storage.Torrent
+	piece       chan pieceEvent
+	obconns     map[string]*PeerConn
+	ibconns     map[string]*PeerConn
+	mtx         sync.Mutex
+	pt          *pieceTracker
 	defaultOpts *extensions.ExtendedOptions
 }
 
@@ -38,7 +34,8 @@ func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
 		st:          st,
 		piece:       make(chan pieceEvent),
-		conns:       make(map[string]*PeerConn),
+		ibconns:     make(map[string]*PeerConn),
+		obconns:     make(map[string]*PeerConn),
 		pt:          createPieceTracker(st),
 		defaultOpts: extensions.New(),
 	}
@@ -48,14 +45,19 @@ func newTorrent(st storage.Torrent) *Torrent {
 
 func (t *Torrent) GetStatus() *TorrentStatus {
 	name := t.Name()
-	t.mtx.Lock()
 	var peers []*PeerConnStats
-	log.Debugf("get status: we have %d conns for %s", len(t.conns), name)
-	for _, conn := range t.conns {
+	t.mtx.Lock()
+	for _, conn := range t.obconns {
 		if conn != nil {
 			peers = append(peers, conn.Stats())
 		}
 	}
+	for _, conn := range t.ibconns {
+		if conn != nil {
+			peers = append(peers, conn.Stats())
+		}
+	}
+
 	t.mtx.Unlock()
 	log.Debugf("unlocked torrent mutex for %s", name)
 	state := Downloading
@@ -148,31 +150,61 @@ func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 
 	triesLeft := 10
 	for !t.Done() {
-		err := t.AddPeer(a, id)
-		if err != nil {
-			triesLeft--
-		} else {
+		if t.HasIBConn(a) {
 			return
 		}
-		if triesLeft == 0 {
-			return
+		if !t.HasOBConn(a) {
+			err := t.AddPeer(a, id)
+			if err == nil {
+				triesLeft = 10
+			} else {
+				triesLeft--
+			}
+			if triesLeft == 0 {
+				return
+			}
+		} else {
+			time.Sleep(time.Second)
 		}
 	}
 }
 
-func (t *Torrent) HasConn(a net.Addr) (has bool) {
+func (t *Torrent) HasIBConn(a net.Addr) (has bool) {
 	t.mtx.Lock()
-	_, has = t.conns[a.String()]
+	_, has = t.ibconns[a.String()]
 	t.mtx.Unlock()
 	return
 }
 
-func (t *Torrent) removePeer(a net.Addr) {
+func (t *Torrent) HasOBConn(a net.Addr) (has bool) {
 	t.mtx.Lock()
-	_, ok := t.conns[a.String()]
-	if ok {
-		delete(t.conns, a.String())
-	}
+	_, has = t.obconns[a.String()]
+	t.mtx.Unlock()
+	return
+}
+
+func (t *Torrent) addOBPeer(c *PeerConn) {
+	t.mtx.Lock()
+	t.obconns[c.c.RemoteAddr().String()] = c
+	t.mtx.Unlock()
+}
+
+func (t *Torrent) removeOBConn(c *PeerConn) {
+	t.mtx.Lock()
+	delete(t.obconns, c.c.RemoteAddr().String())
+	t.mtx.Unlock()
+}
+
+func (t *Torrent) addIBPeer(c *PeerConn) {
+	t.mtx.Lock()
+	t.ibconns[c.c.RemoteAddr().String()] = c
+	t.mtx.Unlock()
+	c.inbound = true
+}
+
+func (t *Torrent) removeIBConn(c *PeerConn) {
+	t.mtx.Lock()
+	delete(t.ibconns, c.c.RemoteAddr().String())
 	t.mtx.Unlock()
 }
 
@@ -202,7 +234,8 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 					}
 					pc := makePeerConn(c, t, h.PeerID, opts)
 					pc.start()
-					t.onNewPeer(pc)
+					t.addOBPeer(pc)
+					pc.Send(t.Bitfield().ToWireMessage())
 					return nil
 				} else {
 					log.Warn("Infohash missmatch")
@@ -219,11 +252,16 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 
 func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
+	conns := make(map[string]*PeerConn)
 	t.mtx.Lock()
-	var conns []*PeerConn
-	for _, conn := range t.conns {
+	for k, conn := range t.ibconns {
 		if conn != nil {
-			conns = append(conns, conn)
+			conns[k] = conn
+		}
+	}
+	for k, conn := range t.obconns {
+		if conn != nil {
+			conns[k] = conn
 		}
 	}
 	t.mtx.Unlock()
@@ -252,17 +290,13 @@ func (t *Torrent) Close() {
 // callback called when we get a new inbound peer
 func (t *Torrent) onNewPeer(c *PeerConn) {
 	a := c.c.RemoteAddr()
-	if t.HasConn(a) {
+	if t.HasIBConn(a) {
 		log.Infof("duplicate peer from %s", a)
 		c.Close()
 		return
 	}
-	t.mtx.Lock()
-	t.conns[a.String()] = c
-	t.mtx.Unlock()
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
-	// send our bitfields to them
-	go c.Send(t.Bitfield().ToWireMessage())
+	t.addIBPeer(c)
 }
 
 // handle a piece request
