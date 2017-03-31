@@ -8,6 +8,7 @@ import (
 
 var ErrNoTorrent = errors.New("no such torrent")
 
+// Bittorrent Swarm RPC
 type RPC struct {
 	sw *Swarm
 }
@@ -29,8 +30,9 @@ func (r *RPC) TorrentStatus(infohash *string, status *TorrentStatus) (err error)
 	var ih common.Infohash
 	ih, err = common.DecodeInfohash(*infohash)
 	if err == nil {
-		log.Debugf("find torrent %s", ih.Hex())
+		log.Debugf("getting by infohash: %s ", *infohash)
 		t := r.sw.Torrents.GetTorrent(ih)
+		log.Debugf("got torrent by infohash: %s ", *infohash)
 		if t == nil {
 			err = ErrNoTorrent
 		} else {

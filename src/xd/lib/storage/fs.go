@@ -98,10 +98,7 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 	}
 	offset := (uint64(r.Index) * uint64(sz)) + uint64(r.Begin)
 	pos := uint64(0)
-	var at int64
-	if !t.meta.IsSingleFile() {
-		at = -1
-	}
+	at := int64(-1)
 	readbuf := pc.Data[:]
 	log.Debugf("offset=%d idx=%d begin=%d", offset, pc.Index, pc.Begin)
 	for _, file := range files {

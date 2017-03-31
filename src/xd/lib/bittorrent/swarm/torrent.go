@@ -27,7 +27,7 @@ type Torrent struct {
 	piece chan pieceEvent
 	// active connections
 	conns map[string]*PeerConn
-	mtx   *sync.Mutex
+	mtx   sync.Mutex
 	// piece tracker
 	pt *pieceTracker
 	// our extended options default settings
@@ -37,10 +37,9 @@ type Torrent struct {
 func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
 		st:          st,
-		piece:       make(chan pieceEvent, 8),
+		piece:       make(chan pieceEvent),
 		conns:       make(map[string]*PeerConn),
 		pt:          createPieceTracker(st),
-		mtx:         new(sync.Mutex),
 		defaultOpts: extensions.New(),
 	}
 	t.pt.have = t.broadcastHave
@@ -48,18 +47,22 @@ func newTorrent(st storage.Torrent) *Torrent {
 }
 
 func (t *Torrent) GetStatus() *TorrentStatus {
+	name := t.Name()
 	t.mtx.Lock()
 	var peers []*PeerConnStats
-	log.Debugf("get status: we have %d conns", len(t.conns))
+	log.Debugf("get status: we have %d conns for %s", len(t.conns), name)
 	for _, conn := range t.conns {
 		if conn != nil {
 			peers = append(peers, conn.Stats())
 		}
 	}
 	t.mtx.Unlock()
+	log.Debugf("unlocked torrent mutex for %s", name)
 	return &TorrentStatus{
 		Peers: peers,
+		Name:  name,
 	}
+
 }
 
 func (t *Torrent) Bitfield() *bittorrent.Bitfield {

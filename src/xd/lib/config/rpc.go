@@ -19,9 +19,9 @@ func (cfg *RPCConfig) FromSection(s *configparser.Section) {
 }
 
 func (cfg *RPCConfig) Options() map[string]string {
-	enabled := "0"
-	if cfg.Enabled {
-		enabled = "1"
+	enabled := "1"
+	if !cfg.Enabled {
+		enabled = "0"
 	}
 	opts := map[string]string{
 		"enabled": enabled,

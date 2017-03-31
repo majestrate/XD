@@ -19,6 +19,7 @@ type Swarm struct {
 	net      network.Network
 	Torrents *Holder
 	id       common.PeerID
+	rpc      RPC
 }
 
 // wait until we get a network context
@@ -53,10 +54,9 @@ func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
 				}
 				sw.WaitForNetwork()
 				tr := sw.Torrents.GetTorrent(t.Infohash())
-
 				if tr == nil {
 					sw.Torrents.addTorrent(t)
-					sw.startTorrent(tr)
+					go sw.startTorrent(sw.Torrents.GetTorrent(t.Infohash()))
 				}
 			}
 		}
@@ -141,9 +141,9 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 // add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
-	name := t.MetaInfo().TorrentName()
 	sw.Torrents.addTorrent(t)
-	log.Infof("added torrent %s", name)
+	tr := sw.Torrents.GetTorrent(t.Infohash())
+	go sw.startTorrent(tr)
 	return
 }
 
@@ -154,9 +154,7 @@ func (sw *Swarm) SetNetwork(net network.Network) {
 
 // get rpc context
 func (sw *Swarm) GetRPC() *RPC {
-	return &RPC{
-		sw: sw,
-	}
+	return &sw.rpc
 }
 
 // create a new swarm using a storage backend for storing downloads and torrent metadata
@@ -167,8 +165,8 @@ func NewSwarm(storage storage.Storage) *Swarm {
 			torrents: make(map[string]*Torrent),
 		},
 	}
-	sw.Torrents.sw = sw
 	sw.id = common.GeneratePeerID()
 	log.Infof("generated peer id %s", sw.id.String())
+	sw.rpc.sw = sw
 	return sw
 }

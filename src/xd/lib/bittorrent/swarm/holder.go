@@ -8,18 +8,17 @@ import (
 
 // torrent swarm container
 type Holder struct {
-	sw       *Swarm
 	st       storage.Storage
-	access   sync.RWMutex
+	access   sync.Mutex
 	torrents map[string]*Torrent
 }
 
 func (h *Holder) addTorrent(t storage.Torrent) {
-	h.access.Lock()
-	defer h.access.Unlock()
+
 	tr := newTorrent(t)
+	h.access.Lock()
 	h.torrents[t.Infohash().Hex()] = tr
-	go h.sw.startTorrent(tr)
+	h.access.Unlock()
 }
 
 func (h *Holder) ForEachTorrent(visit func(*Torrent)) {

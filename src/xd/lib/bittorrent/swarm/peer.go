@@ -58,7 +58,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan *common.WireMessage, 8)
+	p.send = make(chan *common.WireMessage)
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
 }
@@ -69,7 +69,7 @@ func (c *PeerConn) start() {
 	go c.runWriter()
 }
 
-// send a bittorrent wire message to this peer
+// queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *common.WireMessage) {
 	if c.send == nil {
 		log.Errorf("%s has no send channel but tried to send", c.id)
