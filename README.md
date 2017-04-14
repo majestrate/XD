@@ -2,6 +2,8 @@
 
 Standalone I2P BitTorrent Client written in GO
 
+# broken right now
+
 ## Features
 
 Current:
