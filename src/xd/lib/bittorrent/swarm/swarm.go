@@ -17,9 +17,8 @@ import (
 // a bittorrent swarm tracking many torrents
 type Swarm struct {
 	net      network.Network
-	Torrents *Holder
+	Torrents Holder
 	id       common.PeerID
-	rpc      RPC
 }
 
 // wait until we get a network context
@@ -125,8 +124,6 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 	// reply to handshake
 	copy(h.PeerID[:], sw.id[:])
 	err = h.Send(c)
-	// make peer conn
-	p := makePeerConn(c, t, h.PeerID, opts)
 
 	if err != nil {
 		log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
@@ -134,6 +131,9 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		c.Close()
 		return
 	}
+	// make peer conn
+	p := makePeerConn(c, t, h.PeerID, opts)
+
 	go p.runWriter()
 	go p.runReader()
 	t.onNewPeer(p)
@@ -152,21 +152,15 @@ func (sw *Swarm) SetNetwork(net network.Network) {
 	sw.net = net
 }
 
-// get rpc context
-func (sw *Swarm) GetRPC() *RPC {
-	return &sw.rpc
-}
-
 // create a new swarm using a storage backend for storing downloads and torrent metadata
 func NewSwarm(storage storage.Storage) *Swarm {
 	sw := &Swarm{
-		Torrents: &Holder{
+		Torrents: Holder{
 			st:       storage,
 			torrents: make(map[string]*Torrent),
 		},
 	}
 	sw.id = common.GeneratePeerID()
 	log.Infof("generated peer id %s", sw.id.String())
-	sw.rpc.sw = sw
 	return sw
 }

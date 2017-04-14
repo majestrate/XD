@@ -99,7 +99,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 }
 
 type pieceTracker struct {
-	mtx      sync.RWMutex
+	mtx      sync.Mutex
 	requests map[uint32]*cachedPiece
 	st       storage.Torrent
 	have     func(uint32)

@@ -43,7 +43,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 	return t
 }
 
-func (t *Torrent) GetStatus() *TorrentStatus {
+func (t *Torrent) GetStatus() TorrentStatus {
 	name := t.Name()
 	var peers []*PeerConnStats
 	t.mtx.Lock()
@@ -64,7 +64,7 @@ func (t *Torrent) GetStatus() *TorrentStatus {
 	if t.Done() {
 		state = Seeding
 	}
-	return &TorrentStatus{
+	return TorrentStatus{
 		Peers:    peers,
 		Name:     name,
 		State:    state,

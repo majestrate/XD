@@ -41,3 +41,11 @@ func (h *Holder) GetTorrent(ih common.Infohash) (t *Torrent) {
 	h.access.Unlock()
 	return
 }
+
+func (h *Holder) VisitTorrent(ih common.Infohash, visit func(*Torrent)) {
+	var t *Torrent
+	h.access.Lock()
+	t, _ = h.torrents[ih.Hex()]
+	h.access.Unlock()
+	visit(t)
+}

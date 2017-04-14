@@ -145,6 +145,9 @@ func (c *PeerConn) markNotInterested() {
 }
 
 func (c *PeerConn) Close() {
+	if c.closing {
+		return
+	}
 	c.closing = true
 	c.t.pt.canceledRequest(c.r)
 	c.keepalive.Stop()
@@ -286,15 +289,14 @@ func (c *PeerConn) runWriter() {
 					c.t.pt.canceledRequest(c.r)
 					c.r = nil
 				} else {
-					log.Debugf("write message %s %d bytes", msg.MessageID(), msg.Len())
 					err = msg.Send(c.c)
+					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 				}
 			} else {
 				break
 			}
 		}
 	}
-	log.Errorf("write loop ended: %s", err)
 	c.Close()
 }
 

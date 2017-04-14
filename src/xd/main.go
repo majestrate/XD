@@ -2,9 +2,7 @@ package xd
 
 import (
 	"fmt"
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
+	"net/http"
 	"os"
 	"time"
 	"xd/lib/bittorrent/swarm"
@@ -13,6 +11,11 @@ import (
 	"xd/lib/util"
 	"xd/lib/version"
 )
+
+type httpRPC struct {
+	w http.ResponseWriter
+	r *http.Request
+}
 
 // Run runs XD main function
 func Run() {
@@ -99,27 +102,9 @@ func Run() {
 		}
 	}()
 
-	// start rpc
+	// start rpc server
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
-		go func() {
-			r := new(rpc.Server)
-			er := r.RegisterName(swarm.RPCName, sw.GetRPC())
-			if er != nil {
-				log.Errorf("rpc register error: %s", er)
-				return
-			}
-			l, e := net.Listen("tcp", conf.RPC.Bind)
-			if e == nil {
-				var c net.Conn
-				for e == nil {
-					c, e = l.Accept()
-					go r.ServeCodec(jsonrpc.NewServerCodec(c))
-				}
-			} else {
-				log.Warnf("failed to start rpc: %s", e)
-			}
-		}()
 	}
 
 	net := conf.I2P.CreateSession()
