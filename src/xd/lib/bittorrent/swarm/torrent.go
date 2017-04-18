@@ -333,7 +333,7 @@ func (t *Torrent) Run() {
 		time.Sleep(time.Minute)
 	}
 	// do final piece check
-	log.Infof("%s checking all pieces before seeding")
+	log.Infof("%s checking all pieces before seeding", t.Name())
 	err := t.st.VerifyAll(false)
 	if err == nil {
 		log.Infof("%s is seeding", t.Name())
