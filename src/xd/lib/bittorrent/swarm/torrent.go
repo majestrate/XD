@@ -36,29 +36,48 @@ func newTorrent(st storage.Torrent) *Torrent {
 		piece:       make(chan pieceEvent),
 		ibconns:     make(map[string]*PeerConn),
 		obconns:     make(map[string]*PeerConn),
-		pt:          createPieceTracker(st),
 		defaultOpts: extensions.New(),
 	}
+	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
 	return t
+}
+
+func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield) (idx uint32) {
+	var swarm []*bittorrent.Bitfield
+	t.VisitPeers(func(c *PeerConn) {
+		swarm = append(swarm, c.bf)
+	})
+	idx = remote.FindRarest(swarm)
+	return
+}
+
+// call a visitor on each open peer connection
+func (t *Torrent) VisitPeers(v func(*PeerConn)) {
+	var conns []*PeerConn
+	t.mtx.Lock()
+	for _, conn := range t.obconns {
+		if conn != nil {
+			conns = append(conns, conn)
+		}
+	}
+	for _, conn := range t.ibconns {
+		if conn != nil {
+			conns = append(conns, conn)
+		}
+	}
+	t.mtx.Unlock()
+	for _, conn := range conns {
+		v(conn)
+	}
 }
 
 func (t *Torrent) GetStatus() TorrentStatus {
 	name := t.Name()
 	var peers []*PeerConnStats
-	t.mtx.Lock()
-	for _, conn := range t.obconns {
-		if conn != nil {
-			peers = append(peers, conn.Stats())
-		}
-	}
-	for _, conn := range t.ibconns {
-		if conn != nil {
-			peers = append(peers, conn.Stats())
-		}
-	}
-
-	t.mtx.Unlock()
+	t.VisitPeers(func(c *PeerConn) {
+		peers = append(peers, c.Stats())
+	})
 	log.Debugf("unlocked torrent mutex for %s", name)
 	state := Downloading
 	if t.Done() {

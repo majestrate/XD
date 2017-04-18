@@ -98,17 +98,22 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	return
 }
 
+// picks the next good piece to download
+type PiecePicker func(*bittorrent.Bitfield) uint32
+
 type pieceTracker struct {
-	mtx      sync.Mutex
-	requests map[uint32]*cachedPiece
-	st       storage.Torrent
-	have     func(uint32)
+	mtx       sync.Mutex
+	requests  map[uint32]*cachedPiece
+	st        storage.Torrent
+	have      func(uint32)
+	nextPiece PiecePicker
 }
 
-func createPieceTracker(st storage.Torrent) (pt *pieceTracker) {
+func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracker) {
 	pt = &pieceTracker{
-		requests: make(map[uint32]*cachedPiece),
-		st:       st,
+		requests:  make(map[uint32]*cachedPiece),
+		st:        st,
+		nextPiece: picker,
 	}
 	return
 }
@@ -143,26 +148,15 @@ func (pt *pieceTracker) removePiece(piece uint32) {
 }
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
-	bf := pt.st.Bitfield()
-	i := pt.st.MetaInfo()
-	np := i.Info.NumPieces()
-	idx := np
-	for idx > 0 {
-		idx--
-		if remote.Has(idx) && !bf.Has(idx) {
-			pt.mtx.Lock()
-			cp, has := pt.requests[idx]
-			if !has {
-				cp = pt.newPiece(idx)
-				pt.requests[idx] = cp
-			}
-			pt.mtx.Unlock()
-			r = cp.nextRequest()
-			if r != nil && r.Length > 0 {
-				return
-			}
-		}
+	idx := pt.nextPiece(remote)
+	pt.mtx.Lock()
+	cp, has := pt.requests[idx]
+	if !has {
+		cp = pt.newPiece(idx)
+		pt.requests[idx] = cp
 	}
+	pt.mtx.Unlock()
+	r = cp.nextRequest()
 	return
 }
 
