@@ -226,8 +226,9 @@ func (c *PeerConn) runReader() {
 			}
 			if msgid == common.Have && c.bf != nil {
 				// update bitfield
-				c.bf.Set(msg.GetHave())
-				if c.bf.AND(c.t.Bitfield()).CountSet() == 0 {
+				idx := msg.GetHave()
+				c.bf.Set(idx)
+				if c.t.Bitfield().Has(idx) {
 					// not interested
 					c.Send(common.NewNotInterested())
 				} else {
