@@ -59,6 +59,8 @@ func (t *fsTorrent) openfile(i metainfo.FileInfo) (f *os.File, err error) {
 }
 
 func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
+
+	// from github.com/anacrolix/torrent
 	var f *os.File
 	f, err = t.openfile(fi)
 	fil := int64(fi.Length)
@@ -80,6 +82,8 @@ func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int
 }
 
 func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
+
+	// from github.com/anacrolix/torrent
 	for _, fi := range t.meta.Info.GetFiles() {
 		fil := int64(fi.Length)
 		for off < fil {
@@ -109,6 +113,8 @@ func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
 }
 
 func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
+
+	// from github.com/anacrolix/torrent
 	for _, fi := range t.meta.Info.GetFiles() {
 		fil := int64(fi.Length)
 		if off >= fil {
