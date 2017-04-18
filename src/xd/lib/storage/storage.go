@@ -22,6 +22,9 @@ type Torrent interface {
 	// returns nil if we don't have the data
 	GetPiece(r *common.PieceRequest) (*common.PieceData, error)
 
+	// verify a piece by index
+	VerifyPiece(idx uint32) error
+
 	// get metainfo
 	MetaInfo() *metainfo.TorrentFile
 

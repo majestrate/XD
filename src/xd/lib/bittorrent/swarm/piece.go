@@ -122,16 +122,10 @@ func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 
 func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	info := pt.st.MetaInfo()
-	np := info.Info.NumPieces()
-	pl := info.Info.PieceLength
-	sz := uint64(pl)
-	ts := info.TotalSize()
 
-	if piece+1 == np {
-		sz = uint64(pl) - (uint64(np)*uint64(pl) - ts)
-	}
+	sz := info.LengthOfPiece(piece)
 
-	log.Debugf("new piece total=%d idx=%d len=%d", ts, piece, sz)
+	log.Debugf("new piece idx=%d len=%d", piece, sz)
 	cp = &cachedPiece{
 		progress: make([]byte, sz),
 		piece: &common.PieceData{

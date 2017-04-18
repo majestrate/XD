@@ -159,6 +159,19 @@ func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 	return
 }
 
+func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
+	l := t.meta.LengthOfPiece(idx)
+	var pc *common.PieceData
+	pc, err = t.GetPiece(&common.PieceRequest{
+		Index:  idx,
+		Length: l,
+	})
+	if err == nil {
+		err = t.checkPiece(pc)
+	}
+	return
+}
+
 func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
@@ -325,14 +338,9 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bittorrent.Bitfield, err error) {
 	np := t.meta.Info.NumPieces()
 	has = bittorrent.NewBitfield(np, nil)
-	sz := uint64(t.meta.Info.PieceLength)
-	tl := t.meta.TotalSize()
 	idx := uint32(0)
 	for idx < np {
-		l := t.meta.Info.PieceLength
-		if idx == np-1 {
-			l -= uint32((uint64(np) * sz) - tl)
-		}
+		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
 			var pc *common.PieceData
 			pc, err = t.GetPiece(&common.PieceRequest{
@@ -444,7 +452,7 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 		var f *os.File
 		f, err = os.OpenFile(metapath, os.O_CREATE|os.O_WRONLY, 0600)
 		if err == nil {
-			err = info.BEncode(f)
+			info.BEncode(f)
 			f.Close()
 		}
 	}

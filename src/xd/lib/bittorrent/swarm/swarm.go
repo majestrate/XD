@@ -2,13 +2,11 @@ package swarm
 
 import (
 	"net"
-	"os"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
-	"xd/lib/metainfo"
 	"xd/lib/network"
 	"xd/lib/storage"
 	"xd/lib/tracker"
@@ -26,41 +24,6 @@ func (sw *Swarm) WaitForNetwork() {
 	for sw.net == nil {
 		time.Sleep(time.Second)
 	}
-}
-
-// add new torrent manually
-func (sw *Swarm) AddTorrentFile(meta_fname string) (err error) {
-	info := new(metainfo.TorrentFile)
-	var f *os.File
-	f, err = os.Open(meta_fname)
-	if err == nil {
-		err = info.BDecode(f)
-		f.Close()
-		if err == nil {
-			var t storage.Torrent
-			t, err = sw.Torrents.st.OpenTorrent(info)
-			if err == nil {
-				name := t.MetaInfo().TorrentName()
-				log.Debugf("allocate space for %s", name)
-				err = t.Allocate()
-				if err != nil {
-					return
-				}
-				log.Debugf("verify all pieces for %s", name)
-				err = t.VerifyAll(true)
-				if err != nil {
-					return
-				}
-				sw.WaitForNetwork()
-				tr := sw.Torrents.GetTorrent(t.Infohash())
-				if tr == nil {
-					sw.Torrents.addTorrent(t)
-					go sw.startTorrent(sw.Torrents.GetTorrent(t.Infohash()))
-				}
-			}
-		}
-	}
-	return
 }
 
 func (sw *Swarm) startTorrent(t *Torrent) {

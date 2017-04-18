@@ -92,6 +92,19 @@ type TorrentFile struct {
 	Encoding     []byte     `bencode:"encoding"`
 }
 
+func (tf *TorrentFile) LengthOfPiece(idx uint32) (l uint32) {
+	i := tf.Info
+	np := i.NumPieces()
+	if np == idx+1 {
+		sz := tf.TotalSize()
+		l64 := uint64(i.PieceLength) - ((uint64(np) * uint64(i.PieceLength)) - sz)
+		l = uint32(l64)
+	} else {
+		l = i.PieceLength
+	}
+	return
+}
+
 // get total size of files from torrent info section
 func (tf *TorrentFile) TotalSize() uint64 {
 	if tf.IsSingleFile() {
