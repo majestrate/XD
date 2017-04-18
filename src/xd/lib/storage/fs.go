@@ -49,6 +49,96 @@ func (t *fsTorrent) Allocate() (err error) {
 	return
 }
 
+func (t *fsTorrent) openfile(i metainfo.FileInfo) (f *os.File, err error) {
+	if t.meta.IsSingleFile() {
+		f, err = i.Path.Open(t.st.DataDir)
+	} else {
+		f, err = i.Path.Open(t.FilePath())
+	}
+	return
+}
+
+func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
+	var f *os.File
+	f, err = t.openfile(fi)
+	fil := int64(fi.Length)
+	// Limit the read to within the expected bounds of this file.
+	if int64(len(b)) > fil-off {
+		b = b[:fil-off]
+	}
+	for off < fil && len(b) != 0 {
+		n1, err1 := f.ReadAt(b, off)
+		b = b[n1:]
+		n += n1
+		off += int64(n1)
+		if n1 == 0 {
+			err = err1
+			break
+		}
+	}
+	return
+}
+
+func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
+	for _, fi := range t.meta.Info.GetFiles() {
+		fil := int64(fi.Length)
+		for off < fil {
+			n1, err1 := t.readFileAt(fi, b, off)
+			n += n1
+			off += int64(n1)
+			b = b[n1:]
+			if len(b) == 0 {
+				// Got what we need.
+				return
+			}
+			if n1 != 0 {
+				// Made progress.
+				continue
+			}
+			err = err1
+			if err == io.EOF {
+				// Lies.
+				err = io.ErrUnexpectedEOF
+			}
+			return
+		}
+		off -= fil
+	}
+	err = io.EOF
+	return
+}
+
+func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
+	for _, fi := range t.meta.Info.GetFiles() {
+		fil := int64(fi.Length)
+		if off >= fil {
+			off -= fil
+			continue
+		}
+		n1 := len(p)
+		if int64(n1) > fil-off {
+			n1 = int(fil - off)
+		}
+		var f *os.File
+		f, err = t.openfile(fi)
+		if err != nil {
+			return
+		}
+		n1, err = f.WriteAt(p[:n1], off)
+		f.Close()
+		if err != nil {
+			return
+		}
+		n += n1
+		off = 0
+		p = p[n1:]
+		if len(p) == 0 {
+			break
+		}
+	}
+	return
+}
+
 func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 	t.bfmtx.Lock()
 	if t.bf == nil {
@@ -87,6 +177,20 @@ func (t *fsTorrent) FilePath() string {
 }
 
 func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err error) {
+	sz := t.meta.Info.PieceLength
+	p = &common.PieceData{
+		Index: r.Index,
+		Begin: r.Begin,
+		Data:  make([]byte, r.Length),
+	}
+	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
+	if err != nil {
+		p = nil
+	}
+	return
+}
+
+func (t *fsTorrent) getPieceOld(r *common.PieceRequest) (p *common.PieceData, err error) {
 
 	files := t.meta.Info.GetFiles()
 	sz := t.meta.Info.PieceLength
@@ -176,58 +280,11 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
 	if err == nil {
-		files := t.meta.Info.GetFiles()
-		sz := t.meta.Info.PieceLength
-		offset := uint64(pc.Index * sz)
-		pos := uint64(0)
-		buf := pc.Data[:]
-		at := int64(-1)
-		for idx, file := range files {
-			if pos+file.Length < offset {
-				pos += file.Length
-				continue
-			}
-			if len(buf) == 0 {
-				break
-			}
-			fp := file.Path.FilePath()
-			var f *os.File
-			f, err = file.Path.Open(t.st.DataDir)
-			if err == nil {
-				defer f.Close()
-				var n int
-				left := uint64(len(buf))
-				if at < 0 && idx > 0 {
-					at = int64(pos - offset)
-				} else {
-					at = int64(offset)
-				}
-				if left < file.Length {
-					// entire file
-					n, err = f.WriteAt(buf, at)
-					log.Debugf("write full %d at %d", n, at)
-				} else if left > 0 {
-					// part of the file
-					n, err = f.WriteAt(buf[:file.Length], at)
-					log.Debugf("write part %d at %d", n, at)
-				} else {
-					// done
-					break
-				}
-				log.Debugf("PutPiece() %s %d %d", fp, pos, left)
-
-				if err == io.EOF {
-					err = nil
-				}
-				if err == nil && n > 0 {
-					pos += uint64(n)
-					buf = buf[n:]
-				} else {
-					log.Warnf("PutPiece(): error writing %s, %s, write %d", fp, err, n)
-				}
-			}
+		sz := int64(t.meta.Info.PieceLength)
+		_, err = t.WriteAt(pc.Data, sz*int64(pc.Index))
+		if err == nil {
+			t.bf.Set(pc.Index)
 		}
-		t.bf.Set(pc.Index)
 	}
 	return
 }
