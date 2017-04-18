@@ -46,7 +46,9 @@ func newTorrent(st storage.Torrent) *Torrent {
 func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield) (idx uint32) {
 	var swarm []*bittorrent.Bitfield
 	t.VisitPeers(func(c *PeerConn) {
-		swarm = append(swarm, c.bf)
+		if c.bf != nil {
+			swarm = append(swarm, c.bf)
+		}
 	})
 	idx = remote.FindRarest(swarm)
 	return
