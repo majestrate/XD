@@ -332,6 +332,4 @@ func (c *PeerConn) runDownload() {
 	if c.Done != nil {
 		c.Done()
 	}
-	log.Debugf("Close connection to %s", c.id.String())
-	c.Close()
 }
