@@ -3,6 +3,7 @@ package xd
 import (
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 	"xd/lib/bittorrent/swarm"
@@ -29,6 +30,11 @@ func Run() {
 	if fname == "-h" || fname == "--help" {
 		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
 		return
+	}
+	if os.Getenv("PPROF") == "1" {
+		go func() {
+			log.Warnf("pprof exited: %s", http.ListenAndServe("127.0.0.1:6060", nil))
+		}()
 	}
 	log.Infof("starting %s", v)
 	var err error
