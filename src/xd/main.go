@@ -71,7 +71,7 @@ func Run() {
 			return
 		}
 		for _, t := range ts {
-			e = sw.AddTorrent(t)
+			e = sw.AddTorrent(t, false)
 			if e != nil {
 				log.Errorf("error adding torrent: %s", e)
 				done <- e
@@ -86,12 +86,7 @@ func Run() {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
 				name := t.MetaInfo().TorrentName()
-				log.Debugf("adding torrent %s", name)
-				e := t.VerifyAll(true)
-				if e != nil {
-					log.Warnf("Failed to verify %s, %s", name, e)
-				}
-				e = sw.AddTorrent(t)
+				e := sw.AddTorrent(t, true)
 				if e == nil {
 					log.Infof("added %s", name)
 				} else {

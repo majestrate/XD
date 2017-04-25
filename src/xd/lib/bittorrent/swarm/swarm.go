@@ -103,10 +103,13 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 }
 
 // add a torrent to this swarm
-func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
-	sw.Torrents.addTorrent(t)
-	tr := sw.Torrents.GetTorrent(t.Infohash())
-	go sw.startTorrent(tr)
+func (sw *Swarm) AddTorrent(t storage.Torrent, fresh bool) (err error) {
+	err = t.VerifyAll(fresh)
+	if err == nil {
+		sw.Torrents.addTorrent(t)
+		tr := sw.Torrents.GetTorrent(t.Infohash())
+		go sw.startTorrent(tr)
+	}
 	return
 }
 
