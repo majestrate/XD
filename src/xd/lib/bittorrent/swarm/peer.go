@@ -169,8 +169,7 @@ func (c *PeerConn) Close() {
 func (c *PeerConn) runReader() {
 	var err error
 	for err == nil {
-		var msg *common.WireMessage
-		msg, err = c.Recv()
+		msg, err := c.Recv()
 		if err == nil {
 			if msg.KeepAlive() {
 				log.Debugf("keepalive from %s", c.id)

@@ -182,7 +182,7 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData) error) (err error) {
+func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
 	sz := t.meta.Info.PieceLength
 	p := common.PieceData{
 		Index: r.Index,
@@ -191,95 +191,13 @@ func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData)
 	}
 	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err == nil {
-		err = v(&p)
-	} else {
-		v(nil)
+		err = v(p)
 	}
 	return
 }
 
-func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err error) {
-	sz := t.meta.Info.PieceLength
-	p = &common.PieceData{
-		Index: r.Index,
-		Begin: r.Begin,
-		Data:  make([]byte, r.Length),
-	}
-	_, err = t.ReadAt(p.Data[:], int64(r.Begin)+(int64(sz)*int64(r.Index)))
-	if err != nil {
-		p = nil
-	}
-	return
-}
-
-func (t *fsTorrent) getPieceOld(r *common.PieceRequest) (p *common.PieceData, err error) {
-
-	files := t.meta.Info.GetFiles()
-	sz := t.meta.Info.PieceLength
-
-	pc := &common.PieceData{
-		Index: r.Index,
-		Begin: r.Begin,
-		Data:  make([]byte, r.Length),
-	}
-	offset := (uint64(r.Index) * uint64(sz)) + uint64(r.Begin)
-	pos := uint64(0)
-	at := int64(-1)
-	readbuf := pc.Data[:]
-	log.Debugf("offset=%d idx=%d begin=%d", offset, pc.Index, pc.Begin)
-	for _, file := range files {
-		log.Debugf("file.Length=%d", file.Length)
-		fp := file.Path.FilePath()
-		if pos+file.Length < offset && at == -1 {
-			pos += file.Length
-			log.Debugf("skip file %s", fp)
-			continue
-		}
-		var f *os.File
-		if t.meta.IsSingleFile() {
-			f, err = file.Path.Open(t.st.DataDir)
-			at = int64(offset)
-		} else {
-			f, err = file.Path.Open(t.FilePath())
-			if at == -1 {
-				if pos < offset {
-					at = int64(offset - pos)
-				} else {
-					at = int64(offset)
-				}
-			}
-		}
-		log.Debugf("open %s", f.Name())
-		if err == nil {
-			var n int
-			log.Debugf("GetPiece() %s pos=%d offset=%d at=%d left=%d", fp, pos, offset, at, len(readbuf))
-			n, err = f.ReadAt(readbuf, at)
-			log.Debugf("Read %d", n)
-			if err == io.EOF {
-				at = 0
-				err = nil
-			}
-			if err == nil {
-				pos += uint64(n)
-				readbuf = readbuf[n:]
-			} else {
-				log.Warnf("GetPiece(): error reading %s, %s, read %d", fp, err, n)
-			}
-			f.Close()
-		}
-		if err == nil && len(readbuf) == 0 {
-			p = pc
-			break
-		}
-	}
-	return
-}
-
-func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
-	if pc == nil || !t.meta.Info.CheckPiece(pc) {
-		if pc == nil {
-			log.Errorf("tried to store nil piece for %s", t.Name())
-		}
+func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
+	if !t.meta.Info.CheckPiece(&pc) {
 		err = common.ErrInvalidPiece
 	}
 	return
@@ -287,14 +205,14 @@ func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	l := t.meta.LengthOfPiece(idx)
-	err = t.VisitPiece(&common.PieceRequest{
+	err = t.VisitPiece(common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}, t.checkPiece)
 	return
 }
 
-func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
+func (t *fsTorrent) PutPiece(pc common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
 	if err == nil {
@@ -305,75 +223,6 @@ func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 		}
 	}
 	return
-}
-
-func (t *fsTorrent) putPieceOld(pc *common.PieceData) error {
-
-	// check integrity
-	err := t.checkPiece(pc)
-	if err != nil {
-		return err
-	}
-	sz := uint64(t.meta.Info.PieceLength)
-	if t.meta.IsSingleFile() {
-		f, err := os.OpenFile(t.FilePath(), os.O_WRONLY, 0640)
-		if err != nil {
-			log.Errorf("failed to open %s: %s", t.FilePath(), err)
-			return err
-		}
-		idx := int64(pc.Index) * int64(sz)
-		_, err = f.WriteAt(pc.Data, idx)
-		f.Close()
-	} else {
-		idx := uint64(0)
-		cur := uint64(0)
-		left := uint64(sz)
-		i := t.MetaInfo()
-		np := uint64(i.Info.NumPieces())
-		if uint64(pc.Index)+1 == np {
-			left -= (sz * np) - i.TotalSize()
-		}
-		pieceOff := sz * uint64(pc.Index)
-		for _, info := range t.meta.Info.Files {
-			if info.Length+cur >= pieceOff {
-				fpath := filepath.Join(t.FilePath(), info.Path.FilePath())
-				f, err := os.OpenFile(fpath, os.O_WRONLY, 0640)
-				if err == nil {
-					defer f.Close()
-					if info.Length <= left {
-						_, err = f.Write(pc.Data[idx : idx+info.Length])
-						//err = util.WriteFull(f, pc.Data[idx:idx+info.Length])
-						idx += info.Length
-						left -= info.Length
-						cur += info.Length
-						if err != nil {
-							log.Errorf("Failed to write %s: %s", fpath, err)
-							return err
-						}
-						continue
-					} else {
-						var n int
-						n, err = f.WriteAt(pc.Data[idx:idx+left], int64(pieceOff-cur)-int64(left))
-						// err = util.WriteFull(f, pc.Data[idx:left])
-						if err != nil {
-							log.Errorf("Failed to write %s: %s", fpath, err)
-							return err
-						}
-						idx += uint64(n)
-						break
-					}
-				} else {
-					log.Errorf("Failed to open %s: %s", fpath, err)
-					return err
-				}
-			}
-			cur += info.Length
-		}
-
-	}
-	// set bitfield
-	t.bf.Set(pc.Index)
-	return nil
 }
 
 func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
@@ -417,19 +266,15 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			err = t.VisitPiece(&common.PieceRequest{
+			err = t.VisitPiece(common.PieceRequest{
 				Index:  idx,
 				Length: l,
-			}, func(pc *common.PieceData) (e error) {
-				if pc != nil {
-					e = t.checkPiece(pc)
-					if e == nil {
-						has.Set(idx)
-					} else if warn {
-						log.Warnf("piece %d failed check for %s: %s", idx, t.Name(), e)
-					}
-				} else {
-					log.Errorf("failed to get piece %d for %s, does not exist", idx, t.Name())
+			}, func(pc common.PieceData) (e error) {
+				e = t.checkPiece(pc)
+				if e == nil {
+					has.Set(idx)
+				} else if warn {
+					log.Warnf("piece %d failed check for %s: %s", idx, t.Name(), e)
 				}
 				return
 			})

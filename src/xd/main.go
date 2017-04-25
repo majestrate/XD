@@ -71,12 +71,6 @@ func Run() {
 			return
 		}
 		for _, t := range ts {
-			e = t.VerifyAll(false)
-			if e != nil {
-				log.Errorf("failed to verify: %s", e)
-				done <- e
-				return
-			}
 			e = sw.AddTorrent(t)
 			if e != nil {
 				log.Errorf("error adding torrent: %s", e)

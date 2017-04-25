@@ -364,19 +364,15 @@ func (t *Torrent) handlePieces() {
 		if r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 			// TODO: cache common pieces (?)
-			t.st.VisitPiece(r, func(p *common.PieceData) error {
-				if p == nil {
-					// we don't have the piece
-					log.Infof("%s asked for a piece we don't have for %s", ev.c.id.String(), t.Name())
-					// TODO: should we close here?
-					ev.c.Close()
-				} else {
-					// have the piece, send it
-					ev.c.Send(p.ToWireMessage())
-					log.Debugf("%s queued piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
-				}
+			err := t.st.VisitPiece(*r, func(p common.PieceData) error {
+				// have the piece, send it
+				ev.c.Send(p.ToWireMessage())
+				log.Debugf("%s queued piece %d %d-%d", ev.c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 				return nil
 			})
+			if err != nil {
+				ev.c.Close()
+			}
 		} else {
 			log.Infof("%s asked for a zero length piece", ev.c.id.String())
 			// TODO: should we close here?

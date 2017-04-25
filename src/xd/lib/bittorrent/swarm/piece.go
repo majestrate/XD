@@ -17,7 +17,7 @@ const Obtained = 2
 
 // cached downloading piece
 type cachedPiece struct {
-	piece    *common.PieceData
+	piece    common.PieceData
 	progress []byte
 	mtx      sync.Mutex
 }
@@ -135,7 +135,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	log.Debugf("new piece idx=%d len=%d", piece, sz)
 	cp = &cachedPiece{
 		progress: make([]byte, sz),
-		piece: &common.PieceData{
+		piece: common.PieceData{
 			Data:  make([]byte, sz),
 			Index: piece,
 		},
