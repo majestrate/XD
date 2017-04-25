@@ -182,16 +182,16 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData)) (err error) {
+func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData) error) (err error) {
 	sz := t.meta.Info.PieceLength
-	p := &common.PieceData{
+	p := common.PieceData{
 		Index: r.Index,
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length),
 	}
-	_, err = t.ReadAt(p.Data[:], int64(r.Begin)+(int64(sz)*int64(r.Index)))
+	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err == nil {
-		v(p)
+		err = v(&p)
 	} else {
 		v(nil)
 	}
@@ -287,14 +287,10 @@ func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	l := t.meta.LengthOfPiece(idx)
-	var pc *common.PieceData
-	pc, err = t.GetPiece(&common.PieceRequest{
+	err = t.VisitPiece(&common.PieceRequest{
 		Index:  idx,
 		Length: l,
-	})
-	if err == nil {
-		err = t.checkPiece(pc)
-	}
+	}, t.checkPiece)
 	return
 }
 
@@ -421,22 +417,22 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			pc, e := t.GetPiece(&common.PieceRequest{
+			err = t.VisitPiece(&common.PieceRequest{
 				Index:  idx,
 				Length: l,
-			})
-			err = e
-			if err == nil {
-				err = t.checkPiece(pc)
-				if err == nil {
-					has.Set(idx)
-				} else if warn {
-					log.Warnf("piece %d failed check for %s: %s", idx, t.Name(), err)
+			}, func(pc *common.PieceData) (e error) {
+				if pc != nil {
+					e = t.checkPiece(pc)
+					if e == nil {
+						has.Set(idx)
+					} else if warn {
+						log.Warnf("piece %d failed check for %s: %s", idx, t.Name(), e)
+					}
+				} else {
+					log.Errorf("failed to get piece %d for %s, does not exist", idx, t.Name())
 				}
-				err = nil
-			} else {
-				log.Errorf("failed to get piece %d for %s: %s", idx, t.Name(), err)
-			}
+				return
+			})
 		}
 		idx++
 		log.Debugf("piece %d of %d", idx, np)

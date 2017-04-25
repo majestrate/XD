@@ -23,7 +23,7 @@ type Torrent interface {
 	GetPiece(r *common.PieceRequest) (*common.PieceData, error)
 
 	// visit a piece from storage
-	VisitPiece(r *common.PieceRequest, f func(*common.PieceData)) error
+	VisitPiece(r *common.PieceRequest, f func(*common.PieceData) error) error
 
 	// verify a piece by index
 	VerifyPiece(idx uint32) error

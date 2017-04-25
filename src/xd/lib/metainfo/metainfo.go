@@ -69,7 +69,7 @@ func (i Info) CheckPiece(p *common.PieceData) bool {
 	idx := p.Index * 20
 	if i.NumPieces() > p.Index {
 		log.Debugf("sum len=%d idx=%d ih=%d", len(p.Data), idx, len(i.Pieces))
-		h := sha1.Sum(p.Data)
+		h := sha1.Sum(p.Data[:])
 		expected := i.Pieces[idx : idx+20]
 		return bytes.Equal(h[:], expected)
 	}
