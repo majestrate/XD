@@ -155,6 +155,9 @@ func (t *Torrent) Announce(tr tracker.Announcer, event tracker.Event) {
 					// don't connect to self or a duplicate
 					continue
 				}
+				if t.HasOBConn(a) {
+					continue
+				}
 				// no error resolving
 				go t.PersistPeer(a, p.ID)
 			} else {
