@@ -273,6 +273,7 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 
 func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
+	log.Infof("%s got piece %d", t.Name(), idx)
 	conns := make(map[string]*PeerConn)
 	t.mtx.Lock()
 	for k, conn := range t.ibconns {
