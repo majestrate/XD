@@ -187,7 +187,7 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 	p := common.PieceData{
 		Index: r.Index,
 		Begin: r.Begin,
-		Data:  make([]byte, r.Length),
+		Data:  make([]byte, r.Length, r.Length),
 	}
 	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err == nil {

@@ -63,22 +63,18 @@ func Run() {
 		done <- sw.Run()
 	}()
 
-	go func() {
-		ts, e := st.OpenAllTorrents()
-		if e != nil {
-			log.Errorf("error opening all torrents: %s", e)
-			done <- e
+	ts, err := st.OpenAllTorrents()
+	if err != nil {
+		log.Errorf("error opening all torrents: %s", err)
+		return
+	}
+	for _, t := range ts {
+		err = sw.AddTorrent(t, false)
+		if err != nil {
+			log.Errorf("error adding torrent: %s", err)
 			return
 		}
-		for _, t := range ts {
-			e = sw.AddTorrent(t, false)
-			if e != nil {
-				log.Errorf("error adding torrent: %s", e)
-				done <- e
-				return
-			}
-		}
-	}()
+	}
 
 	// torrent auto adder
 	go func() {
