@@ -182,6 +182,22 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
+func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData)) (err error) {
+	sz := t.meta.Info.PieceLength
+	p := &common.PieceData{
+		Index: r.Index,
+		Begin: r.Begin,
+		Data:  make([]byte, r.Length),
+	}
+	_, err = t.ReadAt(p.Data[:], int64(r.Begin)+(int64(sz)*int64(r.Index)))
+	if err == nil {
+		v(p)
+	} else {
+		v(nil)
+	}
+	return
+}
+
 func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err error) {
 	sz := t.meta.Info.PieceLength
 	p = &common.PieceData{
@@ -402,14 +418,14 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	np := t.meta.Info.NumPieces()
 	has = bittorrent.NewBitfield(np, nil)
 	idx := uint32(0)
-	var pc *common.PieceData
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			pc, err = t.GetPiece(&common.PieceRequest{
+			pc, e := t.GetPiece(&common.PieceRequest{
 				Index:  idx,
 				Length: l,
 			})
+			err = e
 			if err == nil {
 				err = t.checkPiece(pc)
 				if err == nil {
@@ -421,7 +437,6 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 			} else {
 				log.Errorf("failed to get piece %d for %s: %s", idx, t.Name(), err)
 			}
-			pc = nil
 		}
 		idx++
 		log.Debugf("piece %d of %d", idx, np)

@@ -145,7 +145,7 @@ func (msg *WireMessage) Send(w io.Writer) (err error) {
 // ToWireMessage serialize to BitTorrent wire message
 func (p *PieceData) ToWireMessage() *WireMessage {
 	body := make([]byte, len(p.Data)+8)
-	copy(body[8:], p.Data)
+	copy(body[8:], p.Data[:])
 	binary.BigEndian.PutUint32(body[:], p.Index)
 	binary.BigEndian.PutUint32(body[4:], p.Begin)
 	return NewWireMessage(Piece, body)
