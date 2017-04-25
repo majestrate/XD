@@ -7,3 +7,4 @@ GOOS=darwin GOARCH=amd64 make clean build && mv XD XD-$version-darwin && gpg --s
 GOOS=linux GOARCH=386 make clean build && mv XD XD-$version-linux-i386 && gpg --sign --detach XD-$version-linux-i386
 GOOS=linux GOARCH=amd64 make clean build && mv XD XD-$version-linux-amd64 && gpg --sign --detach XD-$version-linux-amd64
 GOOS=linux GOARCH=arm make clean build && mv XD XD-$version-linux-arm && gpg --sign --detach XD-$version-linux-arm
+GOOS=freebsd GOARCH=amd64 make clean build  && mv XD XD-$version-freebsd-amd64 && gpg --sign --detach XD-$version-freebsd-amd64
