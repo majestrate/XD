@@ -421,6 +421,7 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 			} else {
 				log.Errorf("failed to get piece %d for %s: %s", idx, t.Name(), err)
 			}
+			pc = nil
 		}
 		idx++
 		log.Debugf("piece %d of %d", idx, np)
