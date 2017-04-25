@@ -189,7 +189,7 @@ func (t *fsTorrent) GetPiece(r *common.PieceRequest) (p *common.PieceData, err e
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length),
 	}
-	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
+	_, err = t.ReadAt(p.Data[:], int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err != nil {
 		p = nil
 	}
@@ -402,10 +402,10 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	np := t.meta.Info.NumPieces()
 	has = bittorrent.NewBitfield(np, nil)
 	idx := uint32(0)
+	var pc *common.PieceData
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			var pc *common.PieceData
 			pc, err = t.GetPiece(&common.PieceRequest{
 				Index:  idx,
 				Length: l,
