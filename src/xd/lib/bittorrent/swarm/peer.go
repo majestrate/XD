@@ -308,7 +308,7 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		// pending request
-		if c.r.Length > 0 {
+		if c.r != nil {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
