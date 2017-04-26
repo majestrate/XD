@@ -134,10 +134,11 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 					readbuf = buf[:]
 				}
 				n, err = r.Read(readbuf)
-				log.Debugf("read %d of %d", n, len(readbuf))
 				if n > 0 {
 					l -= uint32(n)
 					msg.data = append(msg.data, readbuf...)
+				} else if n == 0 {
+					break
 				}
 			}
 		}
