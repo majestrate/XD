@@ -87,9 +87,7 @@ func NewWireMessage(id WireMessageType, body []byte) (msg WireMessage) {
 	l := uint32(len(body)) + 5
 	binary.BigEndian.PutUint32(hdr[1:], l-4)
 	hdr[4] = byte(id)
-	if len(body) > 0 {
-		msg.data = append(hdr[:], body...)
-	}
+	msg.data = append(hdr[:], body...)
 	return msg
 }
 
