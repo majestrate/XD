@@ -136,7 +136,7 @@ func (c *PeerConn) numDownloading() int {
 }
 
 func (c *PeerConn) queueDownload(req *common.PieceRequest) {
-	if !c.closing {
+	if c.closing {
 		return
 	}
 	c.downloading = append(c.downloading, req)
@@ -350,7 +350,7 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		// pending request
-		if c.numDownloading() > c.MaxParalellRequests {
+		if c.numDownloading() >= c.MaxParalellRequests {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
