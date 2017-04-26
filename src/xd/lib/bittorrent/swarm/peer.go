@@ -343,6 +343,9 @@ func (c *PeerConn) runWriter() {
 		select {
 		case <-c.keepalive.C:
 			err = c.sendKeepAlive()
+			if err != nil {
+				break
+			}
 		case msg, ok := <-c.send:
 			if ok {
 				now := time.Now()

@@ -132,7 +132,9 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 		l := binary.BigEndian.Uint32(msg.data[:])
 		if l > 0 {
 			// read body
-			var buf [1024]byte
+
+			// XXX: yes this is a magic number
+			var buf [1730]byte
 			for l > 0 && err == nil {
 				var readbuf []byte
 				if l < uint32(len(buf)) {
