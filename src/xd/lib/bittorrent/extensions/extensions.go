@@ -39,7 +39,7 @@ func (opts *ExtendedOptions) Copy() *ExtendedOptions {
 }
 
 // ToWireMessage serializes this ExtendedOptions to a BitTorrent wire message
-func (opts *ExtendedOptions) ToWireMessage() common.WireMessage {
+func (opts *ExtendedOptions) ToWireMessage() *common.WireMessage {
 	b := new(bytes.Buffer)
 	b.Write([]byte{opts.ID})
 	if opts.ID == 0 {
@@ -57,7 +57,7 @@ func New() *ExtendedOptions {
 }
 
 // FromWireMessage loads an ExtendedOptions messgae from a BitTorrent wire message
-func FromWireMessage(msg common.WireMessage) (opts *ExtendedOptions) {
+func FromWireMessage(msg *common.WireMessage) (opts *ExtendedOptions) {
 	if msg.MessageID() == common.Extended {
 		payload := msg.Payload()
 		if len(payload) > 0 {

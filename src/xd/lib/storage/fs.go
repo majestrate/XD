@@ -34,7 +34,6 @@ func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
 }
 
 func (t *fsTorrent) Allocate() (err error) {
-	log.Infof("allocate files for %s", t.meta.TorrentName())
 	if t.meta.IsSingleFile() {
 		log.Debugf("file is %d bytes", t.meta.Info.Length)
 		err = util.EnsureFile(t.FilePath(), t.meta.Info.Length)
@@ -182,9 +181,9 @@ func (t *fsTorrent) FilePath() string {
 	return filepath.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
+func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData) error) (err error) {
 	sz := t.meta.Info.PieceLength
-	p := common.PieceData{
+	p := &common.PieceData{
 		Index: r.Index,
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length, r.Length),
@@ -196,8 +195,8 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 	return
 }
 
-func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
-	if !t.meta.Info.CheckPiece(&pc) {
+func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
+	if !t.meta.Info.CheckPiece(pc) {
 		err = common.ErrInvalidPiece
 	}
 	return
@@ -205,14 +204,14 @@ func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	l := t.meta.LengthOfPiece(idx)
-	err = t.VisitPiece(common.PieceRequest{
+	err = t.VisitPiece(&common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}, t.checkPiece)
 	return
 }
 
-func (t *fsTorrent) PutPiece(pc common.PieceData) (err error) {
+func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
 	if err == nil {
@@ -266,10 +265,10 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			err = t.VisitPiece(common.PieceRequest{
+			err = t.VisitPiece(&common.PieceRequest{
 				Index:  idx,
 				Length: l,
-			}, func(pc common.PieceData) (e error) {
+			}, func(pc *common.PieceData) (e error) {
 				e = t.checkPiece(pc)
 				if e == nil {
 					has.Set(idx)

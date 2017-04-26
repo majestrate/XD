@@ -327,7 +327,7 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 }
 
 // handle a piece request
-func (t *Torrent) onPieceRequest(c *PeerConn, req common.PieceRequest) {
+func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
 	if t.piece != nil {
 		t.piece <- pieceEvent{c, req}
 	}
@@ -356,7 +356,7 @@ func (t *Torrent) handlePieces() {
 		if ev.r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)
 			// TODO: cache common pieces (?)
-			err := t.st.VisitPiece(ev.r, func(p common.PieceData) error {
+			err := t.st.VisitPiece(ev.r, func(p *common.PieceData) error {
 				// have the piece, send it
 				ev.c.Send(p.ToWireMessage())
 				log.Debugf("%s queued piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)

@@ -16,10 +16,10 @@ type Torrent interface {
 	VerifyAll(fresh bool) error
 
 	// put a downloaded piece into the storage
-	PutPiece(p common.PieceData) error
+	PutPiece(p *common.PieceData) error
 
 	// visit a piece from storage
-	VisitPiece(r common.PieceRequest, f func(common.PieceData) error) error
+	VisitPiece(r *common.PieceRequest, f func(*common.PieceData) error) error
 
 	// verify a piece by index
 	VerifyPiece(idx uint32) error

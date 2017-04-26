@@ -17,7 +17,7 @@ type PeerConn struct {
 	c              net.Conn
 	id             common.PeerID
 	t              *Torrent
-	send           chan common.WireMessage
+	send           chan *common.WireMessage
 	bf             *bittorrent.Bitfield
 	peerChoke      bool
 	peerInterested bool
@@ -29,7 +29,7 @@ type PeerConn struct {
 	tx             float32
 	lastRecv       time.Time
 	rx             float32
-	r              common.PieceRequest
+	r              *common.PieceRequest
 	ourOpts        *extensions.ExtendedOptions
 	theirOpts      *extensions.ExtendedOptions
 }
@@ -52,7 +52,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan common.WireMessage)
+	p.send = make(chan *common.WireMessage)
 	p.keepalive = time.NewTicker(time.Minute)
 	return p
 }
@@ -64,14 +64,14 @@ func (c *PeerConn) start() {
 }
 
 // queue a send of a bittorrent wire message to this peer
-func (c *PeerConn) Send(msg common.WireMessage) {
+func (c *PeerConn) Send(msg *common.WireMessage) {
 	if !c.closing {
 		c.send <- msg
 	}
 }
 
 // recv a bittorrent wire message (blocking)
-func (c *PeerConn) Recv() (msg common.WireMessage, err error) {
+func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	// hack
 	msg = common.KeepAlive()
 	err = msg.Recv(c.c)
@@ -209,17 +209,17 @@ func (c *PeerConn) runReader() {
 			}
 			if msgid == common.Piece {
 				d := msg.GetPieceData()
-				if d.Data == nil {
+				if d == nil {
 					log.Warnf("invalid piece data message from %s", c.id.String())
 					c.Close()
 				} else {
-					if c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
-						c.t.pt.handlePieceData(&d)
+					if c.r != nil && c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
+						c.t.pt.handlePieceData(d)
 					} else {
 						log.Warnf("unwarrented piece data from %s", c.id.String())
 						c.Close()
 					}
-					c.r.Length = 0
+					c.r = nil
 				}
 				continue
 			}
