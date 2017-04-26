@@ -74,7 +74,7 @@ func (bf *Bitfield) BDecode(r io.Reader) (err error) {
 }
 
 // ToWireMessage serializes to bittorrent wire message
-func (bf *Bitfield) ToWireMessage() *common.WireMessage {
+func (bf *Bitfield) ToWireMessage() common.WireMessage {
 	return common.NewWireMessage(common.BitField, bf.Data[:])
 }
 

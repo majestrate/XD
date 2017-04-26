@@ -69,13 +69,11 @@ func (p *cachedPiece) set(offset, length uint32, b byte) {
 	}
 }
 
-func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
+func (p *cachedPiece) nextRequest() (r common.PieceRequest) {
 	p.mtx.Lock()
 	l := uint32(len(p.progress))
-	r = &common.PieceRequest{
-		Index:  p.piece.Index,
-		Length: BlockSize,
-	}
+	r.Index = p.piece.Index
+	r.Length = BlockSize
 
 	for r.Begin+r.Length < l {
 
@@ -160,7 +158,7 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32) {
 	return
 }
 
-func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
+func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r common.PieceRequest) {
 	pt.mtx.Lock()
 	idx := pt.pendingPiece(remote)
 	cp, has := pt.requests[idx]
@@ -174,8 +172,8 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 }
 
 // cancel previously requested piece request
-func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
-	if r == nil {
+func (pt *pieceTracker) canceledRequest(r common.PieceRequest) {
+	if r.Length == 0 {
 		return
 	}
 	pc := pt.getPiece(r.Index)
