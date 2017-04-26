@@ -104,7 +104,9 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 // add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent, fresh bool) (err error) {
-	err = t.VerifyAll(fresh)
+	if fresh {
+		err = t.VerifyAll(true)
+	}
 	if err == nil {
 		sw.Torrents.addTorrent(t)
 		tr := sw.Torrents.GetTorrent(t.Infohash())
