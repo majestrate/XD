@@ -235,7 +235,7 @@ func (t *Torrent) removeIBConn(c *PeerConn) {
 // connect to a new peer for this swarm, blocks
 func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 	if t.HasOBConn(a) {
-		return
+		return nil
 	}
 	c, err := t.Net.Dial(a.Network(), a.String())
 	if err == nil {
