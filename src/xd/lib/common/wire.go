@@ -136,6 +136,7 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 				} else {
 					readbuf = buf[:]
 				}
+				log.Debugf("reading %d", l)
 				n, err = r.Read(readbuf)
 				log.Debugf("read %d of %d", n, len(readbuf))
 				if n > 0 {
