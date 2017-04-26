@@ -313,7 +313,7 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		c.r = c.t.pt.nextRequestForDownload(c.bf)
-		if c.r.Length == 0 {
+		if c.r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
 			time.Sleep(time.Second)
 		} else {
