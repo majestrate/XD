@@ -100,6 +100,9 @@ func (msg *WireMessage) KeepAlive() bool {
 
 // Len returns the length of the body of this message
 func (msg *WireMessage) Len() uint32 {
+	if msg.data == nil {
+		return 0
+	}
 	return binary.BigEndian.Uint32(msg.data)
 }
 
@@ -122,8 +125,8 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
 	var hdr [4]byte
 	_, err = io.ReadFull(r, hdr[:])
+	msg.data = hdr[:]
 	if err == nil {
-		msg.data = hdr[:]
 		l := binary.BigEndian.Uint32(msg.data[:])
 		if l > 0 {
 			// read body

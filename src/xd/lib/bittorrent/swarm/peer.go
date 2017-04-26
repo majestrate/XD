@@ -72,7 +72,6 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
-	// hack
 	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
