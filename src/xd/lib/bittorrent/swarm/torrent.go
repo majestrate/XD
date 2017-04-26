@@ -184,7 +184,7 @@ func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 			} else {
 				triesLeft--
 			}
-			if triesLeft == 0 {
+			if triesLeft <= 0 {
 				return
 			}
 		} else {

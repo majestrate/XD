@@ -141,13 +141,23 @@ func (c *PeerConn) numDownloading() int {
 
 func (c *PeerConn) queueDownload(req *common.PieceRequest) {
 	if c.closing {
+		c.clearDownloading()
 		return
 	}
 	c.access.Lock()
 	c.downloading = append(c.downloading, req)
-	c.access.Unlock()
 	log.Debugf("ask %s for %d %d %d", c.id.String(), req.Index, req.Begin, req.Length)
 	c.Send(req.ToWireMessage())
+	c.access.Unlock()
+}
+
+func (c *PeerConn) clearDownloading() {
+	c.access.Lock()
+	for _, r := range c.downloading {
+		c.t.pt.canceledRequest(r)
+	}
+	c.downloading = []*common.PieceRequest{}
+	c.access.Unlock()
 }
 
 func (c *PeerConn) HasPiece(piece uint32) bool {
@@ -358,16 +368,25 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
+	pendingTry := 0
 	for !c.t.Done() && c.send != nil {
 		if c.RemoteChoking() {
 			time.Sleep(time.Second)
 			continue
 		}
 		// pending request
-		if c.numDownloading() >= c.MaxParalellRequests {
-			time.Sleep(time.Millisecond * 100)
+		p := c.numDownloading()
+		if p >= c.MaxParalellRequests {
+			log.Debugf("too many pending requests %d, waiting", p)
+			if pendingTry > 5 {
+				c.Close()
+				return
+			}
+			pendingTry++
+			time.Sleep(time.Second * 10)
 			continue
 		}
+		pendingTry = 0
 		r := c.t.pt.nextRequestForDownload(c.bf)
 		if r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
