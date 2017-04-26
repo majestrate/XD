@@ -25,3 +25,12 @@ type PieceRequest struct {
 
 // ErrInvalidPiece is an error for when a piece has invalid sha1sum
 var ErrInvalidPiece = errors.New("invalid piece")
+
+// return true if piecedata matches this piece request
+func (r *PieceRequest) Matches(d *PieceData) bool {
+	return r.Length == uint32(len(d.Data)) && r.Begin == d.Begin && r.Index == d.Index
+}
+
+func (r *PieceRequest) Equals(other *PieceRequest) bool {
+	return r.Index == other.Index && r.Length == other.Length && r.Begin == other.Begin
+}

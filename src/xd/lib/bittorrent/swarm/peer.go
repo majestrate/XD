@@ -12,26 +12,27 @@ import (
 
 // a peer connection
 type PeerConn struct {
-	inbound        bool
-	closing        bool
-	c              net.Conn
-	id             common.PeerID
-	t              *Torrent
-	send           chan *common.WireMessage
-	bf             *bittorrent.Bitfield
-	peerChoke      bool
-	peerInterested bool
-	usChoke        bool
-	usInterseted   bool
-	Done           func()
-	keepalive      *time.Ticker
-	lastSend       time.Time
-	tx             float32
-	lastRecv       time.Time
-	rx             float32
-	r              *common.PieceRequest
-	ourOpts        *extensions.ExtendedOptions
-	theirOpts      *extensions.ExtendedOptions
+	inbound             bool
+	closing             bool
+	c                   net.Conn
+	id                  common.PeerID
+	t                   *Torrent
+	send                chan *common.WireMessage
+	bf                  *bittorrent.Bitfield
+	peerChoke           bool
+	peerInterested      bool
+	usChoke             bool
+	usInterseted        bool
+	Done                func()
+	keepalive           *time.Ticker
+	lastSend            time.Time
+	tx                  float32
+	lastRecv            time.Time
+	rx                  float32
+	downloading         []*common.PieceRequest
+	ourOpts             *extensions.ExtendedOptions
+	theirOpts           *extensions.ExtendedOptions
+	MaxParalellRequests int
 }
 
 // get stats for this connection
@@ -54,6 +55,9 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	copy(p.id[:], id[:])
 	p.send = make(chan *common.WireMessage)
 	p.keepalive = time.NewTicker(time.Minute)
+	p.downloading = []*common.PieceRequest{}
+	// TODO: hard coded
+	p.MaxParalellRequests = 3
 	return p
 }
 
@@ -97,6 +101,47 @@ func (c *PeerConn) Unchoke() {
 		c.Send(common.NewWireMessage(common.UnChoke, nil))
 		c.usChoke = false
 	}
+}
+
+func (c *PeerConn) gotDownload(p *common.PieceData) {
+	var downloading []*common.PieceRequest
+	for _, r := range c.downloading {
+		if r.Matches(p) {
+			c.t.pt.handlePieceData(p)
+		} else {
+			downloading = append(downloading, r)
+		}
+	}
+	if len(c.downloading) != len(downloading) {
+		c.downloading = downloading
+	}
+}
+
+func (c *PeerConn) cancelDownload(req *common.PieceRequest) {
+	var downloading []*common.PieceRequest
+	for _, r := range c.downloading {
+		if r.Equals(req) {
+			c.t.pt.canceledRequest(r)
+		} else {
+			downloading = append(downloading, r)
+		}
+	}
+	if len(c.downloading) != len(downloading) {
+		c.downloading = downloading
+	}
+}
+
+func (c *PeerConn) numDownloading() int {
+	return len(c.downloading)
+}
+
+func (c *PeerConn) queueDownload(req *common.PieceRequest) {
+	if !c.closing {
+		return
+	}
+	c.downloading = append(c.downloading, req)
+	log.Debugf("ask %s for %d %d %d", c.id.String(), req.Index, req.Begin, req.Length)
+	c.Send(req.ToWireMessage())
 }
 
 func (c *PeerConn) HasPiece(piece uint32) bool {
@@ -148,7 +193,10 @@ func (c *PeerConn) Close() {
 		return
 	}
 	c.closing = true
-	c.t.pt.canceledRequest(c.r)
+	for _, r := range c.downloading {
+		c.t.pt.canceledRequest(r)
+	}
+	c.downloading = nil
 	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
 	if c.send != nil {
@@ -213,13 +261,7 @@ func (c *PeerConn) runReader() {
 					log.Warnf("invalid piece data message from %s", c.id.String())
 					c.Close()
 				} else {
-					if c.r != nil && c.r.Index == d.Index && c.r.Begin == d.Begin && c.r.Length == uint32(len(d.Data)) {
-						c.t.pt.handlePieceData(d)
-					} else {
-						log.Warnf("unwarrented piece data from %s", c.id.String())
-						c.Close()
-					}
-					c.r = nil
+					c.gotDownload(d)
 				}
 				continue
 			}
@@ -286,8 +328,8 @@ func (c *PeerConn) runWriter() {
 				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop
 					log.Debugf("drop request because choke")
-					c.t.pt.canceledRequest(c.r)
-					c.r.Length = 0
+					r := msg.GetPieceRequest()
+					c.cancelDownload(r)
 				} else {
 					err = msg.Send(c.c)
 					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
@@ -308,17 +350,16 @@ func (c *PeerConn) runDownload() {
 			continue
 		}
 		// pending request
-		if c.r != nil {
+		if c.numDownloading() > c.MaxParalellRequests {
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
-		c.r = c.t.pt.nextRequestForDownload(c.bf)
-		if c.r == nil {
+		r := c.t.pt.nextRequestForDownload(c.bf)
+		if r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
 			time.Sleep(time.Second)
 		} else {
-			log.Debugf("ask %s for %d %d %d", c.id.String(), c.r.Index, c.r.Begin, c.r.Length)
-			c.Send(c.r.ToWireMessage())
+			c.queueDownload(r)
 		}
 	}
 	if c.send == nil {
