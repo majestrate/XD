@@ -124,7 +124,9 @@ func (msg *WireMessage) MessageID() WireMessageType {
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
 	var hdr [4]byte
-	_, err = io.ReadFull(r, hdr[:])
+	var n int
+	n, err = io.ReadFull(r, hdr[:])
+	log.Debugf("recv'd header %d bytes", n)
 	msg.data = hdr[:]
 	if err == nil {
 		l := binary.BigEndian.Uint32(msg.data[:])
@@ -133,15 +135,12 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 			var buf [1024]byte
 			for l > 0 && err == nil {
 				var readbuf []byte
-				var n int
 				if l < uint32(len(buf)) {
 					readbuf = buf[:l]
 				} else {
 					readbuf = buf[:]
 				}
-				log.Debugf("reading %d", l)
 				n, err = r.Read(readbuf)
-				log.Debugf("read %d of %d", n, len(readbuf))
 				if n > 0 {
 					l -= uint32(n)
 					readbuf = readbuf[:n]

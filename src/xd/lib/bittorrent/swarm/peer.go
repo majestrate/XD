@@ -338,6 +338,7 @@ func (c *PeerConn) runWriter() {
 					r := msg.GetPieceRequest()
 					c.cancelDownload(r)
 				} else {
+					log.Debugf("writing %d bytes", msg.Len())
 					err = msg.Send(c.c)
 					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 				}

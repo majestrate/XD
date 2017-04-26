@@ -260,9 +260,9 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 						opts = t.defaultOpts.Copy()
 					}
 					pc := makePeerConn(c, t, h.PeerID, opts)
-					pc.start()
 					t.addOBPeer(pc)
 					pc.Send(t.Bitfield().ToWireMessage())
+					pc.start()
 					return nil
 				} else {
 					log.Warn("Infohash missmatch")
@@ -325,8 +325,9 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	}
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	t.addIBPeer(c)
-	c.start()
 	c.Send(t.Bitfield().ToWireMessage())
+	c.start()
+
 }
 
 // handle a piece request
