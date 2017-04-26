@@ -73,7 +73,7 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	// hack
-	msg = common.KeepAlive()
+	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	now := time.Now()
@@ -169,7 +169,8 @@ func (c *PeerConn) Close() {
 func (c *PeerConn) runReader() {
 	var err error
 	for err == nil {
-		msg, err := c.Recv()
+		msg, e := c.Recv()
+		err = e
 		if err == nil {
 			if msg.KeepAlive() {
 				log.Debugf("keepalive from %s", c.id)
