@@ -64,7 +64,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 }
 
 func (c *PeerConn) start() {
-	go c.runDownload()
 	go c.runReader()
 	go c.runWriter()
 }
@@ -233,11 +232,18 @@ func (c *PeerConn) runReader() {
 			msgid := msg.MessageID()
 			log.Debugf("%s from %s", msgid.String(), c.id.String())
 			if msgid == common.BitField {
+				isnew := false
+				if c.bf == nil {
+					isnew = true
+				}
 				c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 				log.Debugf("got bitfield from %s", c.id.String())
 				// TODO: determine if we are really interested
 				m := common.NewInterested()
 				c.Send(m)
+				if isnew {
+					go c.runDownload()
+				}
 				continue
 			}
 			if msgid == common.Choke {
