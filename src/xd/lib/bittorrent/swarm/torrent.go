@@ -180,7 +180,7 @@ func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 		if !t.HasOBConn(a) {
 			err := t.AddPeer(a, id)
 			if err == nil {
-				triesLeft = 10
+				return
 			} else {
 				triesLeft--
 			}
@@ -234,6 +234,9 @@ func (t *Torrent) removeIBConn(c *PeerConn) {
 
 // connect to a new peer for this swarm, blocks
 func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
+	if t.HasOBConn(a) {
+		return
+	}
 	c, err := t.Net.Dial(a.Network(), a.String())
 	if err == nil {
 		// connected
