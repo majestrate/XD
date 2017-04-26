@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/binary"
 	"io"
+	"xd/lib/log"
 	"xd/lib/util"
 )
 
@@ -119,8 +120,10 @@ func (msg *WireMessage) MessageID() WireMessageType {
 // Recv reads message from reader
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
-	_, err = io.ReadFull(r, msg.data[:4])
+	var hdr [4]byte
+	_, err = io.ReadFull(r, hdr[:])
 	if err == nil {
+		msg.data = hdr[:]
 		l := binary.BigEndian.Uint32(msg.data[:])
 		if l > 0 {
 			// read body
@@ -134,6 +137,7 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 					readbuf = buf[:]
 				}
 				n, err = r.Read(readbuf)
+				log.Debugf("read %d of %d", n, len(readbuf))
 				if n > 0 {
 					l -= uint32(n)
 					msg.data = append(msg.data, readbuf...)
