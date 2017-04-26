@@ -3,6 +3,7 @@ package swarm
 import (
 	"io"
 	"net"
+	"sync"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
@@ -33,6 +34,7 @@ type PeerConn struct {
 	ourOpts             *extensions.ExtendedOptions
 	theirOpts           *extensions.ExtendedOptions
 	MaxParalellRequests int
+	access              sync.Mutex
 }
 
 // get stats for this connection
@@ -53,11 +55,11 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.send = make(chan *common.WireMessage)
+	p.MaxParalellRequests = 3
+	p.send = make(chan *common.WireMessage, 8)
 	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
 	// TODO: hard coded
-	p.MaxParalellRequests = 3
 	return p
 }
 
@@ -104,6 +106,7 @@ func (c *PeerConn) Unchoke() {
 }
 
 func (c *PeerConn) gotDownload(p *common.PieceData) {
+	c.access.Lock()
 	var downloading []*common.PieceRequest
 	for _, r := range c.downloading {
 		if r.Matches(p) {
@@ -112,12 +115,12 @@ func (c *PeerConn) gotDownload(p *common.PieceData) {
 			downloading = append(downloading, r)
 		}
 	}
-	if len(c.downloading) != len(downloading) {
-		c.downloading = downloading
-	}
+	c.downloading = downloading
+	c.access.Unlock()
 }
 
 func (c *PeerConn) cancelDownload(req *common.PieceRequest) {
+	c.access.Lock()
 	var downloading []*common.PieceRequest
 	for _, r := range c.downloading {
 		if r.Equals(req) {
@@ -126,20 +129,24 @@ func (c *PeerConn) cancelDownload(req *common.PieceRequest) {
 			downloading = append(downloading, r)
 		}
 	}
-	if len(c.downloading) != len(downloading) {
-		c.downloading = downloading
-	}
+	c.downloading = downloading
+	c.access.Unlock()
 }
 
 func (c *PeerConn) numDownloading() int {
-	return len(c.downloading)
+	c.access.Lock()
+	i := len(c.downloading)
+	c.access.Unlock()
+	return i
 }
 
 func (c *PeerConn) queueDownload(req *common.PieceRequest) {
 	if c.closing {
 		return
 	}
+	c.access.Lock()
 	c.downloading = append(c.downloading, req)
+	c.access.Unlock()
 	log.Debugf("ask %s for %d %d %d", c.id.String(), req.Index, req.Begin, req.Length)
 	c.Send(req.ToWireMessage())
 }
@@ -306,7 +313,7 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.ExtendedOptions) {
 
 func (c *PeerConn) sendKeepAlive() error {
 	tm := time.Now().Add(0 - (time.Minute * 2))
-	if c.lastSend.After(tm) {
+	if c.lastSend.Before(tm) {
 		log.Debugf("send keepalive to %s", c.id.String())
 		return common.KeepAlive().Send(c.c)
 	}
