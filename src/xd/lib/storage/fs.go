@@ -290,12 +290,20 @@ func (t *fsTorrent) Flush() error {
 	return t.st.flushBitfield(t.ih, bf)
 }
 
+func (t *fsTorrent) Close() error {
+	return t.Flush()
+}
+
 // filesystem based torrent storage
 type FsStorage struct {
 	// directory for downloaded data
 	DataDir string
 	// directory for torrent seed data
 	MetaDir string
+}
+
+func (st *FsStorage) Close() (err error) {
+	return
 }
 
 func (st *FsStorage) flushBitfield(ih common.Infohash, bf *bittorrent.Bitfield) (err error) {

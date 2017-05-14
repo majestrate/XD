@@ -4,37 +4,41 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zeebo/bencode"
+	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 	"xd/lib/common"
 	"xd/lib/log"
-	"xd/lib/network"
 )
 
 // http tracker
 type HttpTracker struct {
-	url     string
-	session network.Network
-	// http client
-	client *http.Client
-	// next announce
-	next time.Time
-	// announcing right now?
-	announcing bool
+	u *url.URL
+	// last time we resolved the remote address
+	lastResolved time.Time
+	// cached network address of tracker
+	addr net.Addr
+	// how often to resolve network address
+	resolveInterval time.Duration
+	// currently resolving the address ?
+	resolving sync.Mutex
 }
 
 // create new http tracker from url
-func NewHttpTracker(n network.Network, url string) *HttpTracker {
-	return &HttpTracker{
-		url:     url,
-		session: n,
-		client: &http.Client{
-			Transport: &http.Transport{
-				Dial: n.Dial,
-			},
-		},
+func NewHttpTracker(u *url.URL) *HttpTracker {
+	t := &HttpTracker{
+		u:               u,
+		resolveInterval: time.Hour,
+		lastResolved:    time.Unix(0, 0),
 	}
+
+	return t
+}
+
+func (t *HttpTracker) shouldResolve() bool {
+	return t.lastResolved.Add(t.resolveInterval).Before(time.Now())
 }
 
 // http compact response
@@ -45,25 +49,45 @@ type compactHttpAnnounceResponse struct {
 }
 
 func (t *HttpTracker) Name() string {
-	u, err := url.Parse(t.url)
-	if err == nil {
-		return u.Host
-	}
-	return t.url
+	return t.u.Hostname()
 }
 
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
-	t.announcing = true
+
+	// http client
+	var client http.Client
+
+	client.Transport = &http.Transport{
+		Dial: func(_, _ string) (c net.Conn, e error) {
+			var a net.Addr
+			t.resolving.Lock()
+			if t.shouldResolve() {
+				a, e = req.GetNetwork().Lookup(t.u.Hostname(), t.u.Port())
+				if e == nil {
+					t.addr = a
+					t.lastResolved = time.Now()
+				}
+			} else {
+				a = t.addr
+			}
+			t.resolving.Unlock()
+			if e == nil {
+				c, e = req.GetNetwork().Dial(a.Network(), a.String())
+			}
+			return
+		},
+	}
+
 	resp = new(Response)
 	interval := 30
+	// build query
 	var u *url.URL
-	u, err = url.Parse(t.url)
+	u, err = url.Parse(t.u.String())
 	if err == nil {
-
-		// build query
 		v := u.Query()
-		v.Add("ip", req.IP.String()+".i2p")
+		addr := req.GetNetwork().Addr().String() + ".i2p"
+		v.Add("ip", addr)
 		v.Add("info_hash", string(req.Infohash.Bytes()))
 		v.Add("peer_id", string(req.PeerID.Bytes()))
 		v.Add("port", fmt.Sprintf("%d", req.Port))
@@ -82,7 +106,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		u.RawQuery = v.Encode()
 		var r *http.Response
 		log.Debugf("%s announcing", t.Name())
-		r, err = t.client.Get(u.String())
+		r, err = client.Get(u.String())
 		if err == nil {
 			defer r.Body.Close()
 			dec := bencode.NewDecoder(r.Body)
@@ -113,18 +137,13 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 			}
 		}
 	}
+
 	if err != nil {
 		log.Warnf("%s got error while announcing: %s", t.Name(), err)
 	}
 	if interval == 0 {
 		interval = 60
 	}
-	t.next = time.Now().Add(time.Second * time.Duration(interval))
-	log.Infof("%s got %d peers, next announce %s (interval was %d)", t.Name(), len(resp.Peers), t.next, interval)
-	t.announcing = false
+	resp.NextAnnounce = time.Now().Add(time.Second * time.Duration(interval))
 	return
-}
-
-func (t *HttpTracker) ShouldAnnounce() bool {
-	return time.Now().After(t.next) && !t.announcing
 }

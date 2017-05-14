@@ -30,13 +30,19 @@ func (s *Session) Addr() net.Addr {
 	return s.LocalAddr
 }
 
-func (s *Session) Lookup(name string, port int) (addr net.Addr, err error) {
+func (s *Session) Lookup(name, port string) (addr net.Addr, err error) {
 	var ips []net.IP
 	ips, err = net.LookupIP(name)
 	if err == nil {
-		addr = &net.TCPAddr{
-			IP:   ips[0],
-			Port: port,
+		for _, ip := range ips {
+			tcpaddr := &net.TCPAddr{
+				IP: ip,
+			}
+			tcpaddr.Port, err = net.LookupPort(tcpaddr.Network(), port)
+			if err == nil {
+				addr = tcpaddr
+				return
+			}
 		}
 	}
 	return

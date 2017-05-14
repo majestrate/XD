@@ -2,11 +2,12 @@ package xd
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"time"
-	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/util"
@@ -20,8 +21,8 @@ type httpRPC struct {
 
 // Run runs XD main function
 func Run() {
+	var closers []io.Closer
 	v := version.Version()
-	done := make(chan error)
 	conf := new(config.Config)
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
@@ -55,13 +56,8 @@ func Run() {
 	log.Infof("loaded config %s", fname)
 	log.SetLevel(conf.Log.Level)
 	st := conf.Storage.CreateStorage()
-
-	sw := swarm.NewSwarm(st)
-
-	go func() {
-		// run swarm
-		done <- sw.Run()
-	}()
+	sw := conf.Bittorrent.CreateSwarm(st)
+	closers = append(closers, sw, st)
 
 	ts, err := st.OpenAllTorrents()
 	if err != nil {
@@ -78,7 +74,7 @@ func Run() {
 
 	// torrent auto adder
 	go func() {
-		for {
+		for sw.Running() {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
 				name := t.MetaInfo().TorrentName()
@@ -99,20 +95,34 @@ func Run() {
 	}
 
 	net := conf.I2P.CreateSession()
-	log.Info("opening i2p session")
-	err = net.Open()
-	if err != nil {
-		log.Fatalf("failed to open i2p session: %s", err.Error())
+	// network mainloop
+	go func() {
+		for sw.Running() {
+			log.Info("opening i2p session")
+			err := net.Open()
+			if err == nil {
+				log.Infof("i2p session made, we are %s", net.B32Addr())
+				err = sw.Run(net)
+				if err != nil {
+					log.Errorf("lost i2p session: %s", err)
+				}
+			} else {
+				log.Errorf("failed to create i2p session: %s", err)
+				time.Sleep(time.Second)
+			}
+		}
+	}()
+	closers = append(closers, net)
+	sigchnl := make(chan os.Signal)
+	signal.Notify(sigchnl, os.Interrupt)
+	for {
+		sig := <-sigchnl
+		if sig == os.Interrupt {
+			log.Info("Interrupted")
+			for idx := range closers {
+				closers[idx].Close()
+			}
+			return
+		}
 	}
-	log.Infof("i2p session made, we are %s", net.B32Addr())
-	sw.SetNetwork(net)
-	err = <-done
-	close(done)
-	if err != nil {
-		log.Errorf("error: %s", err)
-	}
-	// close network because we are done
-	log.Info("closing i2p network connection")
-	net.Close()
-	log.Info("exited")
 }

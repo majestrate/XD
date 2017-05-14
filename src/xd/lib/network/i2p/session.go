@@ -23,7 +23,7 @@ type Session interface {
 	Accept() (net.Conn, error)
 
 	// implements network.Session
-	Lookup(name string, port int) (net.Addr, error)
+	Lookup(name, port string) (net.Addr, error)
 
 	// lookup an i2p address
 	LookupI2P(name string) (I2PAddr, error)

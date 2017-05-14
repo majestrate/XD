@@ -1,7 +1,9 @@
 package config
 
 import (
+	"xd/lib/bittorrent/swarm"
 	"xd/lib/configparser"
+	"xd/lib/storage"
 	"xd/lib/util"
 )
 
@@ -93,4 +95,12 @@ func (c *BittorrentConfig) Save(s *configparser.Section) error {
 	s.Add("tracker-config", c.OpenTrackers.FileName)
 
 	return c.OpenTrackers.Save()
+}
+
+func (c *BittorrentConfig) CreateSwarm(st storage.Storage) *swarm.Swarm {
+	sw := swarm.NewSwarm(st)
+	for name := range c.OpenTrackers.Trackers {
+		sw.AddOpenTracker(c.OpenTrackers.Trackers[name])
+	}
+	return sw
 }

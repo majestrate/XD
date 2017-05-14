@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -49,7 +50,7 @@ func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 		a = i2p.I2PAddr(parts[0])
 	} else {
 		// try compact
-		a, err = n.Lookup(p.Compact.String(), p.Port)
+		a, err = n.Lookup(p.Compact.String(), fmt.Sprintf("%d", p.Port))
 	}
 	return
 }

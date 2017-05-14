@@ -46,6 +46,8 @@ type Torrent interface {
 // torrent storage driver
 type Storage interface {
 
+	// Close and flush storage backend
+	Close() error
 	// open a storage session for a torrent
 	// does not verify any piece data
 	OpenTorrent(info *metainfo.TorrentFile) (Torrent, error)
