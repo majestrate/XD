@@ -8,16 +8,16 @@ type LogConfig struct {
 	Level string
 }
 
-func (cfg *LogConfig) FromSection(s *configparser.Section) {
+func (cfg *LogConfig) Load(s *configparser.Section) error {
 
 	cfg.Level = "info"
 	if s != nil {
 		cfg.Level = s.Get("level", "info")
 	}
+	return nil
 }
 
-func (cfg *LogConfig) Options() map[string]string {
-	return map[string]string{
-		"level": cfg.Level,
-	}
+func (cfg *LogConfig) Save(s *configparser.Section) error {
+	s.Add("level", cfg.Level)
+	return nil
 }

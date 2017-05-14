@@ -15,7 +15,7 @@ type I2PConfig struct {
 	I2CPOptions     map[string]string
 }
 
-func (cfg *I2PConfig) FromSection(section *configparser.Section) {
+func (cfg *I2PConfig) Load(section *configparser.Section) error {
 	cfg.I2CPOptions = make(map[string]string)
 	if section == nil {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
@@ -35,9 +35,10 @@ func (cfg *I2PConfig) FromSection(section *configparser.Section) {
 			cfg.I2CPOptions[k] = v
 		}
 	}
+	return nil
 }
 
-func (cfg *I2PConfig) Options() map[string]string {
+func (cfg *I2PConfig) Save(s *configparser.Section) error {
 	opts := make(map[string]string)
 	if cfg.I2CPOptions != nil {
 		for k, v := range cfg.I2CPOptions {
@@ -51,7 +52,10 @@ func (cfg *I2PConfig) Options() map[string]string {
 	if cfg.nameWasProvided {
 		opts["session"] = cfg.Name
 	}
-	return opts
+	for k := range opts {
+		s.Add(k, opts[k])
+	}
+	return nil
 }
 
 // create an i2p session from this config

@@ -16,7 +16,7 @@ type StorageConfig struct {
 	Root string
 }
 
-func (cfg *StorageConfig) FromSection(s *configparser.Section) {
+func (cfg *StorageConfig) Load(s *configparser.Section) error {
 
 	cfg.Root = "storage"
 	if s != nil {
@@ -29,15 +29,15 @@ func (cfg *StorageConfig) FromSection(s *configparser.Section) {
 	if s != nil {
 		cfg.Downloads = s.Get("downloads", cfg.Downloads)
 	}
+	return nil
 }
 
-func (cfg *StorageConfig) Options() map[string]string {
+func (cfg *StorageConfig) Save(s *configparser.Section) error {
 
-	return map[string]string{
-		"rootdir":   cfg.Root,
-		"metadata":  cfg.Meta,
-		"downloads": cfg.Downloads,
-	}
+	s.Add("rootdir", cfg.Root)
+	s.Add("metadata", cfg.Meta)
+	s.Add("downloads", cfg.Downloads)
+	return nil
 }
 
 func (cfg *StorageConfig) CreateStorage() storage.Storage {
