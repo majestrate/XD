@@ -222,6 +222,7 @@ func (t *Torrent) StartAnnouncing() {
 		ev = tracker.Completed
 	}
 	for name := range t.Trackers {
+		t.nextAnnounceFor(name)
 		t.announce(name, ev)
 	}
 	if t.announceTicker == nil {
