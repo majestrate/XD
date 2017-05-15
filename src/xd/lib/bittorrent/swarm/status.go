@@ -1,8 +1,6 @@
 package swarm
 
-import (
-	"strings"
-)
+import "xd/lib/util"
 
 type TorrentPeers []*PeerConnStats
 
@@ -27,7 +25,7 @@ type PeerConnStats struct {
 }
 
 func (p *PeerConnStats) Less(o *PeerConnStats) bool {
-	return strings.Compare(p.ID, o.ID) < 0
+	return util.StringCompare(p.ID, o.ID) < 0
 }
 
 type TorrentState string
@@ -54,7 +52,7 @@ func (l TorrentStatusList) Len() int {
 	return len(l)
 }
 func (l TorrentStatusList) Less(i, j int) bool {
-	return strings.Compare(l[i].Name, l[j].Name) < 0
+	return util.StringCompare(l[i].Name, l[j].Name) < 0
 }
 
 func (l *TorrentStatusList) Swap(i, j int) {

@@ -1,6 +1,6 @@
 package swarm
 
-import "strings"
+import "xd/lib/util"
 
 type InfohashList []string
 
@@ -9,7 +9,7 @@ func (l InfohashList) Len() int {
 }
 
 func (l InfohashList) Less(i, j int) bool {
-	return strings.Compare(l[i], l[j]) < 0
+	return util.StringCompare(l[i], l[j]) < 0
 }
 
 func (l *InfohashList) Swap(i, j int) {

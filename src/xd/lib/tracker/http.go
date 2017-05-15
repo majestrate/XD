@@ -49,7 +49,8 @@ type compactHttpAnnounceResponse struct {
 }
 
 func (t *HttpTracker) Name() string {
-	return t.u.Hostname()
+	h, _, _ := net.SplitHostPort(t.u.Host)
+	return h
 }
 
 // send announce via http request
@@ -63,10 +64,14 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 			var a net.Addr
 			t.resolving.Lock()
 			if t.shouldResolve() {
-				a, e = req.GetNetwork().Lookup(t.u.Hostname(), t.u.Port())
+				var h, p string
+				h, p, e = net.SplitHostPort(t.u.Host)
 				if e == nil {
-					t.addr = a
-					t.lastResolved = time.Now()
+					a, e = req.GetNetwork().Lookup(h, p)
+					if e == nil {
+						t.addr = a
+						t.lastResolved = time.Now()
+					}
 				}
 			} else {
 				a = t.addr

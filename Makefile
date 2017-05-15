@@ -1,25 +1,22 @@
-REPO = $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+REPO := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-build: clean XD rpc
+GOROOT ?= /usr/local/go
+GO := $(GOROOT)/bin/go
 
-XD:
-	GOPATH=$(REPO) go build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD)"
+XD := $(REPO)/XD
+
+GOPATH := $(REPO)
+
+build: clean $(XD)
+
+$(XD):
+	$(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD)" -o $(XD)
 
 test:
-	GOPATH=$(REPO) go test -v xd/...
+	$(GO) test -v xd/...
 
 test-storage:
-	GOPATH=$(REPO) go test -v xd/lib/storage
-
-rpc: rpcdebug
-
-rpcdebug:
-	GOPATH=$(REPO) go build -v xd/cmd/rpcdebug
-
-storetest:
-	GOPATH=$(REPO) go build -v xd/cmd/storetest
-
+	$(GO) test -v xd/lib/storage
 
 clean:
-	GOPATH=$(REPO) go clean -v
-	rm -f storetest rpcdebug
+	$(GO) clean -v
