@@ -140,6 +140,7 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
 		Trackers:    make(map[string]tracker.Announcer),
+		announcers:  make(map[string]*torrentAnnounce),
 		st:          st,
 		piece:       make(chan pieceEvent),
 		ibconns:     make(map[string]*PeerConn),
