@@ -1,6 +1,11 @@
 REPO := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-GO = $(shell which go)
+
+ifdef GOROOT
+	GO = $(GOROOT)/bin/go
+endif
+
+GO ?= $(shell which go)
 
 XD := $(REPO)/XD
 
