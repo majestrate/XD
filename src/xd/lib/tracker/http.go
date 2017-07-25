@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 	"xd/lib/common"
@@ -65,6 +66,10 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 			t.resolving.Lock()
 			if t.shouldResolve() {
 				var h, p string
+				// XXX: hack
+				if strings.Index(t.u.Host, ":") == -1 {
+					t.u.Host += ":80"
+				}
 				h, p, e = net.SplitHostPort(t.u.Host)
 				if e == nil {
 					a, e = req.GetNetwork().Lookup(h, p)

@@ -122,6 +122,7 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 	})
 	// give network to swarm
 	sw.net = n
+	log.Debug("gave network context to torrents")
 	// accept inbound connections
 	for err == nil {
 		var c net.Conn

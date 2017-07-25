@@ -325,6 +325,7 @@ func (c *PeerConn) runReader() {
 
 func (c *PeerConn) handleExtendedOpts(opts *extensions.ExtendedOptions) {
 	log.Debugf("got extended opts from '%s'", opts.Version)
+
 }
 
 func (c *PeerConn) sendKeepAlive() error {

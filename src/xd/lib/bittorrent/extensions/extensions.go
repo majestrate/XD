@@ -11,9 +11,6 @@ import (
 // Extension is a bittorrent extenension string
 type Extension string
 
-// PeerExchange is a BitTorrent Extension indicating we support PEX
-const PeerExchange = Extension("ut_pex")
-
 func (ex Extension) String() string {
 	return string(ex)
 }
