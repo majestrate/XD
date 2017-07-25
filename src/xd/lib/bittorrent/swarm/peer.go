@@ -11,6 +11,8 @@ import (
 	"xd/lib/log"
 )
 
+const DefaultMaxParallelRequests = 2
+
 // a peer connection
 type PeerConn struct {
 	inbound             bool
@@ -55,7 +57,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.peerChoke = true
 	p.usChoke = true
 	copy(p.id[:], id[:])
-	p.MaxParalellRequests = 3
+	p.MaxParalellRequests = DefaultMaxParallelRequests
 	p.send = make(chan *common.WireMessage, 8)
 	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
