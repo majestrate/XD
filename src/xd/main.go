@@ -77,13 +77,7 @@ func Run() {
 		for sw.Running() {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
-				name := t.MetaInfo().TorrentName()
-				e := sw.AddTorrent(t, true)
-				if e == nil {
-					log.Infof("added %s", name)
-				} else {
-					log.Errorf("Failed to add %s: %s", name, e)
-				}
+				sw.AddTorrent(t, true)
 			}
 			time.Sleep(time.Second)
 		}
