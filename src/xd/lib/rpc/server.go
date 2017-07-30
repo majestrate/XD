@@ -3,8 +3,6 @@ package rpc
 import (
 	"errors"
 	"net/http"
-	"net/rpc"
-	"net/rpc/jsonrpc"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -15,24 +13,13 @@ var ErrNoTorrent = errors.New("no such torrent")
 // Bittorrent Swarm RPC Handler
 type Server struct {
 	sw *swarm.Swarm
-	r  *rpc.Server
-}
-
-func (r *Server) Register() error {
-	r.r = rpc.NewServer()
-	return r.r.RegisterName(RPCName, r)
 }
 
 func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "POST" {
 		if req.URL.Path == RPCPath {
 			w.Header().Set("Content-Type", "text/json; encoding=UTF-8")
-			c := jsonrpc.NewServerCodec(&rpcIO{
-				w: w,
-				r: req.Body,
-			})
-			r.r.ServeRequest(c)
-			c.Close()
+
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}

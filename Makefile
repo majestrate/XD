@@ -7,7 +7,11 @@ endif
 
 GO ?= $(shell which go)
 
-XD := $(REPO)/XD
+ifeq ($(GOOS),windows)
+	XD := $(REPO)/XD.exe
+else
+	XD := $(REPO)/XD
+endif
 
 GOPATH := $(REPO)
 

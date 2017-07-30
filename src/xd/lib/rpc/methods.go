@@ -1,6 +1,6 @@
 package rpc
 
-const RPCPath = "/api"
+const RPCPath = "/ecksdee/api"
 const RPCName = "XD"
 
 const RPCListTorrents = RPCName + ".ListTorrents"
