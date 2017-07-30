@@ -1,4 +1,4 @@
-package main
+package rpc
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ func formatRate(rate float32) string {
 	return fmt.Sprintf("%d %s/s", r, formatUnits[idx])
 }
 
-func main() {
+func Run() {
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
 		fname = os.Args[1]

@@ -21,6 +21,7 @@ type httpRPC struct {
 
 // Run runs XD main function
 func Run() {
+
 	var closers []io.Closer
 	v := version.Version()
 	conf := new(config.Config)
@@ -37,6 +38,7 @@ func Run() {
 			log.Warnf("pprof exited: %s", http.ListenAndServe("127.0.0.1:6060", nil))
 		}()
 	}
+
 	log.Infof("starting %s", v)
 	var err error
 	if !util.CheckFile(fname) {
