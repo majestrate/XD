@@ -20,8 +20,11 @@ func (rw *ResponseWriter) SendError(msg string) {
 }
 
 func (rw *ResponseWriter) Return(obj interface{}) {
-	rw.SendJSON(map[string]interface{}{
-		"error":  nil,
-		"result": obj,
-	})
+	rw.SendJSON(obj)
+	/*
+		rw.SendJSON(map[string]interface{}{
+			"error":  nil,
+			"result": obj,
+		})
+	*/
 }

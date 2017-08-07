@@ -2,9 +2,13 @@ package rpc
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"sort"
+	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
+	"xd/lib/rpc"
 )
 
 var formatUnits = map[int]string{
@@ -36,59 +40,49 @@ func Run() {
 		return
 	}
 	log.SetLevel(cfg.Log.Level)
-	/*
-		c, err := jsonrpc.Dial("tcp", cfg.RPC.Bind)
+	u := url.URL{
+		Host: cfg.RPC.Bind,
+		Path: rpc.RPCPath,
+	}
+	c := rpc.NewClient(u.String())
+	var list swarm.TorrentsList
+	list, err = c.ListTorrents()
+	if err != nil {
+		log.Errorf("rpc error: %s", err)
+		return
+	}
+	var globalTx, globalRx float32
+
+	var torrents swarm.TorrentStatusList
+	sort.Stable(&list.Infohashes)
+
+	for _, ih := range list.Infohashes {
+		var status swarm.TorrentStatus
+		status, err = c.SwarmStatus(ih)
 
 		if err != nil {
 			log.Errorf("rpc error: %s", err)
 			return
 		}
-		defer c.Close()
 
-		var i int
-		var list swarm.TorrentsList
-		log.Debugf("call %s", swarm.RPCListTorrents)
-		err = c.Call(swarm.RPCListTorrents, &i, &list)
-		if err != nil {
-			log.Errorf("rpc error: %s", err)
-			return
+		torrents = append(torrents, status)
+
+	}
+	sort.Stable(&torrents)
+	for _, status := range torrents {
+		var tx, rx float32
+		fmt.Printf("%s [%s]\n", status.Name, status.Infohash)
+		sort.Stable(&status.Peers)
+		for _, peer := range status.Peers {
+			fmt.Printf("%s tx=%s rx=%s\n", peer.ID, formatRate(peer.TX), formatRate(peer.RX))
+			tx += peer.TX
+			rx += peer.RX
 		}
-		var globalTx, globalRx float32
-
-		var torrents swarm.TorrentStatusList
-		sort.Stable(&list.Infohashes)
-
-		for _, ih := range list.Infohashes {
-			var status swarm.TorrentStatus
-
-			log.Debugf("call %s for %s", swarm.RPCTorrentStatus, ih)
-			err = c.Call(swarm.RPCTorrentStatus, &ih, &status)
-
-			if err != nil {
-				log.Errorf("rpc error: %s", err)
-				return
-			}
-
-			torrents = append(torrents, status)
-
-		}
-		sort.Stable(&torrents)
-		for _, status := range torrents {
-			var tx, rx float32
-			fmt.Printf("%s [%s]\n", status.Name, status.Infohash)
-			sort.Stable(&status.Peers)
-			for _, peer := range status.Peers {
-				fmt.Printf("%s tx=%s rx=%s\n", peer.ID, formatRate(peer.TX), formatRate(peer.RX))
-				tx += peer.TX
-				rx += peer.RX
-			}
-			fmt.Printf("\n%s tx=%s rx=%s\n", status.State, formatRate(tx), formatRate(rx))
-			fmt.Println()
-			globalRx += rx
-			globalTx += tx
-		}
+		fmt.Printf("\n%s tx=%s rx=%s\n", status.State, formatRate(tx), formatRate(rx))
 		fmt.Println()
-		fmt.Printf("%d torrents: tx=%s rx=%s\n", list.Infohashes.Len(), formatRate(globalTx), formatRate(globalRx))
-	*/
-
+		globalRx += rx
+		globalTx += tx
+	}
+	fmt.Println()
+	fmt.Printf("%d torrents: tx=%s rx=%s\n", list.Infohashes.Len(), formatRate(globalTx), formatRate(globalRx))
 }
