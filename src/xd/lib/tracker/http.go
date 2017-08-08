@@ -112,7 +112,8 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v.Add("uploaded", fmt.Sprintf("%d", req.Uploaded))
 
 		// compact response
-		if req.Compact {
+		if req.Compact || u.Path != "/a" {
+			req.Compact = true
 			v.Add("compact", "1")
 		}
 		u.RawQuery = v.Encode()
