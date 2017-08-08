@@ -2,7 +2,7 @@
 
 Standalone I2P BitTorrent Client written in GO
 
-![XD](contrib/logos/xd_logo_128x128.png)
+![XD](contrib/logos/xd_logo_512x512.png)
 
 ## Features
 
