@@ -11,7 +11,6 @@ Current:
 
 Soon:
 
-* Some Slick Logo thing for propaganda purposes
 * DHT/Magnet Support
 
 Eventually:
