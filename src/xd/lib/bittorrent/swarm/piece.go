@@ -164,6 +164,10 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 	idx := pt.pendingPiece(remote)
 	cp, has := pt.requests[idx]
 	if !has {
+		if pt.st.Bitfield().Has(idx) {
+			pt.mtx.Unlock()
+			return
+		}
 		cp = pt.newPiece(idx)
 		pt.requests[idx] = cp
 	}
