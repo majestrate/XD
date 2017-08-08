@@ -473,7 +473,7 @@ func (t *Torrent) handlePieces() {
 			// channel closed
 			return
 		}
-		if ev.r.Length > 0 {
+		if ev.r != nil && ev.r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)
 			// TODO: cache common pieces (?)
 			err := t.st.VisitPiece(ev.r, func(p *common.PieceData) error {
