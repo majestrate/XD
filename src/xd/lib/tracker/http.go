@@ -56,7 +56,9 @@ func (t *HttpTracker) Name() string {
 
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
-
+	if req == nil {
+		return
+	}
 	// http client
 	var client http.Client
 

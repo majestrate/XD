@@ -11,6 +11,11 @@ import (
 // Extension is a bittorrent extenension string
 type Extension string
 
+var extensionDefaults = map[Extension]uint8{
+	I2PDHT:       1,
+	PeerExchange: 2,
+}
+
 func (ex Extension) String() string {
 	return string(ex)
 }
@@ -20,6 +25,16 @@ type ExtendedOptions struct {
 	ID         uint8               `bencode:"-"`
 	Version    string              `bencode:"v"`
 	Extensions map[Extension]uint8 `bencode:"m"`
+}
+
+func (opts *ExtendedOptions) SetSupported(ext Extension) {
+	// TODO: this will error if we do not support this extension
+	opts.Extensions[ext] = extensionDefaults[ext]
+}
+
+func (opts *ExtendedOptions) IsSupported(ext Extension) (has bool) {
+	_, has = opts.Extensions[ext]
+	return
 }
 
 // Copy makes a copy of this ExtendedOptions
