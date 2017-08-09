@@ -22,7 +22,7 @@ Eventually:
 
 ## Dependencies
 
-* go >= 1.3
+* go 1.3 **or** go 1.8
 * GNU Make
 
 ## Building
