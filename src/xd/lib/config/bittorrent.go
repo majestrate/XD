@@ -98,6 +98,10 @@ func (c *BittorrentConfig) Save(s *configparser.Section) error {
 	return c.OpenTrackers.Save()
 }
 
+func (cfg *BittorrentConfig) LoadEnv() {
+
+}
+
 func (c *BittorrentConfig) CreateSwarm(st storage.Storage) *swarm.Swarm {
 	sw := swarm.NewSwarm(st)
 	for name := range c.OpenTrackers.Trackers {

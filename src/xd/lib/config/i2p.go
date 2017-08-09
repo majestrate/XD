@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"xd/lib/configparser"
 	"xd/lib/log"
 	"xd/lib/network/i2p"
@@ -62,4 +63,14 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 func (cfg *I2PConfig) CreateSession() i2p.Session {
 	log.Infof("create new i2p session with %s", cfg.Addr)
 	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile)
+}
+
+// EnvI2PAddress is the name of the environmental variable to set the i2p address for XD
+const EnvI2PAddress = "XD_I2P_ADDRESS"
+
+func (cfg *I2PConfig) LoadEnv() {
+	addr := os.Getenv(EnvI2PAddress)
+	if addr != "" {
+		cfg.Addr = addr
+	}
 }

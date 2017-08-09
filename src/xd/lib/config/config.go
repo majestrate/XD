@@ -16,6 +16,7 @@ type Config struct {
 type Configurable interface {
 	Load(s *configparser.Section) error
 	Save(c *configparser.Section) error
+	LoadEnv()
 }
 
 // Load loads a config from file by filename
@@ -39,6 +40,7 @@ func (cfg *Config) Load(fname string) (err error) {
 		if err != nil {
 			return
 		}
+		conf.LoadEnv()
 	}
 	return
 }

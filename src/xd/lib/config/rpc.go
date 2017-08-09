@@ -36,3 +36,7 @@ func (cfg *RPCConfig) Save(s *configparser.Section) error {
 
 	return nil
 }
+
+func (cfg *RPCConfig) LoadEnv() {
+
+}
