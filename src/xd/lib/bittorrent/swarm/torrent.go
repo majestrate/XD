@@ -15,36 +15,6 @@ import (
 	"xd/lib/tracker"
 )
 
-type torrentAnnounce struct {
-	access   sync.Mutex
-	next     time.Time
-	announce tracker.Announcer
-	t        *Torrent
-}
-
-func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
-	a.access.Lock()
-	if time.Now().After(a.next) {
-		req := &tracker.Request{
-			Infohash:   a.t.st.Infohash(),
-			PeerID:     a.t.id,
-			Port:       6881,
-			Event:      ev,
-			NumWant:    10, // TODO: don't hardcode
-			Left:       a.t.st.DownloadRemaining(),
-			GetNetwork: a.t.Network,
-		}
-		var resp *tracker.Response
-		resp, err = a.announce.Announce(req)
-		a.next = resp.NextAnnounce
-		if err == nil {
-			a.t.addPeers(resp.Peers)
-		}
-	}
-	a.access.Unlock()
-	return
-}
-
 // single torrent tracked in a swarm
 type Torrent struct {
 	Completed      func()
