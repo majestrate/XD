@@ -23,6 +23,9 @@ type samSession struct {
 }
 
 func (s *samSession) Close() error {
+	if s.c == nil {
+		return nil
+	}
 	return s.c.Close()
 }
 
