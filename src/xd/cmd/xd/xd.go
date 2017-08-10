@@ -10,6 +10,7 @@ import (
 	"time"
 	"xd/lib/config"
 	"xd/lib/log"
+	"xd/lib/rpc"
 	"xd/lib/util"
 	"xd/lib/version"
 )
@@ -92,6 +93,9 @@ func Run() {
 	// start rpc server
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
+		srv := rpc.NewServer(sw)
+		go log.Errorf("rpc died: %s", http.ListenAndServe(conf.RPC.Bind, srv))
+
 	}
 
 	net := conf.I2P.CreateSession()

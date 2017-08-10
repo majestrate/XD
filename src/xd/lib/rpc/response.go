@@ -6,11 +6,11 @@ import (
 )
 
 type ResponseWriter struct {
-	hrw http.ResponseWriter
+	w http.ResponseWriter
 }
 
 func (rw *ResponseWriter) SendJSON(obj interface{}) {
-	json.NewEncoder(rw.hrw).Encode(obj)
+	json.NewEncoder(rw.w).Encode(obj)
 }
 
 func (rw *ResponseWriter) SendError(msg string) {

@@ -7,13 +7,17 @@ import (
 	"xd/lib/log"
 )
 
+const ParamInfohash = "infohash"
+
 type Request interface {
+	// handle request on server
 	ProcessRequest(sw *swarm.Swarm, w *ResponseWriter)
-	MarshallJSON() ([]byte, error)
+	// convert request to json
+	MarshalJSON() ([]byte, error)
 }
 
 type TorrentStatusRequest struct {
-	Infohash string
+	Infohash string `json:"infohash"`
 }
 
 func (r *TorrentStatusRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
@@ -39,9 +43,10 @@ func (r *TorrentStatusRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter
 	}
 }
 
-func (ltr *TorrentStatusRequest) MarshallJSON() (data []byte, err error) {
+func (ltr *TorrentStatusRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
-		"method": RPCListTorrents,
+		ParamMethod:   RPCTorrentStatus,
+		ParamInfohash: ltr.Infohash,
 	})
 	return
 }
@@ -57,9 +62,24 @@ func (ltr *ListTorrentsRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWrite
 	w.Return(swarms)
 }
 
-func (ltr *ListTorrentsRequest) MarshallJSON() (data []byte, err error) {
+func (ltr *ListTorrentsRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
-		"method": RPCListTorrents,
+		ParamMethod: RPCListTorrents,
 	})
 	return
+}
+
+type rpcError struct {
+	message string
+}
+
+func (e *rpcError) MarshalJSON() (data []byte, err error) {
+	data, err = json.Marshal(map[string]string{
+		"error": e.message,
+	})
+	return
+}
+
+func (e *rpcError) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
+	w.SendError(e.message)
 }

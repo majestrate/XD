@@ -27,8 +27,9 @@ func Run() {
 	}
 	log.SetLevel(cfg.Log.Level)
 	u := url.URL{
-		Host: cfg.RPC.Bind,
-		Path: rpc.RPCPath,
+		Scheme: "http",
+		Host:   cfg.RPC.Bind,
+		Path:   rpc.RPCPath,
 	}
 	c := rpc.NewClient(u.String())
 	var list swarm.TorrentsList
