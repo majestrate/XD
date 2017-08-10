@@ -39,6 +39,8 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				var rr Request
 				method := body[ParamMethod]
 				switch method {
+				case RPCListTorrents:
+					rr = &ListTorrentsRequest{}
 				case RPCTorrentStatus:
 					rr = &TorrentStatusRequest{
 						Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
