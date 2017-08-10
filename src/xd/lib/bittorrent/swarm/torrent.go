@@ -193,7 +193,7 @@ func (t *Torrent) StartAnnouncing() {
 	}
 	for name := range t.Trackers {
 		t.nextAnnounceFor(name)
-		t.announce(name, ev)
+		go t.announce(name, ev)
 	}
 	if t.announceTicker == nil {
 		t.announceTicker = time.NewTicker(time.Second)
