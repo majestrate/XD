@@ -35,6 +35,7 @@ func (sw *Swarm) WaitForNetwork() {
 
 func (sw *Swarm) startTorrent(t *Torrent) {
 	sw.WaitForNetwork()
+	t.ObtainedNetwork(sw.net)
 	// give peerid
 	t.id = sw.id
 	// add open trackers
