@@ -1,8 +1,11 @@
 package config
 
 import (
+	"os"
 	"xd/lib/configparser"
 )
+
+const EnvLogLevel = "XD_LOG_LEVEL"
 
 type LogConfig struct {
 	Level string
@@ -23,5 +26,8 @@ func (cfg *LogConfig) Save(s *configparser.Section) error {
 }
 
 func (cfg *LogConfig) LoadEnv() {
-
+	lvl := os.Getenv(EnvLogLevel)
+	if lvl != "" {
+		cfg.Level = lvl
+	}
 }
