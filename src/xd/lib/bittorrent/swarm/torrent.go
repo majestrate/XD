@@ -173,7 +173,6 @@ func (t *Torrent) GetStatus() TorrentStatus {
 	t.VisitPeers(func(c *PeerConn) {
 		peers = append(peers, c.Stats())
 	})
-	log.Debugf("unlocked torrent mutex for %s", name)
 	state := Downloading
 	if t.Done() {
 		state = Seeding
