@@ -97,7 +97,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 	go p.runWriter()
 	go p.runReader()
-	t.onNewPeer(p)
+	go t.onNewPeer(p)
 }
 
 // add a torrent to this swarm

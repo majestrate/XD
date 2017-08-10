@@ -365,6 +365,7 @@ func (c *PeerConn) runWriter() {
 					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 				}
 			} else {
+				log.Warn("conn runWriter() failed")
 				break
 			}
 		}

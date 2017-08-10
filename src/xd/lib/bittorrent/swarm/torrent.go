@@ -44,11 +44,13 @@ func (t *Torrent) ObtainedNetwork(n network.Network) {
 		t.suspended = false
 		t.netacces.Unlock()
 	}
+	log.Debug("torrent obtained network")
 }
 
 func (t *Torrent) WaitForNetwork() {
 	for t.netContext == nil {
-		time.Sleep(time.Millisecond)
+		log.Debug("torrent waiting for network")
+		time.Sleep(time.Second)
 	}
 }
 
@@ -239,7 +241,6 @@ func (t *Torrent) pollAnnounce() {
 
 func (t *Torrent) announce(name string, ev tracker.Event) {
 	t.announceMtx.Lock()
-	log.Infof("announcing to %s", name)
 	a := t.announcers[name]
 	t.announceMtx.Unlock()
 	err := a.tryAnnounce(ev)
@@ -422,13 +423,13 @@ func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
 func (t *Torrent) Run() {
 	go t.handlePieces()
 	if t.Started != nil {
-		t.Started()
+		go t.Started()
 	}
 	for !t.Done() {
-		time.Sleep(time.Minute)
+		time.Sleep(time.Second * 5)
 	}
 	if t.Completed != nil {
-		t.Completed()
+		go t.Completed()
 	}
 }
 

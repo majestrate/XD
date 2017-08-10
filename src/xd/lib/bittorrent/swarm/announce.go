@@ -3,6 +3,7 @@ package swarm
 import (
 	"sync"
 	"time"
+	"xd/lib/log"
 	"xd/lib/tracker"
 )
 
@@ -29,6 +30,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			GetNetwork: a.t.Network,
 		}
 		var resp *tracker.Response
+		log.Infof("announcing to %s", a.announce.Name())
 		resp, err = a.announce.Announce(req)
 		a.next = resp.NextAnnounce
 		if err == nil {
