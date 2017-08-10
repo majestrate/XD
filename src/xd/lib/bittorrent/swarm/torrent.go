@@ -46,6 +46,12 @@ func (t *Torrent) ObtainedNetwork(n network.Network) {
 	}
 }
 
+func (t *Torrent) WaitForNetwork() {
+	for t.netContext == nil {
+		time.Sleep(time.Millisecond)
+	}
+}
+
 // get our current network context
 func (t *Torrent) Network() (n network.Network) {
 	for t.suspended {
@@ -187,6 +193,7 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
+	t.WaitForNetwork()
 	ev := tracker.Started
 	if t.Done() {
 		ev = tracker.Completed
