@@ -32,7 +32,7 @@ type Torrent struct {
 	piece          chan pieceEvent
 	obconns        map[string]*PeerConn
 	ibconns        map[string]*PeerConn
-	mtx            sync.Mutex
+	connMtx        sync.Mutex
 	pt             *pieceTracker
 	defaultOpts    *extensions.ExtendedOptions
 	closing        bool
@@ -150,7 +150,7 @@ func (t *Torrent) NumPeers() (count uint) {
 // call a visitor on each open peer connection
 func (t *Torrent) VisitPeers(v func(*PeerConn)) {
 	var conns []*PeerConn
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	for _, conn := range t.obconns {
 		if conn != nil {
 			conns = append(conns, conn)
@@ -161,7 +161,7 @@ func (t *Torrent) VisitPeers(v func(*PeerConn)) {
 			conns = append(conns, conn)
 		}
 	}
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 	for _, conn := range conns {
 		v(conn)
 	}
@@ -293,42 +293,42 @@ func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 }
 
 func (t *Torrent) HasIBConn(a net.Addr) (has bool) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	_, has = t.ibconns[a.String()]
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 	return
 }
 
 func (t *Torrent) HasOBConn(a net.Addr) (has bool) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	_, has = t.obconns[a.String()]
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 	return
 }
 
 func (t *Torrent) addOBPeer(c *PeerConn) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	t.obconns[c.c.RemoteAddr().String()] = c
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 }
 
 func (t *Torrent) removeOBConn(c *PeerConn) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	delete(t.obconns, c.c.RemoteAddr().String())
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 }
 
 func (t *Torrent) addIBPeer(c *PeerConn) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	t.ibconns[c.c.RemoteAddr().String()] = c
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 	c.inbound = true
 }
 
 func (t *Torrent) removeIBConn(c *PeerConn) {
-	t.mtx.Lock()
+	t.connMtx.Lock()
 	delete(t.ibconns, c.c.RemoteAddr().String())
-	t.mtx.Unlock()
+	t.connMtx.Unlock()
 }
 
 // connect to a new peer for this swarm, blocks
@@ -380,18 +380,9 @@ func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
 	log.Infof("%s got piece %d", t.Name(), idx)
 	conns := make(map[string]*PeerConn)
-	t.mtx.Lock()
-	for k, conn := range t.ibconns {
-		if conn != nil {
-			conns[k] = conn
-		}
-	}
-	for k, conn := range t.obconns {
-		if conn != nil {
-			conns[k] = conn
-		}
-	}
-	t.mtx.Unlock()
+	t.VisitPeers(func(c *PeerConn) {
+		conns[c.c.RemoteAddr().String()] = c
+	})
 	for _, conn := range conns {
 		go conn.Send(msg)
 	}
@@ -450,6 +441,7 @@ func (t *Torrent) handlePieces() {
 			// channel closed
 			return
 		}
+		log.Debug("tick piece handler")
 		if ev.r != nil && ev.r.Length > 0 {
 			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)
 			// TODO: cache common pieces (?)

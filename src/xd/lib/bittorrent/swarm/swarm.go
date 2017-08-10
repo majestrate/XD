@@ -155,6 +155,7 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 		}
 	}
 	if sw.Running() {
+		log.Warn("network lost")
 		// suspend torrent's network on abbrupt break
 		sw.Torrents.ForEachTorrent(func(t *Torrent) {
 			t.LostNetwork()
