@@ -98,7 +98,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	u, err = url.Parse(t.u.String())
 	if err == nil {
 		v := u.Query()
-		addr := req.GetNetwork().Addr().String() + ".i2p"
+		n := req.GetNetwork()
+		a := n.Addr()
+		addr := a.String() + ".i2p"
 		v.Add("ip", addr)
 		v.Add("info_hash", string(req.Infohash.Bytes()))
 		v.Add("peer_id", string(req.PeerID.Bytes()))
