@@ -112,14 +112,12 @@ func (sw *Swarm) AddTorrent(t storage.Torrent, fresh bool) (err error) {
 
 // run with network context
 func (sw *Swarm) Run(n network.Network) (err error) {
-	// resolve open trackers
-
+	// give network to swarm
+	sw.net = n
 	// give network to torrents
 	sw.Torrents.ForEachTorrent(func(t *Torrent) {
 		t.ObtainedNetwork(n)
 	})
-	// give network to swarm
-	sw.net = n
 	log.Debug("gave network context to torrents")
 	// accept inbound connections
 	for err == nil {
