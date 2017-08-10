@@ -94,7 +94,9 @@ func Run() {
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
 		srv := rpc.NewServer(sw)
-		go log.Errorf("rpc died: %s", http.ListenAndServe(conf.RPC.Bind, srv))
+		go func() {
+			log.Errorf("rpc died: %s", http.ListenAndServe(conf.RPC.Bind, srv))
+		}()
 
 	}
 
