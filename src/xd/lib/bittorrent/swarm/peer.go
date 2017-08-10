@@ -29,9 +29,9 @@ type PeerConn struct {
 	Done                func()
 	keepalive           *time.Ticker
 	lastSend            time.Time
-	tx                  float32
+	tx                  float64
 	lastRecv            time.Time
-	rx                  float32
+	rx                  float64
 	downloading         []*common.PieceRequest
 	ourOpts             *extensions.ExtendedOptions
 	theirOpts           *extensions.ExtendedOptions
@@ -77,13 +77,17 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 	}
 }
 
+const nano = 100000000.0
+
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	now := time.Now()
-	c.rx = float32(msg.Len()) / float32(now.Unix()-c.lastRecv.Unix())
+	dlt := float64(now.UnixNano()) - float64(c.lastRecv.UnixNano())
+	dlt /= nano
+	c.rx = float64(msg.Len()) / dlt
 	c.lastRecv = now
 	return
 }
@@ -352,7 +356,9 @@ func (c *PeerConn) runWriter() {
 		case msg, ok := <-c.send:
 			if ok {
 				now := time.Now()
-				c.tx = float32(msg.Len()) / float32(now.Unix()-c.lastSend.Unix())
+				dlt := float64(now.UnixNano()) - float64(c.lastSend.UnixNano())
+				dlt /= nano
+				c.tx = float64(msg.Len()) / dlt
 				c.lastSend = now
 				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop

@@ -7,7 +7,7 @@ import (
 
 type TorrentPeers []*PeerConnStats
 
-func (p TorrentPeers) RX() (rx float32) {
+func (p TorrentPeers) RX() (rx float64) {
 	for idx := range p {
 		if p[idx] != nil {
 			rx += p[idx].RX
@@ -16,7 +16,7 @@ func (p TorrentPeers) RX() (rx float32) {
 	return
 }
 
-func (p TorrentPeers) TX() (tx float32) {
+func (p TorrentPeers) TX() (tx float64) {
 	for idx := range p {
 		if p[idx] != nil {
 			tx += p[idx].TX
@@ -39,8 +39,8 @@ func (p *TorrentPeers) Swap(i, j int) {
 
 // connection statistics
 type PeerConnStats struct {
-	TX   float32
-	RX   float32
+	TX   float64
+	RX   float64
 	ID   string
 	Addr string
 }
@@ -69,14 +69,14 @@ type TorrentStatus struct {
 
 type TorrentStatusList []TorrentStatus
 
-func (l TorrentStatusList) TX() (tx float32) {
+func (l TorrentStatusList) TX() (tx float64) {
 	for idx := range l {
 		tx += l[idx].Peers.TX()
 	}
 	return
 }
 
-func (l TorrentStatusList) RX() (rx float32) {
+func (l TorrentStatusList) RX() (rx float64) {
 	for idx := range l {
 		rx += l[idx].Peers.RX()
 	}

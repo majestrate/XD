@@ -113,7 +113,7 @@ func (sw *Swarm) AddTorrent(t storage.Torrent, fresh bool) (err error) {
 
 func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 
-	var rx, tx float32
+	var rx, tx float64
 
 	sw.Torrents.ForEachTorrent(func(t *Torrent) {
 		p := t.GetStatus().Peers

@@ -9,24 +9,10 @@ import (
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/rpc"
+	"xd/lib/util"
 )
 
-var formatUnits = map[int]string{
-	0: "B",
-	1: "KB",
-	2: "MB",
-	3: "GB",
-}
-
-func formatRate(rate float32) string {
-	r := uint32(rate)
-	idx := 0
-	for r > 1024 {
-		r /= 1024
-		idx++
-	}
-	return fmt.Sprintf("%d %s/s", r, formatUnits[idx])
-}
+var formatRate = util.FormatRate
 
 func Run() {
 	fname := "torrents.ini"
@@ -51,7 +37,7 @@ func Run() {
 		log.Errorf("rpc error: %s", err)
 		return
 	}
-	var globalTx, globalRx float32
+	var globalTx, globalRx float64
 
 	var torrents swarm.TorrentStatusList
 	sort.Stable(&list.Infohashes)
@@ -70,7 +56,7 @@ func Run() {
 	}
 	sort.Stable(&torrents)
 	for _, status := range torrents {
-		var tx, rx float32
+		var tx, rx float64
 		fmt.Printf("%s [%s]\n", status.Name, status.Infohash)
 		sort.Stable(&status.Peers)
 		for _, peer := range status.Peers {

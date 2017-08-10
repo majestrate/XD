@@ -33,11 +33,6 @@ func Run() {
 		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
 		return
 	}
-	if os.Getenv("PPROF") == "1" {
-		go func() {
-			log.Warnf("pprof exited: %s", http.ListenAndServe("127.0.0.1:6060", nil))
-		}()
-	}
 
 	log.Infof("starting %s", v)
 	var err error
@@ -57,6 +52,15 @@ func Run() {
 	}
 	log.Infof("loaded config %s", fname)
 	log.SetLevel(conf.Log.Level)
+
+	if conf.Log.Pprof {
+		go func() {
+			pprofaddr := "127.0.0.1:6060"
+			log.Infof("spawning pprof at %s", pprofaddr)
+			log.Warnf("pprof exited: %s", http.ListenAndServe(pprofaddr, nil))
+		}()
+	}
+
 	st := conf.Storage.CreateStorage()
 	sw := conf.Bittorrent.CreateSwarm(st)
 	closers = append(closers, sw, st)
@@ -119,6 +123,9 @@ func Run() {
 				closers[idx].Close()
 			}
 			return
+		} else {
+			log.Warnf("got wierd signal wtf: %s", sig)
+			continue
 		}
 	}
 }
