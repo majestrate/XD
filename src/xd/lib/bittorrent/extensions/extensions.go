@@ -22,24 +22,24 @@ func (ex Extension) String() string {
 
 // ExtendedOptions is a serializable BitTorrent extended options message
 type ExtendedOptions struct {
-	ID         uint8               `bencode:"-"`
-	Version    string              `bencode:"v"`
-	Extensions map[Extension]uint8 `bencode:"m"`
+	ID         uint8            `bencode:"-"`
+	Version    string           `bencode:"v"`
+	Extensions map[string]uint8 `bencode:"m"`
 }
 
 func (opts *ExtendedOptions) SetSupported(ext Extension) {
 	// TODO: this will error if we do not support this extension
-	opts.Extensions[ext] = extensionDefaults[ext]
+	opts.Extensions[ext.String()] = extensionDefaults[ext]
 }
 
-func (opts *ExtendedOptions) IsSupported(ext Extension) (has bool) {
+func (opts *ExtendedOptions) IsSupported(ext string) (has bool) {
 	_, has = opts.Extensions[ext]
 	return
 }
 
 // Copy makes a copy of this ExtendedOptions
 func (opts *ExtendedOptions) Copy() *ExtendedOptions {
-	ext := make(map[Extension]uint8)
+	ext := make(map[string]uint8)
 	for k, v := range opts.Extensions {
 		ext[k] = v
 	}
@@ -64,7 +64,7 @@ func (opts *ExtendedOptions) ToWireMessage() *common.WireMessage {
 func New() *ExtendedOptions {
 	return &ExtendedOptions{
 		Version:    version.Version(),
-		Extensions: make(map[Extension]uint8),
+		Extensions: make(map[string]uint8),
 	}
 }
 
