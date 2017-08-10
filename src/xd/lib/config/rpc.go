@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"xd/lib/configparser"
 )
 
@@ -42,6 +43,11 @@ func (cfg *RPCConfig) Save(s *configparser.Section) error {
 	return nil
 }
 
-func (cfg *RPCConfig) LoadEnv() {
+const EnvRPCAddr = "XD_RPC_ADDRESS"
 
+func (cfg *RPCConfig) LoadEnv() {
+	addr := os.Getenv(EnvRPCAddr)
+	if addr != "" {
+		cfg.Bind = addr
+	}
 }
