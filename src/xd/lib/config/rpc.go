@@ -10,10 +10,15 @@ type RPCConfig struct {
 	// TODO: authentication
 }
 
+const DefaultRPCAddr = "127.0.0.1:1488"
+
 func (cfg *RPCConfig) Load(s *configparser.Section) error {
 	if s != nil {
-		cfg.Bind = s.Get("bind", "127.0.0.1:1188")
+		cfg.Bind = s.Get("bind", DefaultRPCAddr)
 		cfg.Enabled = s.Get("enabled", "1") == "1"
+	}
+	if cfg.Bind == "" {
+		cfg.Bind = DefaultRPCAddr
 	}
 	return nil
 }
