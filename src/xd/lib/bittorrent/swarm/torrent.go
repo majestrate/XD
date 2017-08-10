@@ -243,9 +243,11 @@ func (t *Torrent) announce(name string, ev tracker.Event) {
 	t.announceMtx.Lock()
 	a := t.announcers[name]
 	t.announceMtx.Unlock()
-	err := a.tryAnnounce(ev)
-	if err != nil {
-		log.Warnf("announce to %s failed: %s", name, err)
+	if a != nil {
+		err := a.tryAnnounce(ev)
+		if err != nil {
+			log.Warnf("announce to %s failed: %s", name, err)
+		}
 	}
 }
 
