@@ -102,7 +102,7 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 	if ok {
 		tm = a.next
 	} else {
-		tm = time.Now()
+		tm = time.Now().Add(time.Minute)
 		t.announcers[name] = &torrentAnnounce{
 			next:     tm,
 			t:        t,

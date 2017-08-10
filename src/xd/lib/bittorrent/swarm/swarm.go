@@ -10,6 +10,7 @@ import (
 	"xd/lib/network"
 	"xd/lib/storage"
 	"xd/lib/tracker"
+	"xd/lib/util"
 )
 
 // a bittorrent swarm tracking many torrents
@@ -110,6 +111,30 @@ func (sw *Swarm) AddTorrent(t storage.Torrent, fresh bool) (err error) {
 	return
 }
 
+func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
+
+	var rx, tx float32
+
+	sw.Torrents.ForEachTorrent(func(t *Torrent) {
+		p := t.GetStatus().Peers
+		tx += p.TX()
+		rx += p.RX()
+	})
+
+	bw.Upload = util.FormatRate(rx)
+	bw.Download = util.FormatRate(tx)
+	return
+}
+
+func (sw *Swarm) logBandwidthLoop() {
+	for sw.Running() {
+		bw := sw.getCurrentBW()
+		log.Infof("Global Speed: %s", bw)
+		time.Sleep(time.Second * 10)
+	}
+
+}
+
 // run with network context
 func (sw *Swarm) Run(n network.Network) (err error) {
 	// give network to swarm
@@ -119,6 +144,7 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 		t.ObtainedNetwork(n)
 	})
 	log.Debug("gave network context to torrents")
+	go sw.logBandwidthLoop()
 	// accept inbound connections
 	for err == nil {
 		var c net.Conn

@@ -1,8 +1,29 @@
 package swarm
 
-import "xd/lib/util"
+import (
+	"fmt"
+	"xd/lib/util"
+)
 
 type TorrentPeers []*PeerConnStats
+
+func (p TorrentPeers) RX() (rx float32) {
+	for idx := range p {
+		if p[idx] != nil {
+			rx += p[idx].RX
+		}
+	}
+	return
+}
+
+func (p TorrentPeers) TX() (tx float32) {
+	for idx := range p {
+		if p[idx] != nil {
+			tx += p[idx].TX
+		}
+	}
+	return
+}
 
 func (p TorrentPeers) Len() int {
 	return len(p)
@@ -48,6 +69,20 @@ type TorrentStatus struct {
 
 type TorrentStatusList []TorrentStatus
 
+func (l TorrentStatusList) TX() (tx float32) {
+	for idx := range l {
+		tx += l[idx].Peers.TX()
+	}
+	return
+}
+
+func (l TorrentStatusList) RX() (rx float32) {
+	for idx := range l {
+		rx += l[idx].Peers.RX()
+	}
+	return
+}
+
 func (l TorrentStatusList) Len() int {
 	return len(l)
 }
@@ -57,4 +92,14 @@ func (l TorrentStatusList) Less(i, j int) bool {
 
 func (l *TorrentStatusList) Swap(i, j int) {
 	(*l)[i], (*l)[j] = (*l)[j], (*l)[i]
+}
+
+// SwarmBandwidth is a string tuple for bandwith
+type SwarmBandwidth struct {
+	Upload   string
+	Download string
+}
+
+func (sb SwarmBandwidth) String() string {
+	return fmt.Sprintf("Upload: %s Download: %s", sb.Upload, sb.Download)
 }
