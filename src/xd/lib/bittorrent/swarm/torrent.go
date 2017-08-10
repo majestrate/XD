@@ -233,6 +233,7 @@ func (t *Torrent) pollAnnounce() {
 
 func (t *Torrent) announce(name string, ev tracker.Event) {
 	t.announceMtx.Lock()
+	log.Infof("announcing to %s", name)
 	a := t.announcers[name]
 	t.announceMtx.Unlock()
 	err := a.tryAnnounce(ev)
