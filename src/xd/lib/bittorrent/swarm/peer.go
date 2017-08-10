@@ -77,7 +77,7 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 	}
 }
 
-const nano = 1000000000.0
+const nano = 10000000.0
 
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {

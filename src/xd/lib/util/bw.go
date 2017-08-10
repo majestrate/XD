@@ -18,6 +18,6 @@ func FormatRate(rate float64) (str string) {
 		rate /= 1024.0
 		rateIdx++
 	}
-	str = fmt.Sprintf("%.2f%s", rate, rateUnits[rateIdx])
+	str = fmt.Sprintf("%.2f%s/sec", rate, rateUnits[rateIdx])
 	return
 }
