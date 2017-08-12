@@ -44,9 +44,9 @@ func (t *HttpTracker) shouldResolve() bool {
 
 // http compact response
 type compactHttpAnnounceResponse struct {
-	Peers    []byte `bencode:"peers"`
-	Interval int    `bencode:"interval"`
-	Error    string `bencode:"failure reason"`
+	Peers    interface{} `bencode:"peers"`
+	Interval int         `bencode:"interval"`
+	Error    string      `bencode:"failure reason"`
 }
 
 func (t *HttpTracker) Name() string {
@@ -130,14 +130,35 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 				err = dec.Decode(cresp)
 				if err == nil {
 					interval = cresp.Interval
-					l := len(cresp.Peers) / 32
-					for l > 0 {
-						var p common.Peer
-						// TODO: bounds check
-						copy(p.Compact[:], cresp.Peers[(l-1)*32:l*32])
-						resp.Peers = append(resp.Peers, p)
-						l--
+					var cpeers string
+
+					_, ok := cresp.Peers.(string)
+					if ok {
+						cpeers = cresp.Peers.(string)
+						l := len(cpeers) / 32
+						for l > 0 {
+							var p common.Peer
+							// TODO: bounds check
+							copy(p.Compact[:], cpeers[(l-1)*32:l*32])
+							resp.Peers = append(resp.Peers, p)
+							l--
+						}
+					} else {
+						fullpeers, ok := cresp.Peers.([]interface{})
+						if ok {
+							for idx := range fullpeers {
+								// XXX: this is horribad :DDDDDDDDD
+								var peer map[string]interface{}
+								peer, ok = fullpeers[idx].(map[string]interface{})
+								if ok {
+									var p common.Peer
+									p.IP = fmt.Sprintf("%s", peer["ip"])
+									resp.Peers = append(resp.Peers, p)
+								}
+							}
+						}
 					}
+
 					if len(cresp.Error) > 0 {
 						err = errors.New(cresp.Error)
 					}
