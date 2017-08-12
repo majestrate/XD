@@ -201,3 +201,7 @@ func (sw *Swarm) Close() (err error) {
 	}
 	return
 }
+
+func (sw *Swarm) AddRemoteTorrent(url string) {
+
+}

@@ -5,3 +5,5 @@ const RPCName = "XD"
 
 const RPCListTorrents = RPCName + ".ListTorrents"
 const RPCTorrentStatus = RPCName + ".TorrentStatus"
+const RPCAddTorrent = RPCName + ".AddTorrent"
+const RPCDelTorrent = RPCName + ".DelTorrent"
