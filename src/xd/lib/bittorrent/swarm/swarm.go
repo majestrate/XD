@@ -124,8 +124,8 @@ func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 		rx += p.RX()
 	})
 
-	bw.Upload = util.FormatRate(rx)
-	bw.Download = util.FormatRate(tx)
+	bw.Upload = util.FormatRate(tx)
+	bw.Download = util.FormatRate(rx)
 	return
 }
 
