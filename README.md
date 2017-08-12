@@ -56,3 +56,16 @@ To autogenerate a new config and start:
 after started put torrent files into `./storage/downloads/` to start downloading
 
 to seed torrents put data files into `./storage/downloads/` first then add torrent files
+
+To use the RPC Tool symlink `XD` to `XD-CLI`
+
+    $ ln -s XD XD-CLI
+
+to list torrents run:
+
+    $ ./XD-CLI
+
+
+to add a torrent from http server:
+
+    $ ./XD-CLI add http://somehwere.i2p/some_torrent_that_is_not_fake.torrent
