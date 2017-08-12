@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
@@ -15,6 +16,8 @@ import (
 var formatRate = util.FormatRate
 
 func Run() {
+	var args []string
+	cmd := "list"
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
 		fname = os.Args[1]
@@ -32,6 +35,23 @@ func Run() {
 		Path:   rpc.RPCPath,
 	}
 	c := rpc.NewClient(u.String())
+
+	switch strings.ToLower(cmd) {
+	case "list":
+		listTorrents(c)
+	case "add":
+		addTorrents(c, args...)
+	}
+}
+
+func addTorrents(c *rpc.Client, urls ...string) {
+	for idx := range urls {
+		c.AddTorrent(urls[idx])
+	}
+}
+
+func listTorrents(c *rpc.Client) {
+	var err error
 	var list swarm.TorrentsList
 	list, err = c.ListTorrents()
 	if err != nil {

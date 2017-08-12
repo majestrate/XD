@@ -39,6 +39,14 @@ func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
 	return
 }
 
+func (cl *Client) AddTorrent(url string) (err error) {
+	err = cl.doRPC(&AddTorrentRequest{URL: url}, func(r io.Reader) error {
+		// TODO: parse response
+		return nil
+	})
+	return
+}
+
 func (cl *Client) SwarmStatus(ih string) (st swarm.TorrentStatus, err error) {
 	err = cl.doRPC(&TorrentStatusRequest{Infohash: ih}, func(r io.Reader) error {
 		return json.NewDecoder(r).Decode(&st)
