@@ -20,6 +20,7 @@ func (cfg *RPCConfig) Load(s *configparser.Section) error {
 	}
 	if cfg.Bind == "" {
 		cfg.Bind = DefaultRPCAddr
+		cfg.Enabled = true
 	}
 	return nil
 }
