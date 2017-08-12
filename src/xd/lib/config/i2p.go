@@ -62,7 +62,7 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 // create an i2p session from this config
 func (cfg *I2PConfig) CreateSession() i2p.Session {
 	log.Infof("create new i2p session with %s", cfg.Addr)
-	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile)
+	return i2p.NewSession(cfg.Name, cfg.Addr, cfg.Keyfile, cfg.I2CPOptions)
 }
 
 // EnvI2PAddress is the name of the environmental variable to set the i2p address for XD

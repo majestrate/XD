@@ -17,6 +17,7 @@ type samSession struct {
 	maxversion string
 	name       string
 	keys       *Keyfile
+	opts       map[string]string
 	// control connection
 	c   net.Conn
 	mtx sync.RWMutex
@@ -185,7 +186,13 @@ func (s *samSession) Lookup(name, port string) (a net.Addr, err error) {
 
 func (s *samSession) createStreamSession() (err error) {
 	// try opening if this session isn't already open
-	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=STREAM ID=%s DESTINATION=%s\n", s.Name(), s.keys.privkey)
+	optsstr := ""
+	if s.opts != nil {
+		for k, v := range s.opts {
+			optsstr += fmt.Sprintf(" %s=%s", k, v)
+		}
+	}
+	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=STREAM ID=%s DESTINATION=%s%s\n", s.Name(), s.keys.privkey, optsstr)
 	if err == nil {
 		// read response line
 		r := bufio.NewReader(s.c)
