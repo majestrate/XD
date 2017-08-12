@@ -223,7 +223,7 @@ func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
 				var t storage.Torrent
 				t, err = sw.Torrents.st.OpenTorrent(&info)
 				if err == nil {
-					sw.Torrents.addTorrent(t)
+					sw.AddTorrent(t, true)
 				}
 			}
 		}
