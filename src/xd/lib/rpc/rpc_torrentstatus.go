@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/common"
-	"xd/lib/log"
 )
 
 type TorrentStatusRequest struct {
@@ -17,9 +16,7 @@ func (r *TorrentStatusRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter
 	var err error
 	ih, err = common.DecodeInfohash(r.Infohash)
 	if err == nil {
-		log.Debugf("getting by infohash: %s ", r.Infohash)
 		sw.Torrents.VisitTorrent(ih, func(t *swarm.Torrent) {
-			log.Debugf("got torrent by infohash: %s ", r.Infohash)
 			if t == nil {
 				err = ErrNoTorrent
 			} else {
