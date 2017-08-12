@@ -41,8 +41,8 @@ func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
 
 func (cl *Client) AddTorrent(url string) (err error) {
 	err = cl.doRPC(&AddTorrentRequest{URL: url}, func(r io.Reader) error {
-		// TODO: parse response
-		return nil
+		var response interface{}
+		return json.NewDecoder(r).Decode(&response)
 	})
 	return
 }

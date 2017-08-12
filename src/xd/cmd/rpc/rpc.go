@@ -20,7 +20,8 @@ func Run() {
 	cmd := "list"
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
-		fname = os.Args[1]
+		cmd = os.Args[1]
+		args = os.Args[2:]
 	}
 	cfg := new(config.Config)
 	err := cfg.Load(fname)
@@ -46,6 +47,7 @@ func Run() {
 
 func addTorrents(c *rpc.Client, urls ...string) {
 	for idx := range urls {
+		fmt.Printf("fetch %s", urls[idx])
 		c.AddTorrent(urls[idx])
 	}
 }

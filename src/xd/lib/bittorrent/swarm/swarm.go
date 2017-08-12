@@ -228,5 +228,8 @@ func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
 			}
 		}
 	}
+	if err != nil {
+		log.Errorf("failed to fetch: %s", err.Error())
+	}
 	return
 }

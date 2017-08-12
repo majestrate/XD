@@ -45,6 +45,10 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					rr = &TorrentStatusRequest{
 						Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
 					}
+				case RPCAddTorrent:
+					rr = &AddTorrentRequest{
+						URL: fmt.Sprintf("%s", body[ParamURL]),
+					}
 				default:
 					rr = &rpcError{
 						message: fmt.Sprintf("no such method %s", method),

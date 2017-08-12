@@ -16,7 +16,8 @@ func (atr *AddTorrentRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter)
 
 func (atr *AddTorrentRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
-		ParamURL: atr.URL,
+		ParamURL:    atr.URL,
+		ParamMethod: RPCAddTorrent,
 	})
 	return
 }
