@@ -2,11 +2,13 @@ package swarm
 
 import (
 	"net"
+	"net/http"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/metainfo"
 	"xd/lib/network"
 	"xd/lib/storage"
 	"xd/lib/tracker"
@@ -202,6 +204,29 @@ func (sw *Swarm) Close() (err error) {
 	return
 }
 
-func (sw *Swarm) AddRemoteTorrent(url string) {
-
+func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
+	sw.WaitForNetwork()
+	cl := &http.Client{
+		Transport: &http.Transport{
+			Dial: sw.net.Dial,
+		},
+	}
+	var info metainfo.TorrentFile
+	var r *http.Response
+	log.Infof("fetching torrent from %s", url)
+	r, err = cl.Get(url)
+	if err == nil {
+		if r.StatusCode == http.StatusOK {
+			defer r.Body.Close()
+			err = info.BDecode(r.Body)
+			if err == nil {
+				var t storage.Torrent
+				t, err = sw.Torrents.st.OpenTorrent(&info)
+				if err == nil {
+					sw.Torrents.addTorrent(t)
+				}
+			}
+		}
+	}
+	return
 }
