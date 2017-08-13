@@ -14,6 +14,9 @@ func (r *SetPieceWindowRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWrite
 		sw.Torrents.MaxReq = r.N
 		sw.Torrents.ForEachTorrent(func(t *swarm.Torrent) {
 			t.MaxRequests = r.N
+			t.VisitPeers(func(c *swarm.PeerConn) {
+				c.MaxParalellRequests = r.N
+			})
 		})
 		w.Return(map[string]interface{}{"error": nil})
 	} else {
