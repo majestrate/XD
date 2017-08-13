@@ -339,9 +339,70 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
+// handles an inbound pex message
+func (c *PeerConn) handlePEX(m interface{}) {
+
+	pex, ok := m.(map[string]interface{})
+	if ok {
+		var added interface{}
+		added, ok = pex["added"]
+		if ok {
+			c.handlePEXAdded(added)
+		}
+		added, ok = pex["added.f"]
+		if ok {
+			c.handlePEXAddedf(added)
+		}
+	} else {
+		log.Errorf("invalid pex message: %q", m)
+	}
+}
+
+// handle inbound PEX message payload
+func (c *PeerConn) handlePEXAdded(m interface{}) {
+	var peers []common.Peer
+	msg := m.(string)
+	l := len(msg) / 32
+	for l > 0 {
+		var p common.Peer
+		// TODO: bounds check
+		copy(p.Compact[:], msg[(l-1)*32:l*32])
+		l--
+		peers = append(peers, p)
+	}
+	c.t.addPeers(peers)
+}
+
+func (c *PeerConn) handlePEXAddedf(m interface{}) {
+
+}
+
 func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 	log.Debugf("got extended opts from %s: %s", c.id.String(), opts)
-
+	if opts.ID == 0 {
+		// handshake
+		if c.theirOpts == nil {
+			c.theirOpts = opts.Copy()
+		} else {
+			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
+		}
+	} else {
+		// extended data
+		if c.theirOpts == nil {
+			log.Warnf("%s gave unexpected extended message %d", c.id.String(), opts.ID)
+		} else {
+			// lookup the extension number
+			ext, ok := c.theirOpts.Lookup(opts.ID)
+			if ok {
+				if ext == extensions.PeerExchange.String() {
+					// this is PEX message
+					c.handlePEX(opts.Payload)
+				}
+			} else {
+				log.Warnf("we do not have extension %d", opts.ID)
+			}
+		}
+	}
 }
 
 func (c *PeerConn) sendKeepAlive() error {

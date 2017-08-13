@@ -23,8 +23,9 @@ func (ex Extension) String() string {
 // ExtendedOptions is a serializable BitTorrent extended options message
 type Message struct {
 	ID         uint8            `bencode:"-"`
-	Version    string           `bencode:"v"`
-	Extensions map[string]uint8 `bencode:"m"`
+	Version    string           `bencode:"v"` // handshake data
+	Extensions map[string]uint8 `bencode:"m"` // handshake data
+	Payload    interface{}
 }
 
 func (opts *Message) SetSupported(ext Extension) {
@@ -37,6 +38,15 @@ func (opts *Message) IsSupported(ext string) (has bool) {
 	return
 }
 
+func (opts *Message) Lookup(id uint8) (string, bool) {
+	for k, v := range opts.Extensions {
+		if v == id {
+			return k, true
+		}
+	}
+	return "", false
+}
+
 // Copy makes a copy of this ExtendedOptions
 func (opts *Message) Copy() *Message {
 	ext := make(map[string]uint8)
@@ -47,6 +57,7 @@ func (opts *Message) Copy() *Message {
 		ID:         opts.ID,
 		Version:    opts.Version,
 		Extensions: ext,
+		Payload:    opts.Payload,
 	}
 }
 
@@ -56,6 +67,8 @@ func (opts *Message) ToWireMessage() *common.WireMessage {
 	b.Write([]byte{opts.ID})
 	if opts.ID == 0 {
 		bencode.NewEncoder(b).Encode(opts)
+	} else if opts.Payload != nil {
+		bencode.NewEncoder(b).Encode(opts.Payload)
 	}
 	return common.NewWireMessage(common.Extended, b.Bytes())
 }
@@ -76,7 +89,13 @@ func FromWireMessage(msg *common.WireMessage) (opts *Message) {
 			opts = &Message{
 				ID: payload[0],
 			}
-			bencode.DecodeBytes(payload[1:], opts)
+			if opts.ID == 0 {
+				// handshake
+				bencode.DecodeBytes(payload[1:], opts)
+			} else {
+				// extension data
+				bencode.DecodeBytes(payload[1:], &opts.Payload)
+			}
 		}
 	}
 	return
