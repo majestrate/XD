@@ -69,15 +69,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 func (c *PeerConn) start() {
 	go c.runReader()
 	go c.runWriter()
-	go c.rateKeeper()
-}
-
-func (c *PeerConn) rateKeeper() {
-	for !c.closing {
-		time.Sleep(time.Second * 10)
-		c.tx.ClearSamples()
-		c.rx.ClearSamples()
-	}
 }
 
 // queue a send of a bittorrent wire message to this peer
