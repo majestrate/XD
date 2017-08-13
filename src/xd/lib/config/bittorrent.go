@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/configparser"
 	"xd/lib/storage"
@@ -99,8 +100,15 @@ func (c *BittorrentConfig) Save(s *configparser.Section) error {
 	return c.OpenTrackers.Save()
 }
 
-func (cfg *BittorrentConfig) LoadEnv() {
+const EnvOpenTracker = "XD_OPENTRACKER_URL"
 
+func (cfg *BittorrentConfig) LoadEnv() {
+	url := os.Getenv(EnvOpenTracker)
+	if url != "" {
+		cfg.OpenTrackers.Trackers = map[string]string{
+			"default": url,
+		}
+	}
 }
 
 func (c *BittorrentConfig) CreateSwarm(st storage.Storage) *swarm.Swarm {
