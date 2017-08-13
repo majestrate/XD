@@ -9,6 +9,7 @@ import (
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/util"
 )
 
 const DefaultMaxParallelRequests = 2
@@ -29,9 +30,9 @@ type PeerConn struct {
 	Done                func()
 	keepalive           *time.Ticker
 	lastSend            time.Time
-	tx                  float64
+	tx                  util.Rate
 	lastRecv            time.Time
-	rx                  float64
+	rx                  util.Rate
 	downloading         []*common.PieceRequest
 	ourOpts             *extensions.ExtendedOptions
 	theirOpts           *extensions.ExtendedOptions
@@ -42,8 +43,8 @@ type PeerConn struct {
 // get stats for this connection
 func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st = new(PeerConnStats)
-	st.TX = c.tx
-	st.RX = c.rx
+	st.TX = c.tx.Rate()
+	st.RX = c.rx.Rate()
 	st.Addr = c.c.RemoteAddr().String()
 	st.ID = c.id.String()
 	return
@@ -68,6 +69,15 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 func (c *PeerConn) start() {
 	go c.runReader()
 	go c.runWriter()
+	go c.rateKeeper()
+}
+
+func (c *PeerConn) rateKeeper() {
+	for !c.closing {
+		time.Sleep(time.Second * 10)
+		c.tx.ClearSamples()
+		c.rx.ClearSamples()
+	}
 }
 
 // queue a send of a bittorrent wire message to this peer
@@ -87,7 +97,7 @@ func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	now := time.Now()
 	dlt := float64(now.UnixNano()) - float64(c.lastRecv.UnixNano())
 	dlt /= nano
-	c.rx = float64(msg.Len()) / dlt
+	c.rx.AddSample(uint64(msg.Len()))
 	c.lastRecv = now
 	return
 }
@@ -356,9 +366,7 @@ func (c *PeerConn) runWriter() {
 		case msg, ok := <-c.send:
 			if ok {
 				now := time.Now()
-				dlt := float64(now.UnixNano()) - float64(c.lastSend.UnixNano())
-				dlt /= nano
-				c.tx = float64(msg.Len()) / dlt
+				c.tx.AddSample(uint64(msg.Len()))
 				c.lastSend = now
 				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop
