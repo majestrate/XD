@@ -12,6 +12,7 @@ type Holder struct {
 	st       storage.Storage
 	access   sync.Mutex
 	torrents map[string]*Torrent
+	MaxReq   int
 }
 
 func (h *Holder) addTorrent(t storage.Torrent) {
@@ -19,6 +20,7 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 		return
 	}
 	tr := newTorrent(t)
+	tr.MaxRequests = h.MaxReq
 	h.access.Lock()
 	h.torrents[t.Infohash().Hex()] = tr
 	h.access.Unlock()

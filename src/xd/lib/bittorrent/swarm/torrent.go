@@ -36,6 +36,7 @@ type Torrent struct {
 	pt             *pieceTracker
 	defaultOpts    *extensions.Message
 	closing        bool
+	MaxRequests    int
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -124,6 +125,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		ibconns:     make(map[string]*PeerConn),
 		obconns:     make(map[string]*PeerConn),
 		defaultOpts: extensions.New(),
+		MaxRequests: DefaultMaxParallelRequests,
 	}
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
