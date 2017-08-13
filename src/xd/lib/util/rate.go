@@ -11,13 +11,13 @@ type Rate struct {
 }
 
 func (r *Rate) Tick() {
+	r.lastSampleIdx = (r.lastSampleIdx + 1) % len(r.samples)
 	r.lastTick = time.Now().Unix()
+	r.samples[r.lastSampleIdx] = 0
 }
 
 func (r *Rate) AddSample(n uint64) {
-	r.samples[r.lastSampleIdx] = n
-	r.lastSampleIdx = (r.lastSampleIdx + 1) % len(r.samples)
-	r.Tick()
+	r.samples[r.lastSampleIdx] += n
 }
 
 func (r *Rate) Rate() float64 {
