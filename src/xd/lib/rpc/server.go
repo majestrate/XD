@@ -50,7 +50,7 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 						URL: fmt.Sprintf("%s", body[ParamURL]),
 					}
 				case RPCSetPieceWindow:
-					n, ok := body[ParamN].(int64)
+					n, ok := body[ParamN].(float64)
 					if ok {
 						rr = &SetPieceWindowRequest{
 							N: int(n),
