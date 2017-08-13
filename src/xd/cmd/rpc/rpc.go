@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
@@ -42,7 +43,17 @@ func Run() {
 		listTorrents(c)
 	case "add":
 		addTorrents(c, args...)
+	case "set-piece-window":
+		setPieceWindow(c, args[0])
 	}
+}
+
+func setPieceWindow(c *rpc.Client, str string) {
+	n, err := strconv.Atoi(str)
+	if err != nil {
+		log.Fatalf("error: %s", err.Error())
+	}
+	c.SetPieceWindow(n)
 }
 
 func addTorrents(c *rpc.Client, urls ...string) {

@@ -49,6 +49,17 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					rr = &AddTorrentRequest{
 						URL: fmt.Sprintf("%s", body[ParamURL]),
 					}
+				case RPCSetPieceWindow:
+					n, ok := body[ParamN].(int64)
+					if ok {
+						rr = &SetPieceWindowRequest{
+							N: int(n),
+						}
+					} else {
+						rr = &rpcError{
+							message: fmt.Sprintf("invalid value: %s", body[ParamN]),
+						}
+					}
 				default:
 					rr = &rpcError{
 						message: fmt.Sprintf("no such method %s", method),

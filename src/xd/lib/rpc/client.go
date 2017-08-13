@@ -39,6 +39,14 @@ func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
 	return
 }
 
+func (cl *Client) SetPieceWindow(n int) (err error) {
+	err = cl.doRPC(&SetPieceWindowRequest{N: n}, func(r io.Reader) error {
+		var response interface{}
+		return json.NewDecoder(r).Decode(&response)
+	})
+	return
+}
+
 func (cl *Client) AddTorrent(url string) (err error) {
 	err = cl.doRPC(&AddTorrentRequest{URL: url}, func(r io.Reader) error {
 		var response interface{}
