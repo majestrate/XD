@@ -34,7 +34,7 @@ type Torrent struct {
 	ibconns        map[string]*PeerConn
 	connMtx        sync.Mutex
 	pt             *pieceTracker
-	defaultOpts    *extensions.ExtendedOptions
+	defaultOpts    *extensions.Message
 	closing        bool
 }
 
@@ -357,7 +357,7 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 			if err == nil {
 				if bytes.Equal(ih[:], h.Infohash[:]) {
 					// infohashes match
-					var opts *extensions.ExtendedOptions
+					var opts *extensions.Message
 					if h.Reserved.Has(bittorrent.Extension) {
 						opts = t.defaultOpts.Copy()
 					}

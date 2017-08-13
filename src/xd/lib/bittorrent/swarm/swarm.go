@@ -81,7 +81,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		c.Close()
 		return
 	}
-	var opts *extensions.ExtendedOptions
+	var opts *extensions.Message
 	if h.Reserved.Has(bittorrent.Extension) {
 		opts = extensions.New()
 	}

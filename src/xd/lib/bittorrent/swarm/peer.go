@@ -34,8 +34,8 @@ type PeerConn struct {
 	lastRecv            time.Time
 	rx                  util.Rate
 	downloading         []*common.PieceRequest
-	ourOpts             *extensions.ExtendedOptions
-	theirOpts           *extensions.ExtendedOptions
+	ourOpts             *extensions.Message
+	theirOpts           *extensions.Message
 	MaxParalellRequests int
 	access              sync.Mutex
 }
@@ -50,7 +50,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	return
 }
 
-func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.ExtendedOptions) *PeerConn {
+func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.Message) *PeerConn {
 	p := new(PeerConn)
 	p.c = c
 	p.t = t
@@ -330,7 +330,7 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
-func (c *PeerConn) handleExtendedOpts(opts *extensions.ExtendedOptions) {
+func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 	log.Debugf("got extended opts from %s: %s", c.id.String(), opts)
 
 }
@@ -391,8 +391,14 @@ func (c *PeerConn) runDownload() {
 		if p >= c.MaxParalellRequests {
 			log.Debugf("too many pending requests %d, waiting", p)
 			if pendingTry > 5 {
-				c.Close()
-				return
+				c.Choke()
+				go func() {
+					time.Sleep(time.Minute)
+					c.Unchoke()
+					pendingTry = 0
+				}()
+				time.Sleep(time.Second)
+				continue
 			}
 			pendingTry++
 			time.Sleep(time.Second * 10)
