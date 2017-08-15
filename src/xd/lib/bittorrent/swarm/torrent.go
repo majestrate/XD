@@ -37,6 +37,7 @@ type Torrent struct {
 	defaultOpts    *extensions.Message
 	closing        bool
 	MaxRequests    int
+	pexState       *PEXSwarmState
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -126,6 +127,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		obconns:     make(map[string]*PeerConn),
 		defaultOpts: extensions.New(),
 		MaxRequests: DefaultMaxParallelRequests,
+		pexState:    NewPEXSwarmState(),
 	}
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
@@ -312,28 +314,36 @@ func (t *Torrent) HasOBConn(a net.Addr) (has bool) {
 }
 
 func (t *Torrent) addOBPeer(c *PeerConn) {
+	addr := c.c.RemoteAddr()
 	t.connMtx.Lock()
-	t.obconns[c.c.RemoteAddr().String()] = c
+	t.obconns[addr.String()] = c
 	t.connMtx.Unlock()
+	t.pexState.onNewPeer(addr)
 }
 
 func (t *Torrent) removeOBConn(c *PeerConn) {
+	addr := c.c.RemoteAddr()
 	t.connMtx.Lock()
-	delete(t.obconns, c.c.RemoteAddr().String())
+	delete(t.obconns, addr.String())
 	t.connMtx.Unlock()
+	t.pexState.onPeerDisconnected(addr)
 }
 
 func (t *Torrent) addIBPeer(c *PeerConn) {
+	addr := c.c.RemoteAddr()
 	t.connMtx.Lock()
-	t.ibconns[c.c.RemoteAddr().String()] = c
+	t.ibconns[addr.String()] = c
 	t.connMtx.Unlock()
 	c.inbound = true
+	t.pexState.onNewPeer(addr)
 }
 
 func (t *Torrent) removeIBConn(c *PeerConn) {
+	addr := c.c.RemoteAddr()
 	t.connMtx.Lock()
-	delete(t.ibconns, c.c.RemoteAddr().String())
+	delete(t.ibconns, addr.String())
 	t.connMtx.Unlock()
+	t.pexState.onPeerDisconnected(addr)
 }
 
 // connect to a new peer for this swarm, blocks
@@ -425,6 +435,7 @@ func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
 }
 
 func (t *Torrent) Run() {
+	go t.pexBroadcastLoop()
 	go t.handlePieces()
 	if t.Started != nil {
 		go t.Started()
@@ -434,6 +445,18 @@ func (t *Torrent) Run() {
 	}
 	if t.Completed != nil {
 		go t.Completed()
+	}
+}
+
+func (t *Torrent) pexBroadcastLoop() {
+	for !t.closing {
+		connected, disconnected := t.pexState.PopDestHashLists()
+		t.VisitPeers(func(p *PeerConn) {
+			if p.SupportsPEX() {
+				p.sendPEX(connected, disconnected)
+			}
+		})
+		time.Sleep(time.Second * 90)
 	}
 }
 

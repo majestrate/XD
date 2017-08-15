@@ -28,6 +28,11 @@ type Message struct {
 	Payload    interface{}
 }
 
+// supports PEX?
+func (opts *Message) PEX() bool {
+	return opts.IsSupported(PeerExchange.String())
+}
+
 func (opts *Message) SetSupported(ext Extension) {
 	// TODO: this will error if we do not support this extension
 	opts.Extensions[ext.String()] = extensionDefaults[ext]
@@ -79,6 +84,17 @@ func New() *Message {
 		Version:    version.Version(),
 		Extensions: make(map[string]uint8),
 	}
+}
+
+func NewPEX(id uint8, connected, disconnected []byte) *Message {
+	payload := map[string]interface{}{
+		"added":   connected,
+		"dropped": disconnected,
+	}
+	msg := New()
+	msg.ID = id
+	msg.Payload = payload
+	return msg
 }
 
 // FromWireMessage loads an ExtendedOptions messgae from a BitTorrent wire message

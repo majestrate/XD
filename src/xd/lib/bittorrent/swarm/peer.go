@@ -376,7 +376,20 @@ func (c *PeerConn) handlePEXAdded(m interface{}) {
 }
 
 func (c *PeerConn) handlePEXAddedf(m interface{}) {
+	// TODO: implement this
+}
 
+func (c *PeerConn) SupportsPEX() bool {
+	if c.theirOpts == nil {
+		return false
+	}
+	return c.theirOpts.PEX()
+}
+
+func (c *PeerConn) sendPEX(connected, disconnected []byte) {
+	id := c.theirOpts.Extensions[extensions.PeerExchange.String()]
+	msg := extensions.NewPEX(id, connected, disconnected)
+	c.Send(msg.ToWireMessage())
 }
 
 func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
