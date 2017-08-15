@@ -104,7 +104,9 @@ func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 
 // send choke
 func (c *PeerConn) Choke() {
-	if !c.usChoke {
+	if c.usChoke {
+		log.Warnf("multiple chokes sent to %s", c.id.String())
+	} else {
 		log.Debugf("choke peer %s", c.id.String())
 		c.Send(common.NewWireMessage(common.Choke, nil))
 		c.usChoke = true
