@@ -2,10 +2,10 @@ package bittorrent
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/zeebo/bencode"
 	"io"
 	"xd/lib/common"
-
-	"github.com/zeebo/bencode"
 )
 
 // Bitfield is a serializable bitmap for bittorrent
@@ -52,6 +52,12 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 		return b
 	}
 	return nil
+}
+
+func (bf *Bitfield) Percent() string {
+	fl := float64(bf.CountSet())
+	fl /= float64(bf.Length)
+	return fmt.Sprintf("%.2f%%", fl*100)
 }
 
 // Equals checks if a Bitfield is equal to anoter

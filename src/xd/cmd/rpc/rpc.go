@@ -91,7 +91,7 @@ func listTorrents(c *rpc.Client) {
 	sort.Stable(&torrents)
 	for _, status := range torrents {
 		var tx, rx float64
-		fmt.Printf("%s [%s]\n", status.Name, status.Infohash)
+		fmt.Printf("%s [%s] %s\n", status.Name, status.Infohash, status.Bitfield.Percent())
 		sort.Stable(&status.Peers)
 		for _, peer := range status.Peers {
 			fmt.Printf("%s\t\t\ttx=%s rx=%s\n", peer.ID, formatRate(peer.TX), formatRate(peer.RX))

@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"fmt"
+	"xd/lib/bittorrent"
 	"xd/lib/util"
 )
 
@@ -65,6 +66,7 @@ type TorrentStatus struct {
 	Name     string
 	State    TorrentState
 	Infohash string
+	Bitfield bittorrent.Bitfield
 }
 
 type TorrentStatusList []TorrentStatus

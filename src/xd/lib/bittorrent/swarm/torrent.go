@@ -183,13 +183,17 @@ func (t *Torrent) GetStatus() TorrentStatus {
 	if t.Done() {
 		state = Seeding
 	}
+	bf := t.Bitfield()
 	return TorrentStatus{
 		Peers:    peers,
 		Name:     name,
 		State:    state,
 		Infohash: t.MetaInfo().Infohash().Hex(),
+		Bitfield: bittorrent.Bitfield{
+			Data:   bf.Data,
+			Length: bf.Length,
+		},
 	}
-
 }
 
 func (t *Torrent) Bitfield() *bittorrent.Bitfield {
