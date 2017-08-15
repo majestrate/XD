@@ -461,14 +461,16 @@ func (c *PeerConn) runDownload() {
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
-			log.Debugf("too many pending requests %d, waiting", p)
 			if pendingTry > 5 {
-				c.Choke()
-				go func() {
-					time.Sleep(time.Minute)
-					c.Unchoke()
-					pendingTry = 0
-				}()
+				if !c.Chocking() {
+					log.Debugf("too many pending requests %d, waiting", p)
+					c.Choke()
+					go func() {
+						time.Sleep(time.Minute)
+						c.Unchoke()
+						pendingTry = 0
+					}()
+				}
 				time.Sleep(time.Second)
 				continue
 			}
