@@ -3,8 +3,14 @@ package swarm
 import (
 	"fmt"
 	"xd/lib/bittorrent"
+	"xd/lib/metainfo"
 	"xd/lib/util"
 )
+
+type TorrentFileInfo struct {
+	FileInfo metainfo.FileInfo
+	Progress bittorrent.Bitfield
+}
 
 type TorrentPeers []*PeerConnStats
 
@@ -62,6 +68,7 @@ func (t TorrentState) String() string {
 
 // immutable status of torrent
 type TorrentStatus struct {
+	Files    []TorrentFileInfo
 	Peers    TorrentPeers
 	Name     string
 	State    TorrentState

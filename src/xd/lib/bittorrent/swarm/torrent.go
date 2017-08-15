@@ -184,6 +184,31 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		state = Seeding
 	}
 	bf := t.Bitfield()
+	var files []TorrentFileInfo
+	nfo := t.st.MetaInfo().Info
+	var idx uint64
+	for _, file := range nfo.GetFiles() {
+		sz := file.Length / uint64(nfo.PieceLength)
+		sz /= 8
+		// XXX: this below here is wrong because how the bits are packed in the bitfield
+		l := uint32(sz)
+		var data []byte
+		if l == 0 {
+			l = 1
+			data = []byte{bf.Data[idx]}
+		} else {
+			data = bf.Data[idx : idx+sz]
+		}
+		files = append(files, TorrentFileInfo{
+			FileInfo: file,
+			Progress: bittorrent.Bitfield{
+				Data:   data,
+				Length: l,
+			},
+		})
+		idx += sz
+	}
+
 	return TorrentStatus{
 		Peers:    peers,
 		Name:     name,
@@ -193,6 +218,7 @@ func (t *Torrent) GetStatus() TorrentStatus {
 			Data:   bf.Data,
 			Length: bf.Length,
 		},
+		Files: files,
 	}
 }
 
