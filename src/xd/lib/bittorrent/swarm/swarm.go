@@ -86,9 +86,10 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		opts = extensions.New()
 	}
 	// reply to handshake
+	var id common.PeerID
+	copy(id[:], h.PeerID[:])
 	copy(h.PeerID[:], sw.id[:])
 	err = h.Send(c)
-
 	if err != nil {
 		log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
 		// write error
@@ -96,7 +97,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		return
 	}
 	// make peer conn
-	p := makePeerConn(c, t, h.PeerID, opts)
+	p := makePeerConn(c, t, id, opts)
 
 	go p.runWriter()
 	go p.runReader()
