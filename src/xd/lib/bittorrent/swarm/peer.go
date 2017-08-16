@@ -270,6 +270,7 @@ func (c *PeerConn) runReader() {
 				m := common.NewInterested()
 				c.Send(m)
 				if isnew {
+					c.Unchoke()
 					go c.runDownload()
 				}
 				continue
