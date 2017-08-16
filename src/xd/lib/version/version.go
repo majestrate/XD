@@ -8,7 +8,7 @@ const Major = "0"
 
 const Minor = "0"
 
-const Patch = "7"
+const Patch = "8"
 
 var Git string
 
