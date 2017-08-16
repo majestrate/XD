@@ -468,6 +468,7 @@ func (c *PeerConn) runDownload() {
 	pendingTry := 0
 	for !c.t.Done() && c.send != nil {
 		if c.RemoteChoking() {
+			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
 			continue
 		}
