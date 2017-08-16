@@ -23,8 +23,5 @@ $(XD):
 test:
 	$(GO) test -v xd/...
 
-test-storage:
-	$(GO) test -v xd/lib/storage
-
 clean:
 	$(GO) clean -v
