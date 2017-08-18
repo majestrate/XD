@@ -90,14 +90,15 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
-	now := time.Now()
-	if err == nil && (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
-		c.rx.AddSample(uint64(msg.Len()))
+	if err == nil {
+		c.lastRecv = time.Now()
+		if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
+			c.rx.AddSample(uint64(msg.Len()))
+		}
+		log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	} else if err != nil {
 		msg = nil
 	}
-	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
-	c.lastRecv = now
 	return
 }
 
