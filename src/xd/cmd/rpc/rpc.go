@@ -14,7 +14,13 @@ import (
 	"xd/lib/util"
 )
 
-var formatRate = util.FormatRate
+func formatRate(r float64) string {
+	str := util.FormatRate(r)
+	for len(str) < 12 {
+		str += " "
+	}
+	return str
+}
 
 func Run() {
 	var args []string
