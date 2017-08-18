@@ -96,7 +96,7 @@ func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	now := time.Now()
 	dlt := float64(now.UnixNano()) - float64(c.lastRecv.UnixNano())
 	dlt /= nano
-	if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
+	if err == nil && (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
 		c.rx.AddSample(uint64(msg.Len()))
 	}
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
