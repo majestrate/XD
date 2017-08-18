@@ -416,8 +416,8 @@ func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
 					}
 					pc := makePeerConn(c, t, h.PeerID, opts)
 					t.addOBPeer(pc)
-					pc.Send(t.Bitfield().ToWireMessage())
 					pc.start()
+					pc.Send(t.Bitfield().ToWireMessage())
 					return nil
 				} else {
 					log.Warn("Infohash missmatch")

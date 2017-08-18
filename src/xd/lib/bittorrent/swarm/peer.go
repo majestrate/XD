@@ -61,7 +61,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.send = make(chan *common.WireMessage, 8)
 	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
-	// TODO: hard coded
 	return p
 }
 
