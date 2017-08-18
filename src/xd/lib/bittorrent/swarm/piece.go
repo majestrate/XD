@@ -6,6 +6,7 @@ import (
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/storage"
+	"xd/lib/util"
 )
 
 // how big should we download pieces at a time (bytes)?
@@ -148,10 +149,11 @@ func (pt *pieceTracker) removePiece(piece uint32) {
 	pt.mtx.Unlock()
 }
 
-func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32) {
+func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, old bool) {
 	for k := range pt.requests {
 		if remote.Has(k) {
 			idx = k
+			old = true
 			return
 		}
 	}
@@ -161,18 +163,24 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32) {
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
 	pt.mtx.Lock()
-	idx := pt.pendingPiece(remote)
-	cp, has := pt.requests[idx]
-	if !has {
+	idx, old := pt.pendingPiece(remote)
+	var cp *cachedPiece
+	if old {
+		cp = pt.requests[idx]
+	} else {
 		if pt.st.Bitfield().Has(idx) {
 			pt.mtx.Unlock()
 			return
 		}
-		cp = pt.newPiece(idx)
-		pt.requests[idx] = cp
+		if util.RandBoolPercent(10) {
+			cp = pt.newPiece(idx)
+			pt.requests[idx] = cp
+		}
 	}
 	pt.mtx.Unlock()
-	r = cp.nextRequest()
+	if cp != nil {
+		r = cp.nextRequest()
+	}
 	return
 }
 
