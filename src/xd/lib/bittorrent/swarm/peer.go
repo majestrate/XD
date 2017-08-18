@@ -454,10 +454,15 @@ func (c *PeerConn) runWriter() {
 				} else {
 					log.Debugf("writing %d bytes", msg.Len())
 					err = msg.Send(c.c)
-					if msg.MessageID() == common.Piece {
-						c.tx.AddSample(uint64(msg.Len()))
+					if err == nil {
+						if msg.MessageID() == common.Piece {
+							c.tx.AddSample(uint64(msg.Len()))
+						}
+						log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
+					} else {
+						log.Warnf("write error: %s", err.Error())
 					}
-					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
+
 				}
 			} else {
 				log.Warn("conn runWriter() failed")
