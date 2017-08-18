@@ -198,15 +198,17 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		})
 	} else {
 		for _, file := range f {
-			sz := file.Length / uint64(nfo.PieceLength)
+			l := file.Length / uint64(nfo.PieceLength)
 			// XXX: this below here is wrong because how the bits are packed in the bitfield
-			l := sz / 8
+			l /= 8
 			var data []byte
 			if l == 0 {
 				l = 1
 				data = []byte{bf.Data[idx]}
-			} else {
+			} else if idx+l < uint64(len(bf.Data)) {
 				data = bf.Data[idx : idx+l]
+			} else {
+				data = bf.Data[idx:]
 			}
 			files = append(files, TorrentFileInfo{
 				FileInfo: file,
