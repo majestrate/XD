@@ -97,7 +97,7 @@ func listTorrents(c *rpc.Client) {
 		for _, peer := range status.Peers {
 			pad := peer.ID
 
-			for len(pad) < 40 {
+			for len(pad) < 65 {
 				pad += " "
 			}
 			fmt.Printf("\t%stx=%s rx=%s\n", pad, formatRate(peer.TX), formatRate(peer.RX))
