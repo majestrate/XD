@@ -2,8 +2,10 @@ package common
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"xd/lib/log"
 	"xd/lib/util"
 )
@@ -121,6 +123,8 @@ func (msg *WireMessage) MessageID() WireMessageType {
 	return WireMessageType(msg.data[4])
 }
 
+var ErrToBig = errors.New("message too big")
+
 // Recv reads message from reader
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
@@ -132,9 +136,15 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 		if l > 0 {
 			// read body
 			log.Debugf("read message of size %d bytes", l)
-			data := make([]byte, l)
-			_, err = io.ReadFull(r, data)
-			msg.data = append(msg.data, data...)
+			if l > 1024*1024 {
+				// too big
+				io.CopyN(ioutil.Discard, r, int64(l))
+				err = ErrToBig
+			} else {
+				data := make([]byte, l)
+				_, err = io.ReadFull(r, data)
+				msg.data = append(msg.data, data...)
+			}
 			/*
 				// XXX: yes this is a magic number
 				var buf [1730]byte
