@@ -187,28 +187,37 @@ func (t *Torrent) GetStatus() TorrentStatus {
 	var files []TorrentFileInfo
 	nfo := t.st.MetaInfo().Info
 	var idx uint64
-	for _, file := range nfo.GetFiles() {
-		sz := file.Length / uint64(nfo.PieceLength)
-		sz /= 8
-		// XXX: this below here is wrong because how the bits are packed in the bitfield
-		l := uint32(sz)
-		var data []byte
-		if l == 0 {
-			l = 1
-			data = []byte{bf.Data[idx]}
-		} else {
-			data = bf.Data[idx : idx+sz]
-		}
+	f := nfo.GetFiles()
+	if len(f) == 1 {
 		files = append(files, TorrentFileInfo{
-			FileInfo: file,
+			FileInfo: f[0],
 			Progress: bittorrent.Bitfield{
-				Data:   data,
-				Length: l,
+				Data:   bf.Data,
+				Length: bf.Length,
 			},
 		})
-		idx += sz
+	} else {
+		for _, file := range f {
+			sz := file.Length / uint64(nfo.PieceLength)
+			// XXX: this below here is wrong because how the bits are packed in the bitfield
+			l := sz / 8
+			var data []byte
+			if l == 0 {
+				l = 1
+				data = []byte{bf.Data[idx]}
+			} else {
+				data = bf.Data[idx : idx+l]
+			}
+			files = append(files, TorrentFileInfo{
+				FileInfo: file,
+				Progress: bittorrent.Bitfield{
+					Data:   data,
+					Length: uint32(l),
+				},
+			})
+			idx += sz
+		}
 	}
-
 	return TorrentStatus{
 		Peers:    peers,
 		Name:     name,
@@ -522,5 +531,9 @@ func (t *Torrent) handlePieces() {
 }
 
 func (t *Torrent) Done() bool {
-	return t.Bitfield().Completed()
+	bf := t.Bitfield()
+	if bf == nil {
+		return false
+	}
+	return bf.Completed()
 }

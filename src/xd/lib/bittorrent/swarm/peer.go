@@ -1,7 +1,6 @@
 package swarm
 
 import (
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -87,17 +86,15 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 	}
 }
 
-const nano = 10000000.0
-
 // recv a bittorrent wire message (blocking)
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
 	now := time.Now()
-	dlt := float64(now.UnixNano()) - float64(c.lastRecv.UnixNano())
-	dlt /= nano
 	if err == nil && (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
 		c.rx.AddSample(uint64(msg.Len()))
+	} else if err != nil {
+		msg = nil
 	}
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	c.lastRecv = now
@@ -251,97 +248,92 @@ func (c *PeerConn) Close() {
 // run read loop
 func (c *PeerConn) runReader() {
 	var err error
+	var msg *common.WireMessage
 	for err == nil {
-		msg, e := c.Recv()
-		err = e
-		if err == nil {
-			if msg.KeepAlive() {
-				log.Debugf("keepalive from %s", c.id)
-				continue
-			}
-			msgid := msg.MessageID()
-			log.Debugf("%s from %s", msgid.String(), c.id.String())
-			if msgid == common.BitField {
-				isnew := false
-				if c.bf == nil {
-					isnew = true
-				}
-				c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
-				log.Debugf("got bitfield from %s", c.id.String())
-				// TODO: determine if we are really interested
-				m := common.NewInterested()
-				c.Send(m)
-				if isnew {
-					c.Unchoke()
-					go c.runDownload()
-				}
-				continue
-			}
-			if msgid == common.Choke {
-				c.remoteChoke()
-				continue
-			}
-			if msgid == common.UnChoke {
-				c.remoteUnchoke()
-				continue
-			}
-			if msgid == common.Interested {
-				c.markInterested()
-				c.Unchoke()
-				continue
-			}
-			if msgid == common.NotInterested {
-				c.markNotInterested()
-				continue
-			}
-			if msgid == common.Request {
-				ev := msg.GetPieceRequest()
-				c.t.onPieceRequest(c, ev)
-				continue
-			}
-			if msgid == common.Piece {
-				d := msg.GetPieceData()
-				if d == nil {
-					log.Warnf("invalid piece data message from %s", c.id.String())
-					c.Close()
-				} else {
-					c.gotDownload(d)
-				}
-				continue
-			}
-			if msgid == common.Have && c.bf != nil {
-				// update bitfield
-				idx := msg.GetHave()
-				c.bf.Set(idx)
-				if c.t.Bitfield().Has(idx) {
-					// not interested
-					c.Send(common.NewNotInterested())
-				} else {
-					c.Send(common.NewInterested())
-				}
-				continue
-			}
-			if msgid == common.Cancel {
-				// TODO: check validity
-				r := msg.GetPieceRequest()
-				c.t.pt.canceledRequest(r)
-				continue
-			}
-			if msgid == common.Extended {
-				// handle extended options
-				opts := extensions.FromWireMessage(msg)
-				if opts == nil {
-					log.Warnf("failed to parse extended options for %s", c.id.String())
-				} else {
-					c.handleExtendedOpts(opts)
-				}
-			}
+		msg, err = c.Recv()
+		if msg != nil {
+			err = c.inboundMessage(msg)
 		}
 	}
-	if err != io.EOF {
-		log.Errorf("%s read error: %s", c.id, err)
-	}
 	c.Close()
+}
+
+func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
+
+	if msg.KeepAlive() {
+		log.Debugf("keepalive from %s", c.id)
+		return
+	}
+	msgid := msg.MessageID()
+	log.Debugf("%s from %s", msgid.String(), c.id.String())
+	if msgid == common.BitField {
+		isnew := false
+		if c.bf == nil {
+			isnew = true
+		}
+		c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
+		log.Debugf("got bitfield from %s", c.id.String())
+		// TODO: determine if we are really interested
+		m := common.NewInterested()
+		c.Send(m)
+		if isnew {
+			c.Unchoke()
+			go c.runDownload()
+		}
+		return
+	}
+	if msgid == common.Choke {
+		c.remoteChoke()
+	}
+	if msgid == common.UnChoke {
+		c.remoteUnchoke()
+	}
+	if msgid == common.Interested {
+		c.markInterested()
+		c.Unchoke()
+	}
+	if msgid == common.NotInterested {
+		c.markNotInterested()
+	}
+	if msgid == common.Request {
+		ev := msg.GetPieceRequest()
+		c.t.onPieceRequest(c, ev)
+	}
+	if msgid == common.Piece {
+		d := msg.GetPieceData()
+		if d == nil {
+			log.Warnf("invalid piece data message from %s", c.id.String())
+			c.Close()
+		} else {
+			c.gotDownload(d)
+		}
+	}
+	if msgid == common.Have && c.bf != nil {
+		// update bitfield
+		idx := msg.GetHave()
+		c.bf.Set(idx)
+		if c.t.Bitfield().Has(idx) {
+			// not interested
+			c.Send(common.NewNotInterested())
+		} else {
+			c.Send(common.NewInterested())
+		}
+	}
+	if msgid == common.Cancel {
+		// TODO: check validity
+		r := msg.GetPieceRequest()
+		c.t.pt.canceledRequest(r)
+	}
+	if msgid == common.Extended {
+		// handle extended options
+		opts := extensions.FromWireMessage(msg)
+		if opts == nil {
+			log.Warnf("failed to parse extended options for %s", c.id.String())
+		} else {
+			c.handleExtendedOpts(opts)
+		}
+	}
+	return
 }
 
 // handles an inbound pex message

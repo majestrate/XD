@@ -113,7 +113,7 @@ func listTorrents(c *rpc.Client) {
 		fmt.Printf("%s tx=%s rx=%s\n", status.State, formatRate(tx), formatRate(rx))
 		fmt.Println("files:")
 		for idx, f := range status.Files {
-			fmt.Printf("\t[%d] %s (%s)\n", idx, f.FileInfo.Path.FilePath(), f.Progress.Percent())
+			fmt.Printf("\t[%d] %s (%d/%d or %s)\n", idx, f.FileInfo.Path.FilePath(), f.Progress.CountSet(), f.Progress.Length, f.Progress.Percent())
 		}
 		fmt.Println()
 		globalRx += rx

@@ -127,18 +127,17 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	var hdr [4]byte
 	var n int
 	n, err = io.ReadFull(r, hdr[:])
-	log.Debugf("recv'd header %d bytes", n)
 	msg.data = hdr[:]
 	if err == nil {
 		l := binary.BigEndian.Uint32(msg.data[:])
 		if l > 0 {
 			// read body
-
+			log.Debugf("read message of size %d bytes", l)
 			// XXX: yes this is a magic number
 			var buf [1730]byte
 			for l > 0 && err == nil {
 				var readbuf []byte
-				if l < uint32(len(buf)) {
+				if l <= uint32(len(buf)) {
 					readbuf = buf[:l]
 				} else {
 					readbuf = buf[:]
@@ -148,8 +147,12 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 					l -= uint32(n)
 					readbuf = readbuf[:n]
 					msg.data = append(msg.data, readbuf...)
+				} else {
+					log.Warnf("read bittorrent message failed: %s", err)
 				}
 			}
+		} else {
+			// zero size
 		}
 	}
 	return
