@@ -12,7 +12,7 @@ import (
 	"xd/lib/util"
 )
 
-const DefaultMaxParallelRequests = 2
+const DefaultMaxParallelRequests = 4
 
 // a peer connection
 type PeerConn struct {
@@ -93,11 +93,13 @@ const nano = 10000000.0
 func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
 	msg = new(common.WireMessage)
 	err = msg.Recv(c.c)
-	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	now := time.Now()
 	dlt := float64(now.UnixNano()) - float64(c.lastRecv.UnixNano())
 	dlt /= nano
-	c.rx.AddSample(uint64(msg.Len()))
+	if msg.MessageID() == common.Piece {
+		c.rx.AddSample(uint64(msg.Len()))
+	}
+	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	c.lastRecv = now
 	return
 }
@@ -443,7 +445,6 @@ func (c *PeerConn) runWriter() {
 		case msg, ok := <-c.send:
 			if ok {
 				now := time.Now()
-				c.tx.AddSample(uint64(msg.Len()))
 				c.lastSend = now
 				if c.RemoteChoking() && msg.MessageID() == common.Request {
 					// drop
@@ -453,6 +454,9 @@ func (c *PeerConn) runWriter() {
 				} else {
 					log.Debugf("writing %d bytes", msg.Len())
 					err = msg.Send(c.c)
+					if msg.MessageID() == common.Piece {
+						c.tx.AddSample(uint64(msg.Len()))
+					}
 					log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 				}
 			} else {
@@ -466,7 +470,6 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	pendingTry := 0
 	for !c.t.Done() && c.send != nil {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
@@ -476,24 +479,9 @@ func (c *PeerConn) runDownload() {
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
-			if pendingTry > 5 {
-				if !c.Chocking() {
-					log.Debugf("too many pending requests %d, waiting", p)
-					c.Choke()
-					go func() {
-						time.Sleep(time.Minute)
-						c.Unchoke()
-						pendingTry = 0
-					}()
-				}
-				time.Sleep(time.Second)
-				continue
-			}
-			pendingTry++
 			time.Sleep(time.Second * 10)
 			continue
 		}
-		pendingTry = 0
 		r := c.t.pt.nextRequestForDownload(c.bf)
 		if r == nil {
 			log.Debugf("no next piece to download for %s", c.id.String())
