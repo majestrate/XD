@@ -215,7 +215,7 @@ func (t *Torrent) GetStatus() TorrentStatus {
 					Length: uint32(l),
 				},
 			})
-			idx += sz
+			idx += l
 		}
 	}
 	return TorrentStatus{
