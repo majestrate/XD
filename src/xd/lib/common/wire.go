@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"xd/lib/log"
 	"xd/lib/util"
@@ -63,7 +64,7 @@ func (t WireMessageType) String() string {
 	case Extended:
 		return "Extended"
 	default:
-		return "???"
+		return fmt.Sprintf("??? (%d)", uint8(t))
 	}
 }
 
