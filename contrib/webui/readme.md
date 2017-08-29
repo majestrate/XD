@@ -7,9 +7,10 @@ XD web ui source code
 
 * nodejs
 * yarn
+* GNU Make
 
 ## building
 
 when the webui is ready you can build it by running:
 
-    $ yarn install
+    $ make

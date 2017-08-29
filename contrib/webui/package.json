@@ -2,13 +2,15 @@
     "name": "xd-webui",
     "version": "0.0.0",
     "description": "web ui for XD bittorrent client",
-    "main": "lib/main.js",
     "repository": "https://github.com/majestrate/XD",
     "author": "Jeff",
     "license": "MIT",
     "dependencies": {
-        "bootstrap": "3",
-        "browserify": "^14.4.0"
+        "bootstrap": "^3.3.7",
+        "browserify": "^14.4.0",
+        "jquery": "^3.2.1"
     },
-    "browser" : "xd.js"
+    "scripts": {
+        "build": "browserify lib/main.js -o docroot/xd.js"
+    }
 }
