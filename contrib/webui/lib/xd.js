@@ -1,6 +1,6 @@
 /** xd.js -- xd json rpc api */
 
-
+var $ = require("jquery");
 
 function XDAPI()
 {
@@ -40,5 +40,5 @@ XDAPI.prototype.eachTorrent = function(cb)
 
 
 module.exports = {
-    "XD": XD
+    "XD": XDAPI
 };

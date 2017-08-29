@@ -8,9 +8,11 @@
     "dependencies": {
         "bootstrap": "^3.3.7",
         "browserify": "^14.4.0",
+        "express": "^4.15.4",
         "jquery": "^3.2.1"
     },
     "scripts": {
-        "build": "browserify lib/main.js -o docroot/xd.js"
+        "build": "browserify lib/main.js -o docroot/xd.js",
+        "server": "node ./server.js"
     }
 }
