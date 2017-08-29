@@ -1,7 +1,121 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var XD = require("./xd.js");
+/** Client-side UI Model */
 
-},{"./xd.js":2}],2:[function(require,module,exports){
+var $ = require("jquery");
+
+/**
+ @param root element to inject CUM into
+ */
+function CUM(root, prepend) {
+    this._prepend = prepend || false;
+    this._root = root;
+    $(root).hide();
+    this._elems = {};
+}
+
+
+// PUBLIC API
+
+/** @param inject ui from json array */
+CUM.prototype.inject = function(ja) {
+    var self = this;
+    $(ja).each(function(idx, j) {
+        try {
+            var parent = null;
+            if(j.parentID) {
+                parent = $("#"+j.parentID) || null;
+            } else if(j.parent) {
+                parent = j.parent;
+            }
+            var e = self._newElem(j.name, j.css, j.id, j.attrs, parent);
+            if(j.click) {
+                e.onclick = function(ev) { j.click(ev); };
+            }
+            if(j.html) {
+                $(e).append($(j.html));
+            } else if(j.text) {
+                $(e).text(j.text);
+            } else
+
+            if(j.finish && j.id) {
+                self._elems[j.id] = function() { j.finish(e); };
+            }
+        } catch(ex) {
+            console.log(idx, j, ex);
+        }
+    });
+    return self;
+};
+
+/** @param finish building UI */
+CUM.prototype.finish = function() {
+    var self = this;
+    for (var id in self._elems) {
+        var f = self._elems[id];
+        if(f) f();
+    }
+    $(self._root).show();
+};
+
+// INTERNAL API
+
+/**
+ create new element <name class="css"></name>
+ append to parent if provided otherwise append to root element
+ @return created element
+ */
+CUM.prototype._newElem = function(name, css, id, attrs, parent) {
+    var self = this;
+    var elem = document.createElement(name);
+    if(css) {
+        $(elem).addClass(css);
+    }
+    if(id) {
+        $(elem).attr("id", id);
+    }
+
+    if(attrs) {
+        for (var k in attrs) {
+            $(elem).attr(k, attrs[k]);
+        }
+    }
+
+    if (!parent) {
+        parent = self._root;
+    }
+    if(self._prepend) {
+        $(parent).prepend(elem);
+    } else {
+        $(parent).append(elem);
+    }
+    return elem;
+};
+
+module.exports = {
+    "CUM" : CUM,
+};
+
+},{"jquery":5}],2:[function(require,module,exports){
+var XD = require("./xd.js").XD;
+var UI = require("./ui.js").UI;
+
+/** start ui on window loaded */
+window.onload = function() {
+    var elem = document.getElementById("xd-root");
+    var ui = new UI();
+    ui.build(elem);
+    var xd = new XD();
+    var id = setInterval(function() {
+        xd.update();
+    }, 1000);
+};
+
+},{"./ui.js":3,"./xd.js":4}],3:[function(require,module,exports){
+/** ui.js -- ui builder */
+
+var cum = require("./cum.js").CUM;
+
+},{"./cum.js":1}],4:[function(require,module,exports){
 /** xd.js -- xd json rpc api */
 
 var $ = require("jquery");
@@ -47,7 +161,7 @@ module.exports = {
     "XD": XDAPI
 };
 
-},{"jquery":3}],3:[function(require,module,exports){
+},{"jquery":5}],5:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.2.1
  * https://jquery.com/
@@ -10302,4 +10416,4 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}]},{},[1]);
+},{}]},{},[2]);
