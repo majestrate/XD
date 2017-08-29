@@ -35,5 +35,5 @@ $(WEBUI_LOGO):
 webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
-run-webui: webui
+run-webui:
 	$(MAKE) -C $(WEBUI) run
