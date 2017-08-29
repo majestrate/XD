@@ -4,3 +4,4 @@ node_modules/
 tmp/
 docroot/*.js
 docroot/contrib/
+docroot/favicon.png

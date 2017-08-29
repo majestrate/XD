@@ -6,8 +6,10 @@ window.onload = function() {
     var elem = document.getElementById("xd-root");
     var ui = new UI();
     ui.build(elem);
-    var xd = new XD();
+    var path = window.location.protocol + "//"+window.location.host + "/ecksdee/api";
+    console.log("api url is set to "+path);
+    var xd = new XD(path);
     var id = setInterval(function() {
         xd.update(ui);
-    }, 1000);
+    }, 10000);
 };

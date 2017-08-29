@@ -1,5 +1,7 @@
 REPO := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-
+LOGOS = $(REPO)/contrib/logos
+WEBUI = $(REPO)/contrib/webui
+WEBUI_LOGO = $(WEBUI)/docroot/favicon.png
 
 ifdef GOROOT
 	GO = $(GOROOT)/bin/go
@@ -25,3 +27,13 @@ test:
 
 clean:
 	$(GO) clean -v
+
+
+$(WEBUI_LOGO):
+	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
+
+webui: $(WEBUI_LOGO)
+	$(MAKE) -C $(WEBUI) clean build
+
+run-webui: webui
+	$(MAKE) -C $(WEBUI) run

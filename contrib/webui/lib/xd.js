@@ -2,23 +2,38 @@
 
 var $ = require("jquery");
 
-function XDAPI()
+function XDAPI(url)
 {
-    this._url = "http://127.0.0.1:1488/ecksdee/api";
+    this._url = url;
 }
 
 
 XDAPI.prototype._apicall = function(call, cb)
 {
     var self = this;
-    $.post({
+    $.ajax({
+        method: "POST",
         url: self._url,
         contentType: "text/json; charset=UTF-8",
-        content: JSON.stringify(call),
-        success: function(any, text, xhr) {
-            var j = JSON.parse(text);
+        data: JSON.stringify(call),
+        success: function(j, text, xhr) {
             console.log(call, j);
             cb(j);
+        }
+    });
+};
+
+/** get torrent information by infohash as hex */
+XDAPI.prototype.getTorrentInfo = function(infohash, callback)
+{
+    var self = this;
+    self._apicall({
+        method: "XD.TorrentStatus",
+        infohash: infohash
+    }, function(j) {
+        if(j.error) {
+            console.log("getTorrentInfo(): "+j.error);
+        } else {
         }
     });
 };
@@ -28,14 +43,18 @@ XDAPI.prototype.eachTorrent = function(cb)
 {
     var self = this;
     self._apicall({
-
+        method: "XD.ListTorrents"
     }, function(j) {
         if(j.error) {
-
+            console.log("eachTorrent(): "+j.error);
         } else {
-            $(j.Torrents).each(function(idx, t) {
-                if(t)
-                    cb(t);
+            $(j.Infohashes).each(function(idx, t) {
+                if(t) {
+                    self.getTorrentInfo(t, function(err, info) {
+                        if(err) return;
+                        cb(info);
+                    });
+                }
             });
         }
     });
@@ -45,9 +64,12 @@ XDAPI.prototype.update = function(ui)
 {
     var self = this;
     console.log("update ui");
+
+    ui.beginTorrentUpdate();
     self.eachTorrent(function(t) {
-        console.log(t);
+        ui.ensureTorrentWithInfo(t);
     });
+    ui.commitTorrentUpdate();
 };
 
 module.exports = {

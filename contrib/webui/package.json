@@ -9,11 +9,12 @@
         "bootstrap": "^3.3.7",
         "browserify": "^14.4.0",
         "express": "^4.15.4",
+        "http-server": "^0.10.0",
         "jquery": "^3.2.1",
         "uglify-js": "^2.4.11"
     },
     "scripts": {
         "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && cp -a node_modules/bootstrap docroot/contrib/",
-        "server": "node ./server.js"
+        "server": "node server.js"
     }
 }

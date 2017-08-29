@@ -5,7 +5,8 @@ var $ = require("jquery");
 /**
  @param root element to inject CUM into
  */
-function CUM(root, prepend) {
+function CUM(root, prepend)
+{
     this._prepend = prepend || false;
     this._root = root;
     $(root).hide();
@@ -16,7 +17,8 @@ function CUM(root, prepend) {
 // PUBLIC API
 
 /** @param inject ui from json array */
-CUM.prototype.inject = function(ja) {
+CUM.prototype.inject = function(ja)
+{
     var self = this;
     $(ja).each(function(idx, j) {
         try {
@@ -47,7 +49,8 @@ CUM.prototype.inject = function(ja) {
 };
 
 /** @param finish building UI */
-CUM.prototype.finish = function() {
+CUM.prototype.finish = function()
+{
     var self = this;
     for (var id in self._elems) {
         var f = self._elems[id];
@@ -63,7 +66,8 @@ CUM.prototype.finish = function() {
  append to parent if provided otherwise append to root element
  @return created element
  */
-CUM.prototype._newElem = function(name, css, id, attrs, parent) {
+CUM.prototype._newElem = function(name, css, id, attrs, parent)
+{
     var self = this;
     var elem = document.createElement(name);
     if(css) {
