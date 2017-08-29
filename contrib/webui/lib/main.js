@@ -8,6 +8,6 @@ window.onload = function() {
     ui.build(elem);
     var xd = new XD();
     var id = setInterval(function() {
-        xd.update();
+        xd.update(ui);
     }, 1000);
 };

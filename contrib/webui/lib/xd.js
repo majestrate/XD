@@ -11,7 +11,7 @@ function XDAPI()
 XDAPI.prototype._apicall = function(call, cb)
 {
     var self = this;
-    $.ajax({
+    $.post({
         url: self._url,
         contentType: "text/json; charset=UTF-8",
         content: JSON.stringify(call),
@@ -33,11 +33,22 @@ XDAPI.prototype.eachTorrent = function(cb)
         if(j.error) {
 
         } else {
-
+            $(j.Torrents).each(function(idx, t) {
+                if(t)
+                    cb(t);
+            });
         }
     });
 };
 
+XDAPI.prototype.update = function(ui)
+{
+    var self = this;
+    console.log("update ui");
+    self.eachTorrent(function(t) {
+        console.log(t);
+    });
+};
 
 module.exports = {
     "XD": XDAPI
