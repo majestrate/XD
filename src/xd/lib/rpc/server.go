@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"xd/lib/bittorrent/swarm"
+	"xd/lib/rpc/assets"
 )
 
 const ParamMethod = "method"
@@ -16,17 +17,21 @@ const RPCContentType = "text/json; encoding=UTF-8"
 
 // Bittorrent Swarm RPC Handler
 type Server struct {
-	sw *swarm.Swarm
+	sw         *swarm.Swarm
+	fileserver http.Handler
 }
 
 func NewServer(sw *swarm.Swarm) *Server {
 	return &Server{
-		sw: sw,
+		sw:         sw,
+		fileserver: http.FileServer(assets.Assets),
 	}
 }
 
 func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method == "POST" {
+	if req.Method == "GET" {
+		r.fileserver.ServeHTTP(w, req)
+	} else if req.Method == "POST" {
 		if req.URL.Path == RPCPath {
 			defer req.Body.Close()
 			w.Header().Set("Content-Type", RPCContentType)

@@ -1,2 +1,8 @@
 *~
 *\#*
+
+# assets file is generated
+src/xd/lib/rpc/assets/assets.go
+XD-*
+build-assets
+*.ini
