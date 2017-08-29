@@ -23,8 +23,8 @@ type FileSystem struct {
 
 func NewFileSystem(dirs map[string][]string, files map[string]*File, localPath string) *FileSystem {
 	fs := &FileSystem{
-		Dirs: dirs,
-		Files: files,
+		Dirs:      dirs,
+		Files:     files,
 		LocalPath: localPath,
 	}
 
@@ -77,7 +77,7 @@ func (f *FileSystem) readDir(p string, index int, count int) ([]os.FileInfo, err
 			maxl = len(d)
 		}
 
-		ret := make([]os.FileInfo, 0, maxl-index)
+		ret := make([]os.FileInfo, 0)
 
 		for i := index; i < maxl; i++ {
 			ret = append(ret, f.Files[path.Join(p, d[i])])

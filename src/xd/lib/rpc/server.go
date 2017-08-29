@@ -30,6 +30,7 @@ func NewServer(sw *swarm.Swarm) *Server {
 
 func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
+		req.URL.Path = assets.Prefix + req.URL.Path
 		r.fileserver.ServeHTTP(w, req)
 	} else if req.Method == "POST" {
 		if req.URL.Path == RPCPath {
