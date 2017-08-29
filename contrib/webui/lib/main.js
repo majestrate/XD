@@ -9,7 +9,8 @@ window.onload = function() {
     var path = window.location.protocol + "//"+window.location.host + "/ecksdee/api";
     console.log("api url is set to "+path);
     var xd = new XD(path);
+    xd.update(ui);
     var id = setInterval(function() {
         xd.update(ui);
-    }, 10000);
+    }, 5000);
 };

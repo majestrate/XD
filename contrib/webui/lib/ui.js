@@ -35,13 +35,14 @@ UI.prototype.build = function(root)
     };
     console.log(self.elems);
     self.elems.root.appendChild(self.elems.nav);
-    self.elems.root.appendChild(self.elems.torrent);
+    self.elems.root.appendChild(self.elems.torrents);
 };
 
 UI.prototype.buildTorrentRow = function(t)
 {
+    console.log("build torrent row for "+t.Infohash);
     var root = div("row");
-    root.attr("id", infohash_to_id(t.Infohash));
+    root.setAttribute("id", infohash_to_id(t.Infohash));
     var widget = div("col-md-2");
     var nameText = document.createTextNode(t.Name);
     var name = div("col-md-8");
@@ -77,19 +78,31 @@ UI.prototype.buildTorrentsContainer = function()
     return div("container");
 };
 
+UI.prototype.hasTorrent = function(infohash)
+{
+    return document.getElementById(infohash_to_id(infohash)) != null;
+};
+
+UI.prototype.updateTorrent = function(t)
+{
+    // this should not fail
+    var e = document.getElementById(t.Infohash);
+
+};
+
 /**
    make sure a torrent in the ui exists given its info object, will not create a new cell if it's already there
    will update existing cell if it's there
  */
 UI.prototype.ensureTorrentWithInfo = function(info)
 {
+    console.log(info);
     var self = this;
-    if(self.hasTorrent(info.Infohash)) {
-        self.updateInfo(info.Infohash, info);
-    } else {
-        var elem = self.buildTorrentRow(info);
-
+    if(!self.hasTorrent(info.Infohash)) {
+        var e = self.buildTorrentRow(info);
+        self.elems.torrents.appendChild(e);
     }
+    self.updateTorrent(info);
 };
 
 /** lock ui and prepare for info update */

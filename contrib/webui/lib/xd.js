@@ -32,8 +32,9 @@ XDAPI.prototype.getTorrentInfo = function(infohash, callback)
         infohash: infohash
     }, function(j) {
         if(j.error) {
-            console.log("getTorrentInfo(): "+j.error);
+            callback(j.error, null);
         } else {
+            callback(null, j);
         }
     });
 };
