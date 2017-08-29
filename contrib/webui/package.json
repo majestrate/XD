@@ -7,22 +7,13 @@
     "license": "MIT",
     "dependencies": {
         "bootstrap": "^3.3.7",
-        "bootstrap-webpack": "^0.0.6",
         "browserify": "^14.4.0",
-        "css-loader": "^0.28.5",
-        "css-minify": "^1.0.1",
         "express": "^4.15.4",
-        "imports-loader": "^0.7.1",
         "jquery": "^3.2.1",
-        "less": "^2.7.2",
-        "less-loader": "^4.0.5",
-        "parcelify": "^2.2.0",
-        "style-loader": "^0.18.2",
-        "uglify-js": "^2.4.11",
-        "webpack": "^3.5.5"
+        "uglify-js": "^2.4.11"
     },
     "scripts": {
-        "build": "webpack",
+        "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && cp -a node_modules/bootstrap docroot/contrib/",
         "server": "node ./server.js"
     }
 }
