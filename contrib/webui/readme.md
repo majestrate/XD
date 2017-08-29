@@ -12,4 +12,4 @@ XD web ui source code
 
 when the webui is ready you can build it by running:
 
-    $ yarn build
+    $ yarn install

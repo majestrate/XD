@@ -5,5 +5,8 @@
   "main": "index.js",
   "repository": "https://github.com/majestrate/XD",
   "author": "Jeff",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "bootstrap": "3"
+  }
 }
