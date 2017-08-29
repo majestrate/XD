@@ -2,13 +2,13 @@
 
 
 
-function XDUI()
+function XDAPI()
 {
     this._url = "http://127.0.0.1:1488/ecksdee/api";
 }
 
 
-XDUI.prototype._apicall = function(call, cb)
+XDAPI.prototype._apicall = function(call, cb)
 {
     var self = this;
     $.ajax({
@@ -24,7 +24,7 @@ XDUI.prototype._apicall = function(call, cb)
 };
 
 /** fetch a list of torrents and call a callback on each fetched */
-XDUI.prototype.eachTorrent = function(cb)
+XDAPI.prototype.eachTorrent = function(cb)
 {
     var self = this;
     self._apicall({
@@ -36,4 +36,9 @@ XDUI.prototype.eachTorrent = function(cb)
 
         }
     });
+};
+
+
+module.exports = {
+    "XD": XD
 };
