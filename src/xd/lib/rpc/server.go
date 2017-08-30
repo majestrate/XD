@@ -22,14 +22,21 @@ type Server struct {
 }
 
 func NewServer(sw *swarm.Swarm) *Server {
-	return &Server{
-		sw:         sw,
-		fileserver: http.FileServer(assets.Assets),
+	fs := assets.GetAssets()
+	if fs == nil {
+		return &Server{
+			sw: sw,
+		}
+	} else {
+		return &Server{
+			sw:         sw,
+			fileserver: http.FileServer(fs),
+		}
 	}
 }
 
 func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method == "GET" {
+	if req.Method == "GET" && r.fileserver != nil {
 		req.URL.Path = assets.Prefix + req.URL.Path
 		r.fileserver.ServeHTTP(w, req)
 	} else if req.Method == "POST" {

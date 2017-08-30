@@ -2,9 +2,9 @@ REPO := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LOGOS = $(REPO)/contrib/logos
 WEBUI_DIR = contrib/webui
 WEBUI = ./$(WEBUI_DIR)
-WEBUI_LOGO = $(WEBUI)/docroot/favicon.png
 GO_ASSETS = $(REPO)/build-assets
 DOCROOT = $(WEBUI)/docroot
+WEBUI_LOGO = $(DOCROOT)/favicon.png
 WEB_FILES = $(DOCROOT)/index.html
 WEB_FILES += $(DOCROOT)/xd.min.js
 WEB_FILES += $(DOCROOT)/contrib/bootstrap/dist/css/bootstrap.min.css
@@ -46,12 +46,12 @@ test:
 clean:
 	GOPATH=$(GOPATH) $(GO) clean -v
 
-
 $(WEBUI_LOGO):
 	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
 
 webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
-run-webui:
-	$(MAKE) -C $(WEBUI) run
+
+no-webui:
+	GOPATH=$(GOPATH) $(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
