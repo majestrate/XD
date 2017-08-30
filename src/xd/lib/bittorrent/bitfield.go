@@ -31,13 +31,13 @@ func NewBitfield(bits uint32, value []byte) *Bitfield {
 }
 
 func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
-	var bl []bool
+	var bl []int
 	err = json.Unmarshal(data, &bl)
 	if err == nil {
 		bf.Length = uint32(len(bl))
 		bf.Data = make([]byte, (bf.Length/8)+1)
 		for idx, v := range bl {
-			if v {
+			if v != 0 {
 				bf.Set(uint32(idx))
 			}
 		}
@@ -46,10 +46,14 @@ func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 }
 
 func (bf Bitfield) MarshalJSON() (data []byte, err error) {
-	var ls []bool
+	var ls []int
 	idx := uint32(0)
 	for idx < bf.Length {
-		ls = append(ls, bf.Has(idx))
+		if bf.Has(idx) {
+			ls = append(ls, 1)
+		} else {
+			ls = append(ls, 0)
+		}
 		idx++
 	}
 	data, err = json.Marshal(ls)
