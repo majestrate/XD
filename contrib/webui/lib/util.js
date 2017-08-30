@@ -10,7 +10,7 @@ var bitfield_count_set = function(bf)
 {
     var set = 0;
     for( var idx = 0; idx < bf.length; idx++) {
-        if(bf[idx] != 1)
+        if(bf[idx] != 0)
             set ++;
     }
     console.log(set);
