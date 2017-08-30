@@ -36,6 +36,10 @@ right now the only support way to build is with `make`
     $ cd XD
     $ make
 
+if you do not want to build with embedded webui instead run:
+
+    $ make no-webui
+
 ### cross compile for Raspberry PI
 
 Set `GOARCH` and `GOOS` when building with make:
