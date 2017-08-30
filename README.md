@@ -22,23 +22,19 @@ Eventually:
 
 ## Dependencies
 
-* go 1.3 **or** go 1.8
 * GNU Make
+* GO 1.9
+* node.js 8.x
+* yarn 0.24.x
+
 
 ## Building
 
-
-You can either use `make` or `go get` to build XD
-
-the `make` way (preferred):
+right now the only support way to build is with `make`
 
     $ git clone https://github.com/majestrate/XD
     $ cd XD
     $ make
-
-the `go get` way, requires go 1.6 or higher because it uses vendored packages
-
-    $ go get -u -v github.com/majestrate/XD
 
 ### cross compile for Raspberry PI
 
