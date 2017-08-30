@@ -1,3 +1,5 @@
 # XD documentation
 
-TODO
+* [English](en/)
+
+* [Russian](ru/)
