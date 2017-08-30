@@ -33,7 +33,7 @@ build: clean $(XD)
 $(GO_ASSETS):
 	$(GO) build  -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
-assets: $(GO_ASSETS)
+assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
