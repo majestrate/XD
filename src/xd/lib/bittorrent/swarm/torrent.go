@@ -463,9 +463,8 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	}
 	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	t.addIBPeer(c)
-	c.Send(t.Bitfield().ToWireMessage())
 	c.start()
-
+	c.Send(t.Bitfield().ToWireMessage())
 }
 
 // handle a piece request
