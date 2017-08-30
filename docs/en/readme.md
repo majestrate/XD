@@ -18,6 +18,10 @@ Listing active torrents:
 
     XD-cli list
 
+To increase how many pieces to request in parallel use `set-piece-window` command (may be removed in future):
+
+    XD-cli set-piece-window 10
+
 
 ## Command Line (windows)
 
