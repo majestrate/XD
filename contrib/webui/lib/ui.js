@@ -1,5 +1,5 @@
 /** ui.js -- ui builder */
-var cum = require("./cum.js").CUM;
+var util = require("./util.js");
 var $ = require("jquery");
 
 var elem = function(name, css)
@@ -14,14 +14,19 @@ var div = function(css)
     return elem("div", css);
 };
 
+var txt = function(t)
+{
+    return document.createTextNode(t);
+};
 
 var infohash_to_id = function(infohash)
 {
     return "torrent_" + infohash;
 };
 
-function UI()
+function UI(xd)
 {
+    this._xd = xd;
 }
 
 /** build ui markup tree */
@@ -42,9 +47,12 @@ UI.prototype.buildTorrentRow = function(t)
 {
     console.log("build torrent row for "+t.Infohash);
     var root = div("row");
-    root.setAttribute("id", infohash_to_id(t.Infohash));
+    var id = infohash_to_id(t.Infohash);
+    root.setAttribute("id", id);
     var widget = div("col-md-2");
-    var nameText = document.createTextNode(t.Name);
+    widget.setAttribute("id", id+"_widget");
+    widget.appendChild(txt(util.bitfield_percent(t.Bitfield)));
+    var nameText = txt(t.Name);
     var name = div("col-md-8");
     name.appendChild(nameText);
     var extra = div("col-md-2");
@@ -56,20 +64,33 @@ UI.prototype.buildTorrentRow = function(t)
 
 UI.prototype.buildNavbar = function()
 {
+    var self = this;
     var url_id = "xd-url-input";
     var nav = elem("nav", "navbar navbar-expand-md navbar-dark fixed-top");
     var inner = div("col-md-8 col-md-offset-2");
     nav.appendChild(inner);
     var label = elem("label");
-    label.appendChild(document.createTextNode("RPC Server:"));
+    label.appendChild(txt("Url:"));
     label.setAttribute("for", url_id);
     inner.appendChild(label);
     var input = elem("input");
     input.setAttribute("id", url_id);
     inner.appendChild(input);
     var button = elem("button", "navbar-button btn btn-primary");
-    button.appendChild(document.createTextNode("connect"));
+    button.appendChild(txt("Add Torrent"));
     inner.appendChild(button);
+    button.onclick = function() {
+        button.innerHTML = "Downloading...";
+        var url = input.value;
+        console.log("add torrent by url: "+url);
+        self._xd.addTorrentByURL(url, function(err) {
+            if(err) button.innerHTML = err;
+            else {
+                button.innerHTML = "Add Torrent";
+                input.value = "";
+            }
+        });
+    };
     return nav;
 };
 
@@ -86,8 +107,8 @@ UI.prototype.hasTorrent = function(infohash)
 UI.prototype.updateTorrent = function(t)
 {
     // this should not fail
-    var e = document.getElementById(t.Infohash);
-
+    var e = document.getElementById(infohash_to_id(t.Infohash) + "_widget");
+    e.innerHTML = util.bitfield_percent(t.Bitfield) + "% " + util.peers_speed_string(t.Peers);
 };
 
 /**

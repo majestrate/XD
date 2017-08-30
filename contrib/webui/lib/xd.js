@@ -39,6 +39,18 @@ XDAPI.prototype.getTorrentInfo = function(infohash, callback)
     });
 };
 
+/** add torrent by url on i2p and call callback when done */
+XDAPI.prototype.addTorrentByURL = function(url, callback)
+{
+    var self = this;
+    self._apicall({
+        method: "XD.AddTorrent",
+        url: url
+    }, function(j) {
+        callback(j.error || null);
+    });
+};
+
 /** fetch a list of torrents and call a callback on each fetched */
 XDAPI.prototype.eachTorrent = function(cb)
 {

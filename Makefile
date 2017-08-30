@@ -52,6 +52,5 @@ $(WEBUI_LOGO):
 webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
-
 no-webui:
 	GOPATH=$(GOPATH) $(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)

@@ -2,6 +2,7 @@ package bittorrent
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/zeebo/bencode"
 	"io"
@@ -27,6 +28,32 @@ func NewBitfield(bits uint32, value []byte) *Bitfield {
 		Length: bits,
 		Data:   b,
 	}
+}
+
+func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
+	var bl []bool
+	err = json.Unmarshal(data, &bl)
+	if err == nil {
+		bf.Length = uint32(len(bl))
+		bf.Data = make([]byte, (bf.Length/8)+1)
+		for idx, v := range bl {
+			if v {
+				bf.Set(uint32(idx))
+			}
+		}
+	}
+	return
+}
+
+func (bf Bitfield) MarshalJSON() (data []byte, err error) {
+	var ls []bool
+	idx := uint32(0)
+	for idx < bf.Length {
+		ls = append(ls, bf.Has(idx))
+		idx++
+	}
+	data, err = json.Marshal(ls)
+	return
 }
 
 // Inverted gets copy of current Bitfield with all bits inverted
