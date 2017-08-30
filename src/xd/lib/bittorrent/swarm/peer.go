@@ -476,7 +476,7 @@ func (c *PeerConn) runDownload() {
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second)
 			continue
 		}
 		r := c.t.pt.nextRequestForDownload(c.bf)
