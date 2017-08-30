@@ -31,19 +31,19 @@ GOPATH := $(REPO)
 build: clean $(XD)
 
 $(GO_ASSETS):
-	$(GO) build  -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
+	GOPATH=$(GOPATH) $(GO) build  -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
 assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	$(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
 
 test:
-	$(GO) test -v xd/...
+	GOPATH=$(GOPATH) $(GO) test -v xd/...
 
 clean:
-	$(GO) clean -v
+	GOPATH=$(GOPATH) $(GO) clean -v
 
 
 $(WEBUI_LOGO):

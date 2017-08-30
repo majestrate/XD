@@ -9,11 +9,13 @@ RUN mkdir -p "$HOME_DIR" "$XD_HOME" \
     && chown -R xd:nobody "$HOME_DIR" \
     && chmod -R 700 "$XD_HOME"
 
-RUN apk --no-cache add go build-base git \
-    && go get -u -v github.com/majestrate/XD \
-    && mv /root/go/bin/XD "$XD_HOME" \
+RUN apk --no-cache add go build-base git yarn \
+    && git clone https://github.com/majestrate/XD /root/XD \
+    && cd /root/XD \
+    && make \
+    && mv /root/XD/XD "$XD_HOME" \
     && chown xd "$XD_HOME"/XD && chmod +x "$XD_HOME"/XD \
-    && rm -rf /root/go && apk --purge del go build-base git 
+    && rm -rf /root/XD && apk --purge del go build-base git yarn
 
 EXPOSE 1188
 
