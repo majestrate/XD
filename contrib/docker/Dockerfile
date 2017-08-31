@@ -15,6 +15,7 @@ RUN apk --no-cache add go build-base git yarn \
     && make \
     && mv /root/XD/XD "$XD_HOME" \
     && chown xd "$XD_HOME"/XD && chmod +x "$XD_HOME"/XD \
+    && ln -s "$XD_HOME"/XD "$XD_HOME"/xd-cli \
     && rm -rf /root/XD && apk --purge del go build-base git yarn
 
 EXPOSE 1188
