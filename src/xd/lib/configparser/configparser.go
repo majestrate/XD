@@ -46,6 +46,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -326,6 +327,22 @@ func (s *Section) Get(option, fallback string) string {
 	v, ok := s.options[option]
 	if ok {
 		return v
+	} else {
+		return fallback
+	}
+}
+
+// Get option value with fallback value if not found
+func (s *Section) GetInt(option string, fallback int) int {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	v, ok := s.options[option]
+	if !ok {
+		return fallback
+	}
+	i, err := strconv.Atoi(v)
+	if err == nil {
+		return i
 	} else {
 		return fallback
 	}

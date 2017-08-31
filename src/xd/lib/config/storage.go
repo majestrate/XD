@@ -4,12 +4,42 @@ import (
 	"os"
 	"path/filepath"
 	"xd/lib/configparser"
+	"xd/lib/fs"
 	"xd/lib/storage"
-	"xd/lib/util"
 )
 
 // EnvRootDir is the name of the environmental variable to set the root storage directory at runtime
 const EnvRootDir = "XD_HOME"
+
+type SFTPConfig struct {
+	Enabled      bool
+	Username     string
+	Hostname     string
+	Keyfile      string
+	RemotePubkey string
+	Port         int
+}
+
+func (cfg *SFTPConfig) Load(s *configparser.Section) error {
+	cfg.Username = s.Get("sftp_user", "")
+	cfg.Hostname = s.Get("sftp_host", "")
+	cfg.Keyfile = s.Get("sftp_keyfile", "")
+	cfg.RemotePubkey = s.Get("sftp_remotekey", "")
+	cfg.Port = s.GetInt("sftp_port", 22)
+	return nil
+}
+
+func (cfg *SFTPConfig) Save(s *configparser.Section) error {
+	return nil
+}
+
+func (cfg *SFTPConfig) LoadEnv() {
+
+}
+
+func (cfg *SFTPConfig) ToFS() fs.Driver {
+	return fs.SFTP(cfg.Username, cfg.Hostname, cfg.Keyfile, cfg.RemotePubkey, cfg.Port)
+}
 
 type StorageConfig struct {
 	// downloads directory
@@ -18,6 +48,8 @@ type StorageConfig struct {
 	Meta string
 	// root directory
 	Root string
+	// sftp config
+	SFTP SFTPConfig
 }
 
 func (cfg *StorageConfig) Load(s *configparser.Section) error {
@@ -32,6 +64,13 @@ func (cfg *StorageConfig) Load(s *configparser.Section) error {
 	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
 	if s != nil {
 		cfg.Downloads = s.Get("downloads", cfg.Downloads)
+	}
+
+	if s != nil {
+		cfg.SFTP.Enabled = s.Get("sftp", "0") == "1"
+	}
+	if cfg.SFTP.Enabled {
+		return cfg.SFTP.Load(s)
 	}
 	return nil
 }
@@ -52,11 +91,14 @@ func (cfg *StorageConfig) LoadEnv() {
 }
 
 func (cfg *StorageConfig) CreateStorage() storage.Storage {
-	util.EnsureDir(cfg.Root)
-	util.EnsureDir(cfg.Downloads)
-	util.EnsureDir(cfg.Meta)
-	return &storage.FsStorage{
+
+	st := &storage.FsStorage{
 		DataDir: cfg.Downloads,
 		MetaDir: cfg.Meta,
+		FS:      fs.STD,
 	}
+	if cfg.SFTP.Enabled {
+		st.FS = cfg.SFTP.ToFS()
+	}
+	return st
 }
