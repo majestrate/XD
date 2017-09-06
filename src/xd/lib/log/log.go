@@ -40,19 +40,6 @@ func (l logLevel) Name() string {
 
 }
 
-func (l logLevel) Color() string {
-	switch l {
-	case debug:
-		return "\x1b[37;0m"
-	case info:
-		return "\x1b[37;1m"
-	case warn:
-		return "\x1b[33;1m"
-	default:
-		return "\x1b[31;1m"
-	}
-}
-
 var level = info
 
 // SetLevel sets global logger level
@@ -75,7 +62,8 @@ func log(lvl logLevel, f string, args ...interface{}) {
 	if accept(lvl) {
 		m := fmt.Sprintf(f, args...)
 		t := time.Now()
-		fmt.Fprintf(out, "%s[%s] %s\t%s\x1b[0;0m\n", lvl.Color(), lvl.Name(), t, m)
+		fmt.Fprintf(out, "%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
+		fmt.Println(out)
 		if lvl == fatal {
 			panic(m)
 		}
