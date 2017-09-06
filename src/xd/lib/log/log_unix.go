@@ -2,7 +2,7 @@
 
 package log
 
-const colorReset = "\x1b[0;0m"
+var colorReset = "\x1b[0;0m"
 
 func (l logLevel) Color() string {
 	switch l {

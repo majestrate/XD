@@ -2,7 +2,7 @@
 
 package log
 
-const colorReset = ""
+var colorReset string
 
 func (l logLevel) Color() string {
 	return ""
