@@ -63,6 +63,11 @@ func Run() {
 	}
 
 	st := conf.Storage.CreateStorage()
+	err = st.Init()
+	if err != nil {
+		log.Errorf("error initializing storage: %s", err)
+		return
+	}
 	sw := conf.Bittorrent.CreateSwarm(st)
 	closers = append(closers, sw, st)
 
