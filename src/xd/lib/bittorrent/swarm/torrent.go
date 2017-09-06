@@ -203,7 +203,6 @@ func (t *Torrent) GetStatus() TorrentStatus {
 			l /= 8
 			var data []byte
 			if l == 0 {
-				l = 1
 				data = []byte{bf.Data[idx]}
 			} else if idx+l < uint64(len(bf.Data)) {
 				data = bf.Data[idx : idx+l]
