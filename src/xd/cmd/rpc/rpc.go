@@ -51,7 +51,14 @@ func Run() {
 		addTorrents(c, args...)
 	case "set-piece-window":
 		setPieceWindow(c, args[0])
+	case "help":
+		printHelp(os.Args[0])
 	}
+}
+
+func printHelp(cmd string) {
+	fmt.Printf("usage: %s [list|add http://somesite.i2p/some.torrent|set-piece-window n|help]", cmd)
+	fmt.Println()
 }
 
 func setPieceWindow(c *rpc.Client, str string) {
