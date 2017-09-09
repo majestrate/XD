@@ -87,12 +87,16 @@ func NewWireMessage(id WireMessageType, body []byte) (msg *WireMessage) {
 	if body == nil {
 		body = []byte{}
 	}
-	var hdr [5]byte
-	l := uint32(len(body)) + 5
-	binary.BigEndian.PutUint32(hdr[:], l-4)
-	hdr[4] = byte(id)
+	var hdr [4]byte
+	l := uint32(len(body))
+	binary.BigEndian.PutUint32(hdr[:], l)
 	msg = new(WireMessage)
-	msg.data = append(hdr[:], body...)
+	if l > 0 {
+		msg.data = append(hdr[:], byte(id))
+		msg.data = append(msg.data, body...)
+	} else {
+		msg.data = hdr[:]
+	}
 	return msg
 }
 
@@ -129,10 +133,12 @@ var ErrToBig = errors.New("message too big")
 func (msg *WireMessage) Recv(r io.Reader) (err error) {
 	// read header
 	var hdr [4]byte
-	_, err = io.ReadFull(r, hdr[:])
+	var n int
+	n, err = r.Read(hdr[0:4])
 	msg.data = hdr[:]
+	log.Debugf("read header of size %d", n)
 	if err == nil {
-		l := binary.BigEndian.Uint32(msg.data[:])
+		l := binary.BigEndian.Uint32(hdr[:])
 		if l > 0 {
 			// read body
 			log.Debugf("read message of size %d bytes", l)
