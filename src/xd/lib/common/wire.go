@@ -43,6 +43,10 @@ const Cancel = WireMessageType(8)
 // Extended is messageid for ExtendedOptions message
 const Extended = WireMessageType(20)
 
+// special for invalid
+const Invalid = WireMessageType(255)
+
+// String returns a string name of this wire message id
 func (t WireMessageType) String() string {
 	switch t {
 	case Choke:
@@ -65,6 +69,8 @@ func (t WireMessageType) String() string {
 		return "Cancel"
 	case Extended:
 		return "Extended"
+	case Invalid:
+		return "INVALID"
 	default:
 		return fmt.Sprintf("??? (%d)", uint8(t))
 	}
@@ -124,7 +130,10 @@ func (msg *WireMessage) Payload() []byte {
 
 // MessageID returns the id of this message
 func (msg *WireMessage) MessageID() WireMessageType {
-	return WireMessageType(msg.data[4])
+	if msg.Len() > 0 {
+		return WireMessageType(msg.data[4])
+	}
+	return Invalid
 }
 
 var ErrToBig = errors.New("message too big")
@@ -148,8 +157,9 @@ func (msg *WireMessage) Recv(r io.Reader) (err error) {
 				err = ErrToBig
 			} else {
 				data := make([]byte, l)
-				_, err = io.ReadFull(r, data)
-				msg.data = append(msg.data, data...)
+				n, err = io.ReadFull(r, data)
+				log.Debugf("ReadFull gave %d bytes", n)
+				msg.data = append(msg.data, data[:n]...)
 			}
 			/*
 				// XXX: yes this is a magic number
