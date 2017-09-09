@@ -80,7 +80,7 @@ func (c *PeerConn) tickStats() {
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *common.WireMessage) {
-	if !c.closing {
+	if !c.closing && msg != nil {
 		c.send <- msg
 	}
 }
@@ -454,7 +454,6 @@ func (c *PeerConn) runWriter() {
 					} else {
 						log.Warnf("write error: %s", err.Error())
 					}
-
 				}
 			} else {
 				log.Warn("conn runWriter() failed")

@@ -95,14 +95,10 @@ func NewWireMessage(id WireMessageType, body []byte) (msg *WireMessage) {
 	}
 	var hdr [4]byte
 	l := uint32(len(body))
-	binary.BigEndian.PutUint32(hdr[:], l)
 	msg = new(WireMessage)
-	if l > 0 {
-		msg.data = append(hdr[:], byte(id))
-		msg.data = append(msg.data, body...)
-	} else {
-		msg.data = hdr[:]
-	}
+	binary.BigEndian.PutUint32(hdr[:], l)
+	msg.data = append(hdr[:], byte(id))
+	msg.data = append(msg.data, body...)
 	return msg
 }
 
@@ -130,7 +126,7 @@ func (msg *WireMessage) Payload() []byte {
 
 // MessageID returns the id of this message
 func (msg *WireMessage) MessageID() WireMessageType {
-	if msg.Len() > 0 {
+	if len(msg.data) > 4 {
 		return WireMessageType(msg.data[4])
 	}
 	return Invalid
