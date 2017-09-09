@@ -30,7 +30,7 @@ Eventually:
 
 ## Building
 
-right now the only support way to build is with `make`
+right now the best way to build is with `make`
 
     $ git clone https://github.com/majestrate/XD
     $ cd XD
@@ -39,6 +39,10 @@ right now the only support way to build is with `make`
 if you do not want to build with embedded webui instead run:
 
     $ make no-webui
+
+you can build with go get using:
+
+    $ go get -u -v -tags no_webui github.com/majestrate/XD
 
 ### cross compile for Raspberry PI
 
