@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"xd/lib/log"
 	"xd/lib/util"
+	"xd/lib/log"
 )
 
 // WireMessageType is type for wire message id
@@ -96,10 +96,32 @@ func NewWireMessage(id WireMessageType, body []byte) (msg *WireMessage) {
 	var hdr [4]byte
 	l := uint32(len(body))
 	msg = new(WireMessage)
-	binary.BigEndian.PutUint32(hdr[:], l)
+	binary.BigEndian.PutUint32(hdr[:], l+1)
 	msg.data = append(hdr[:], byte(id))
 	msg.data = append(msg.data, body...)
 	return msg
+}
+
+// read wire messages from reader and call a function on each it gets
+// reads until reader is done
+func ReadWireMessages(r io.Reader, f func(*WireMessage) error) (err error) {
+	for err == nil {
+		var msg WireMessage
+		msg.data = []byte{0,0,0,0}
+		_, err = io.ReadFull(r, msg.data)
+		l := binary.BigEndian.Uint32(msg.data[:])
+		if l > 0 {
+			var body []byte
+			lr := &io.LimitedReader{R: r, N: int64(l)}
+			log.Debugf("read message of size %d bytes", l)
+			body, err = ioutil.ReadAll(lr)
+			if lr.N == 0 {
+				msg.data = append(msg.data, body...)
+				err = f(&msg)
+			}
+		}
+	}
+	return
 }
 
 // KeepAlive returns true if this message is a keepalive message
@@ -133,56 +155,6 @@ func (msg *WireMessage) MessageID() WireMessageType {
 }
 
 var ErrToBig = errors.New("message too big")
-
-// Recv reads message from reader
-func (msg *WireMessage) Recv(r io.Reader) (err error) {
-	// read header
-	var hdr [4]byte
-	var n int
-	n, err = r.Read(hdr[0:4])
-	msg.data = hdr[:]
-	log.Debugf("read header of size %d", n)
-	if err == nil {
-		l := binary.BigEndian.Uint32(hdr[:])
-		if l > 0 {
-			// read body
-			log.Debugf("read message of size %d bytes", l)
-			if l > 1024*1024 {
-				// too big
-				io.CopyN(ioutil.Discard, r, int64(l))
-				err = ErrToBig
-			} else {
-				data := make([]byte, l)
-				n, err = io.ReadFull(r, data)
-				log.Debugf("ReadFull gave %d bytes", n)
-				msg.data = append(msg.data, data[:n]...)
-			}
-			/*
-				// XXX: yes this is a magic number
-				var buf [1730]byte
-				for l > 0 && err == nil {
-					var readbuf []byte
-					if l <= uint32(len(buf)) {
-						readbuf = buf[:l]
-					} else {
-						readbuf = buf[:]
-					}
-					n, err = r.Read(readbuf)
-					if n > 0 {
-						l -= uint32(n)
-						readbuf = readbuf[:n]
-						msg.data = append(msg.data, readbuf...)
-					} else {
-						log.Warnf("read bittorrent message failed: %s", err)
-					}
-				}
-			*/
-		} else {
-			// zero size
-		}
-	}
-	return
-}
 
 // Send writes WireMessage via writer
 func (msg *WireMessage) Send(w io.Writer) (err error) {

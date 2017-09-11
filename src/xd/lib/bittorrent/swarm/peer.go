@@ -85,19 +85,13 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 	}
 }
 
-// recv a bittorrent wire message (blocking)
-func (c *PeerConn) Recv() (msg *common.WireMessage, err error) {
-	msg = new(common.WireMessage)
-	err = msg.Recv(c.c)
-	if err == nil {
-		c.lastRecv = time.Now()
-		if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
-			c.rx.AddSample(uint64(msg.Len()))
-		}
-		log.Debugf("got %d bytes from %s", msg.Len(), c.id)
-	} else if err != nil {
-		msg = nil
+func (c *PeerConn) recv(msg *common.WireMessage) (err error) {
+	c.lastRecv = time.Now()
+	if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
+		c.rx.AddSample(uint64(msg.Len()))
 	}
+	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
+	err = c.inboundMessage(msg)
 	return
 }
 
@@ -247,13 +241,9 @@ func (c *PeerConn) Close() {
 
 // run read loop
 func (c *PeerConn) runReader() {
-	var err error
-	var msg *common.WireMessage
-	for err == nil {
-		msg, err = c.Recv()
-		if msg != nil {
-			err = c.inboundMessage(msg)
-		}
+	err := common.ReadWireMessages(c.c, c.recv)
+	if err != nil {
+		log.Errorf("PeerConn() reader failed: %s", err.Error())
 	}
 	c.Close()
 }
