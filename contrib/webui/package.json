@@ -14,7 +14,7 @@
         "uglify-js": "^2.4.11"
     },
     "scripts": {
-        "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && mkdir -p docroot/contrib/bootstrap/dist/css/ && cp -av node_modules/bootstrap/dist/css/*.css docroot/contrib/bootstrap/dist/css/",
+        "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && mkdir -p docroot/contrib/bootstrap/dist/css/ && cp -a node_modules/bootstrap/dist/css/*.css docroot/contrib/bootstrap/dist/css/",
         "server": "node server.js"
     }
 }

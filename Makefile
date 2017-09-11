@@ -32,19 +32,19 @@ GOPATH := $(REPO)
 build: clean $(XD)
 
 $(GO_ASSETS):
-	GOPATH=$(GOPATH) $(GO) build  -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
+	GOPATH=$(GOPATH) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
 assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(GOPATH) $(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
 
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
 
 clean:
-	GOPATH=$(GOPATH) $(GO) clean -v
+	GOPATH=$(GOPATH) $(GO) clean
 
 $(WEBUI_LOGO):
 	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
@@ -53,4 +53,4 @@ webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
 no-webui:
-	GOPATH=$(GOPATH) $(GO) build -v -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
