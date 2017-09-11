@@ -107,13 +107,13 @@ func ExampleClient_Mkdir_parents() {
 	sshFxFailure := uint32(4)
 	mkdirParents := func(client *sftp.Client, dir string) (err error) {
 		var parents string
-		
+
 		if path.IsAbs(dir) {
 			// Otherwise, an absolute path given below would be turned in to a relative one
 			// by splitting on "/"
 			parents = "/"
 		}
-		
+
 		for _, name := range strings.Split(dir, "/") {
 			if name == "" {
 				// Paths with double-/ in them should just move along

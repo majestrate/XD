@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"xd/lib/util"
 	"xd/lib/log"
+	"xd/lib/util"
 )
 
 // WireMessageType is type for wire message id
@@ -107,7 +107,7 @@ func NewWireMessage(id WireMessageType, body []byte) (msg *WireMessage) {
 func ReadWireMessages(r io.Reader, f func(*WireMessage) error) (err error) {
 	for err == nil {
 		var msg WireMessage
-		msg.data = []byte{0,0,0,0}
+		msg.data = []byte{0, 0, 0, 0}
 		_, err = io.ReadFull(r, msg.data)
 		l := binary.BigEndian.Uint32(msg.data[:])
 		if l > 0 {

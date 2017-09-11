@@ -1,12 +1,12 @@
 package sftp
 
 import (
-	"testing"
+	"io"
 	"os"
 	"regexp"
-	"time"
-	"io"
 	"sync"
+	"testing"
+	"time"
 )
 
 const (
@@ -61,7 +61,7 @@ func TestRunLsWithLicensesFile(t *testing.T) {
 
    where `id' is the request identifier, and `attrs' is the returned
    file attributes as described in Section ``File Attributes''.
- */
+*/
 func runLsTestHelper(t *testing.T, result, expectedType, path string) {
 	// using regular expressions to make tests work on all systems
 	// a virtual file system (like afero) would be needed to mock valid filesystem checks
