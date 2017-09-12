@@ -173,6 +173,7 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 			return
 		}
 		if util.RandBoolPercent(10) {
+			idx = pt.nextPiece(remote)
 			cp = pt.newPiece(idx)
 			pt.requests[idx] = cp
 		}

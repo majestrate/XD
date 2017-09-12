@@ -80,7 +80,7 @@ func (c *PeerConn) tickStats() {
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg *common.WireMessage) {
-	if !c.closing && msg != nil {
+	if !c.closing && msg != nil && c.send != nil {
 		c.send <- msg
 	}
 }
