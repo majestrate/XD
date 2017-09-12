@@ -58,7 +58,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.usChoke = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
-	p.send = make(chan *common.WireMessage, 8)
+	p.send = make(chan *common.WireMessage, 24)
 	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
 	return p
