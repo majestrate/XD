@@ -21,6 +21,7 @@ type cachedPiece struct {
 	piece    *common.PieceData
 	progress []byte
 	mtx      sync.Mutex
+	last     uint32
 }
 
 // is this piece done downloading ?
@@ -70,6 +71,21 @@ func (p *cachedPiece) set(offset, length uint32, b byte) {
 	}
 }
 
+func (p *cachedPiece) hasNextRequest() (has bool) {
+	p.mtx.Lock()
+	idx := 0
+	for idx < len(p.progress) {
+		if p.progress[idx] == Obtained {
+			idx += BlockSize
+		} else {
+			has = true
+			break
+		}
+	}
+	p.mtx.Unlock()
+	return
+}
+
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
 	l := uint32(len(p.progress))
@@ -87,8 +103,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 		r.Begin += BlockSize
 	}
 
-	// probably a last piece, round to best fit
-	if r.Begin+r.Length > l {
+	if r.Begin+r.Length > l && r.Index == p.last {
 		r.Length = l - r.Begin
 	}
 
@@ -134,6 +149,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 
 	log.Debugf("new piece idx=%d len=%d", piece, sz)
 	cp = &cachedPiece{
+		last: info.Info.NumPieces() - uint32(1),
 		progress: make([]byte, sz),
 		piece: &common.PieceData{
 			Data:  make([]byte, sz),
@@ -163,13 +179,13 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
 	pt.mtx.Lock()
+	defer pt.mtx.Unlock()
 	idx, old := pt.pendingPiece(remote)
 	var cp *cachedPiece
 	if old {
 		cp = pt.requests[idx]
 	} else {
 		if pt.st.Bitfield().Has(idx) {
-			pt.mtx.Unlock()
 			return
 		}
 		if util.RandBoolPercent(10) {
@@ -180,8 +196,12 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 			return
 		}
 	}
-	pt.mtx.Unlock()
 	if cp != nil {
+		if !cp.hasNextRequest() {
+			idx = pt.nextPiece(remote)
+			cp = pt.newPiece(idx)
+			pt.requests[idx] = cp
+		}
 		r = cp.nextRequest()
 	}
 	return
