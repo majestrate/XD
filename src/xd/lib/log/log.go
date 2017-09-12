@@ -5,7 +5,10 @@ import (
 	"os"
 	"strings"
 	"time"
+	"sync"
 )
+
+var mtx sync.Mutex
 
 type logLevel int
 
@@ -62,8 +65,10 @@ func log(lvl logLevel, f string, args ...interface{}) {
 	if accept(lvl) {
 		m := fmt.Sprintf(f, args...)
 		t := time.Now()
+		mtx.Lock()
 		fmt.Printf("%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
 		fmt.Println()
+		mtx.Unlock()
 		if lvl == fatal {
 			panic(m)
 		}
