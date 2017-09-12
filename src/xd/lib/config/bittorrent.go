@@ -78,6 +78,7 @@ type BittorrentConfig struct {
 func (c *BittorrentConfig) Load(s *configparser.Section) error {
 	c.OpenTrackers.FileName = DefaultOpentrackerFilename
 	c.PieceWindowSize = swarm.DefaultMaxParallelRequests
+	c.PEX = true
 	if s != nil {
 		c.DHT = s.Get("dht", "0") == "1"
 		c.PEX = s.Get("pex", "1") == "1"
