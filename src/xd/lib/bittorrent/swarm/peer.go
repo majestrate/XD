@@ -301,19 +301,12 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 			c.gotDownload(d)
 		}
 	}
-	/*
+	
 	if msgid == common.Have && c.bf != nil {
 		// update bitfield
 		idx := msg.GetHave()
 		c.bf.Set(idx)
-		if c.t.Bitfield().Has(idx) {
-			// not interested
-			c.Send(common.NewNotInterested())
-		} else {
-			c.Send(common.NewInterested())
-		}
 	}
-*/
 	if msgid == common.Cancel {
 		// TODO: check validity
 		r := msg.GetPieceRequest()
