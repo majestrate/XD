@@ -55,7 +55,7 @@ func SetLevel(l string) {
 	}
 }
 
-var out = os.Stderr
+var out = os.Stdout
 
 func accept(lvl logLevel) bool {
 	return lvl.Int() >= level.Int()
@@ -66,8 +66,8 @@ func log(lvl logLevel, f string, args ...interface{}) {
 		m := fmt.Sprintf(f, args...)
 		t := time.Now()
 		mtx.Lock()
-		fmt.Printf("%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
-		fmt.Println()
+		fmt.Fprintf(out, "%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
+		fmt.Fprintln(out)
 		mtx.Unlock()
 		if lvl == fatal {
 			panic(m)
