@@ -8,6 +8,7 @@ import (
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
+	"xd/lib/dht"
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/network"
@@ -38,6 +39,7 @@ type Torrent struct {
 	closing        bool
 	MaxRequests    int
 	pexState       *PEXSwarmState
+	xdht *dht.XDHT
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {

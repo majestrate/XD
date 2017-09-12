@@ -7,6 +7,7 @@ import (
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
+	"xd/lib/dht"
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/network"
@@ -22,6 +23,7 @@ type Swarm struct {
 	Torrents Holder
 	id       common.PeerID
 	trackers map[string]tracker.Announcer
+	xdht dht.XDHT
 }
 
 func (sw *Swarm) Running() bool {
@@ -38,6 +40,7 @@ func (sw *Swarm) WaitForNetwork() {
 func (sw *Swarm) startTorrent(t *Torrent) {
 	sw.WaitForNetwork()
 	t.ObtainedNetwork(sw.net)
+	t.xdht = &sw.xdht
 	// give peerid
 	t.id = sw.id
 	// add open trackers
@@ -98,10 +101,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 	}
 	// make peer conn
 	p := makePeerConn(c, t, id, opts)
-
-	go p.runWriter()
-	go p.runReader()
-	go t.onNewPeer(p)
+	t.onNewPeer(p)
 }
 
 // add a torrent to this swarm

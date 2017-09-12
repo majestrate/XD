@@ -25,7 +25,7 @@ type PeerConn struct {
 	peerChoke           bool
 	peerInterested      bool
 	usChoke             bool
-	usInterseted        bool
+	usInterested        bool
 	Done                func()
 	keepalive           *time.Ticker
 	lastSend            time.Time
@@ -267,7 +267,11 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 		m := common.NewInterested()
 		c.Send(m)
 		if isnew {
+			c.usInterested = true
 			c.Unchoke()
+			if c.ourOpts != nil {
+				c.Send(c.ourOpts.ToWireMessage())
+			}
 			go c.runDownload()
 		}
 		return
@@ -280,7 +284,6 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	}
 	if msgid == common.Interested {
 		c.markInterested()
-		c.Unchoke()
 	}
 	if msgid == common.NotInterested {
 		c.markNotInterested()
@@ -298,6 +301,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 			c.gotDownload(d)
 		}
 	}
+	/*
 	if msgid == common.Have && c.bf != nil {
 		// update bitfield
 		idx := msg.GetHave()
@@ -309,6 +313,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 			c.Send(common.NewInterested())
 		}
 	}
+*/
 	if msgid == common.Cancel {
 		// TODO: check validity
 		r := msg.GetPieceRequest()
@@ -397,6 +402,12 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 				if ext == extensions.PeerExchange.String() {
 					// this is PEX message
 					c.handlePEX(opts.Payload)
+				} else if ext == extensions.XDHT.String() {
+					// xdht message
+					err := c.t.xdht.HandleMessage(opts, c.id)
+					if err != nil {
+						log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
+					}
 				}
 			} else {
 				log.Warnf("we do not have extension %d", opts.ID)
