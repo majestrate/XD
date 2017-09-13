@@ -142,6 +142,11 @@ func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 }
 
 func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
+
+	if len(pt.requests) >= pt.maxPending {
+		return 
+	}
+	
 	info := pt.st.MetaInfo()
 
 	sz := info.LengthOfPiece(piece)
@@ -174,6 +179,7 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 		}
 		exclude = append(exclude, k)
 	}
+	log.Debugf("get next piece excluding %q", exclude)
 	idx = pt.nextPiece(remote, exclude)
 	return
 }
@@ -191,7 +197,9 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 		_, has := pt.requests[idx]
 		if !has {
 			cp = pt.newPiece(idx)
-			r = cp.nextRequest()
+			if cp != nil {
+				r = cp.nextRequest()
+			}
 		}
 	}
 	return
