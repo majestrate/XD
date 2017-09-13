@@ -167,9 +167,13 @@ func (bf *Bitfield) Completed() bool {
 type rareSet map[uint32]uint32
 
 // FindRarest finds the set bit we have that is rarest in others
-func (bf *Bitfield) FindRarest(others []*Bitfield) (idx uint32) {
+func (bf *Bitfield) FindRarest(others []*Bitfield, excluding []uint32) (idx uint32) {
 	bits := make(rareSet)
 	i := bf.Length
+	m := make(map[uint32]bool)
+	for _, k := range excluding {
+		m[k] = true
+	}
 	for i > 0 {
 		i--
 		bits[i] = 0
@@ -182,6 +186,10 @@ func (bf *Bitfield) FindRarest(others []*Bitfield) (idx uint32) {
 
 	min := uint32(len(others) + 1)
 	for index, count := range bits {
+		_, exclude := m[index]
+		if exclude {
+			continue
+		}
 		if count < min && bf.Has(index) {
 			min = count
 			idx = index
