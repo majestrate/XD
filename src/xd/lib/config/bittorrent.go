@@ -84,7 +84,7 @@ func (c *BittorrentConfig) Load(s *configparser.Section) error {
 		c.PEX = s.Get("pex", "1") == "1"
 		c.OpenTrackers.FileName = s.Get("tracker-config", c.OpenTrackers.FileName)
 		var e error
-		c.PieceWindowSize, e = strconv.Atoi(s.Get("piece_window", fmt.Sprintf("%d", swarm.DefaultMaxParallelRequests)))
+		c.PieceWindowSize, e = strconv.Atoi(s.Get("piece-window", fmt.Sprintf("%d", swarm.DefaultMaxParallelRequests)))
 		if e != nil {
 			c.PieceWindowSize = swarm.DefaultMaxParallelRequests
 		}

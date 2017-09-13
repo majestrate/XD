@@ -132,7 +132,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		Trackers:    make(map[string]tracker.Announcer),
 		announcers:  make(map[string]*torrentAnnounce),
 		st:          st,
-		piece:       make(chan pieceEvent),
+		piece:       make(chan pieceEvent, 64),
 		ibconns:     make(map[string]*PeerConn),
 		obconns:     make(map[string]*PeerConn),
 		defaultOpts: extensions.New(),

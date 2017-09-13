@@ -11,7 +11,7 @@ import (
 	"xd/lib/util"
 )
 
-const DefaultMaxParallelRequests = 4
+const DefaultMaxParallelRequests = 8
 
 // a peer connection
 type PeerConn struct {

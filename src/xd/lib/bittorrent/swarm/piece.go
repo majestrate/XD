@@ -195,7 +195,7 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 		for k := range pt.requests {
 			exclude = append(exclude, k)
 		}
-		log.Debugf("get next piece excluding %s", exclude)
+		log.Debugf("get next piece excluding %d", exclude)
 		idx = pt.nextPiece(remote, exclude)
 		_, has := pt.requests[idx]
 		if !has {
