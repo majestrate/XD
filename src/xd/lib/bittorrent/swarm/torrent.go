@@ -102,6 +102,14 @@ func (t *Torrent) shouldAnnounce(name string) bool {
 	return time.Now().After(t.nextAnnounceFor(name))
 }
 
+func (t *Torrent) SetPieceWindow(n int) {
+	t.MaxRequests = n
+	t.VisitPeers(func(c *PeerConn) {
+		c.MaxParalellRequests = n
+	})
+	t.pt.maxPending = n
+}
+
 func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 	t.announceMtx.Lock()
 	a, ok := t.announcers[name]
