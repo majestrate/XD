@@ -52,6 +52,7 @@ func (p *cachedPiece) put(offset uint32, data []byte) {
 // cancel a slice
 func (p *cachedPiece) cancel(offset, length uint32) {
 	p.mtx.Lock()
+	log.Debugf("cancel piece idx=%d offset=%d length=%d", p.piece.Index, offset, length)
 	p.set(offset, length, Missing)
 	p.mtx.Unlock()
 }
@@ -170,17 +171,13 @@ func (pt *pieceTracker) removePiece(piece uint32) {
 }
 
 func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, old bool) {
-	var exclude []uint32
 	for k := range pt.requests {
 		if remote.Has(k) {
 			idx = k
 			old = true
 			return
 		}
-		exclude = append(exclude, k)
 	}
-	log.Debugf("get next piece excluding %q", exclude)
-	idx = pt.nextPiece(remote, exclude)
 	return
 }
 
@@ -194,6 +191,12 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 		r = cp.nextRequest()
 	}
 	if r == nil {
+		var exclude []uint32
+		for k := range pt.requests {
+			exclude = append(exclude, k)
+		}
+		log.Debugf("get next piece excluding %s", exclude)
+		idx = pt.nextPiece(remote, exclude)
 		_, has := pt.requests[idx]
 		if !has {
 			cp = pt.newPiece(idx)
@@ -211,7 +214,9 @@ func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
 		return
 	}
 	pc := pt.getPiece(r.Index)
-	if pc != nil {
+	if pc == nil {
+		
+	} else {
 		pc.cancel(r.Begin, r.Length)
 	}
 }
