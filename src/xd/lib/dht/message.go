@@ -1,6 +1,5 @@
 package dht
 
-
 const FindNode = "find_node"
 const GetPeers = "get_peers"
 const AnnouncePeer = "announce_peer"
@@ -14,11 +13,11 @@ const Target = "target"
 const Nodes = "nodes"
 
 type Message struct {
-	Query string `bencode:"q",omitempty`
-	TID string `bencode:"t"`
-	Reply string `bencode:"y"`
-	Error []interface{} `bencode:"e",omitempty`
-	Args map[string]interface{} `bencode:"a",omitempty`
+	Query string                 `bencode:"q",omitempty`
+	TID   string                 `bencode:"t"`
+	Reply string                 `bencode:"y"`
+	Error []interface{}          `bencode:"e",omitempty`
+	Args  map[string]interface{} `bencode:"a",omitempty`
 }
 
 func (m *Message) IsError() bool {
@@ -28,19 +27,19 @@ func (m *Message) IsError() bool {
 // NewError generates a new error reply message
 func NewError(txid string, code int, errMsg string) *Message {
 	return &Message{
-		TID: txid,
+		TID:   txid,
 		Reply: Error,
-		Error : []interface{}{code, errMsg},
+		Error: []interface{}{code, errMsg},
 	}
 }
 
 func NewFindNodeRequest(txid, id, target string) *Message {
 	return &Message{
-		TID: txid,
+		TID:   txid,
 		Reply: Query,
 		Query: FindNode,
-		Args: map[string]interface{} {
-			ID: id,
+		Args: map[string]interface{}{
+			ID:     id,
 			Target: target,
 		},
 	}
@@ -48,11 +47,11 @@ func NewFindNodeRequest(txid, id, target string) *Message {
 
 func NewFindNodeResponse(txid, id, nodes string) *Message {
 	return &Message{
-		TID: txid,
+		TID:   txid,
 		Reply: Response,
 		Query: FindNode,
-		Args: map[string]interface{} {
-			ID: id,
+		Args: map[string]interface{}{
+			ID:    id,
 			Nodes: nodes,
 		},
 	}

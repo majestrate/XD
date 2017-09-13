@@ -23,7 +23,7 @@ type Swarm struct {
 	Torrents Holder
 	id       common.PeerID
 	trackers map[string]tracker.Announcer
-	xdht dht.XDHT
+	xdht     dht.XDHT
 }
 
 func (sw *Swarm) Running() bool {

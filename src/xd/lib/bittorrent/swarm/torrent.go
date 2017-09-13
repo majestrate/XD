@@ -39,7 +39,7 @@ type Torrent struct {
 	closing        bool
 	MaxRequests    int
 	pexState       *PEXSwarmState
-	xdht *dht.XDHT
+	xdht           *dht.XDHT
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {

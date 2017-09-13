@@ -25,7 +25,7 @@ type cachedPiece struct {
 // is this piece done downloading ?
 func (p *cachedPiece) done() bool {
 	p.mtx.Lock()
-	defer p.mtx.Unlock() 
+	defer p.mtx.Unlock()
 	for _, b := range p.progress {
 		if b != Obtained {
 			return false
@@ -86,7 +86,7 @@ func (p *cachedPiece) hasNextRequest() (has bool) {
 
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
-	defer	p.mtx.Unlock()
+	defer p.mtx.Unlock()
 	l := uint32(len(p.progress))
 	r = new(common.PieceRequest)
 	r.Index = p.piece.Index
@@ -99,10 +99,10 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 		r.Begin += BlockSize
 	}
 
-	if r.Begin + r.Length > l {
-		if ( r.Begin + r.Length ) - l >= BlockSize {
+	if r.Begin+r.Length > l {
+		if (r.Begin+r.Length)-l >= BlockSize {
 			log.Debugf("no next piece request for idx=%d", r.Index)
-			r = nil	
+			r = nil
 			return
 		} else {
 			r.Length = l - r.Begin
@@ -145,9 +145,9 @@ func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 
 	if len(pt.requests) >= pt.maxPending {
-		return 
+		return
 	}
-	
+
 	info := pt.st.MetaInfo()
 
 	sz := info.LengthOfPiece(piece)
@@ -215,7 +215,7 @@ func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
 	}
 	pc := pt.getPiece(r.Index)
 	if pc == nil {
-		
+
 	} else {
 		pc.cancel(r.Begin, r.Length)
 	}

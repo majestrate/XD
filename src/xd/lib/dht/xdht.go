@@ -3,17 +3,15 @@ package dht
 import (
 	"bytes"
 	"github.com/zeebo/bencode"
-	"xd/lib/bittorrent/extensions"	
+	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 )
 
 type XDHT struct {
-	
 }
 
-
 func (dht *XDHT) HandleError(code, msg interface{}) {
-	
+
 }
 
 func (dht *XDHT) HandleMessage(msg *extensions.Message, src common.PeerID) (err error) {

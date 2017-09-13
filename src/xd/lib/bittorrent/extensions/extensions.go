@@ -14,7 +14,7 @@ type Extension string
 var extensionDefaults = map[Extension]uint8{
 	I2PDHT:       1,
 	PeerExchange: 2,
-	XDHT: 3,
+	XDHT:         3,
 }
 
 func (ex Extension) String() string {
@@ -26,8 +26,8 @@ type Message struct {
 	ID         uint8            `bencode:"-"`
 	Version    string           `bencode:"v"` // handshake data
 	Extensions map[string]uint8 `bencode:"m"` // handshake data
-	Payload    interface{} `bencode:"-"`
-	PayloadRaw []byte `bencode:"-"`
+	Payload    interface{}      `bencode:"-"`
+	PayloadRaw []byte           `bencode:"-"`
 }
 
 // supports PEX?
@@ -109,7 +109,7 @@ func FromWireMessage(msg *common.WireMessage) (opts *Message) {
 		payload := msg.Payload()
 		if len(payload) > 0 {
 			opts = &Message{
-				ID: payload[0],
+				ID:         payload[0],
 				PayloadRaw: payload[1:],
 			}
 			if opts.ID == 0 {

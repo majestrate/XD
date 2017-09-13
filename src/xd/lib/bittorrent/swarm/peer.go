@@ -301,7 +301,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 			c.gotDownload(d)
 		}
 	}
-	
+
 	if msgid == common.Have && c.bf != nil {
 		// update bitfield
 		idx := msg.GetHave()

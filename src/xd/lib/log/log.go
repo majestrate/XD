@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 	"sync"
+	"time"
 )
 
 var mtx sync.Mutex
