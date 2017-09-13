@@ -6,7 +6,6 @@ import (
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/storage"
-	"xd/lib/util"
 )
 
 // how big should we download pieces at a time (bytes)?
@@ -21,11 +20,12 @@ type cachedPiece struct {
 	piece    *common.PieceData
 	progress []byte
 	mtx      sync.Mutex
-	last     uint32
 }
 
 // is this piece done downloading ?
 func (p *cachedPiece) done() bool {
+	p.mtx.Lock()
+	defer p.mtx.Unlock() 
 	for _, b := range p.progress {
 		if b != Obtained {
 			return false
@@ -40,10 +40,7 @@ func (p *cachedPiece) put(offset uint32, data []byte) {
 	l := uint32(len(data))
 	if offset+l <= uint32(len(p.progress)) {
 		// put data
-		c := copy(p.piece.Data[offset:], data)
-		if c != len(data) {
-			log.Errorf("copied invalid length of slice: len=%d", c)
-		}
+		copy(p.piece.Data[offset:offset+l], data)
 		// put progress
 		p.set(offset, l, Obtained)
 	} else {
@@ -88,27 +85,30 @@ func (p *cachedPiece) hasNextRequest() (has bool) {
 
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
+	defer	p.mtx.Unlock()
 	l := uint32(len(p.progress))
 	r = new(common.PieceRequest)
 	r.Index = p.piece.Index
 	r.Length = BlockSize
 
-	for r.Begin+r.Length < l {
-
+	for r.Begin < l {
 		if p.progress[r.Begin] == Missing {
-
 			break
 		}
-
 		r.Begin += BlockSize
 	}
 
-	if r.Begin+r.Length > l && r.Index == p.last {
-		r.Length = l - r.Begin
+	if r.Begin + r.Length > l {
+		if ( r.Begin + r.Length ) - l >= BlockSize {
+			log.Debugf("no next piece request for idx=%d", r.Index)
+			r = nil	
+			return
+		} else {
+			r.Length = r.Begin - l
+		}
 	}
 
 	p.set(r.Begin, r.Length, Pending)
-	p.mtx.Unlock()
 	log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
 	return
 }
@@ -149,13 +149,13 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 
 	log.Debugf("new piece idx=%d len=%d", piece, sz)
 	cp = &cachedPiece{
-		last: info.Info.NumPieces() - uint32(1),
 		progress: make([]byte, sz),
 		piece: &common.PieceData{
 			Data:  make([]byte, sz),
 			Index: piece,
 		},
 	}
+	pt.requests[piece] = cp
 	return
 }
 
@@ -184,25 +184,14 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 	var cp *cachedPiece
 	if old {
 		cp = pt.requests[idx]
-	} else {
-		if pt.st.Bitfield().Has(idx) {
-			return
-		}
-		if util.RandBoolPercent(10) {
-			idx = pt.nextPiece(remote)
-			cp = pt.newPiece(idx)
-			pt.requests[idx] = cp
-		} else {
-			return
-		}
-	}
-	if cp != nil {
-		if !cp.hasNextRequest() {
-			idx = pt.nextPiece(remote)
-			cp = pt.newPiece(idx)
-			pt.requests[idx] = cp
-		}
 		r = cp.nextRequest()
+	}
+	if r == nil {
+		_, has := pt.requests[idx]
+		if !has {
+			cp = pt.newPiece(idx)
+			r = cp.nextRequest()
+		}
 	}
 	return
 }
