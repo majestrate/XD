@@ -104,12 +104,11 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 			r = nil	
 			return
 		} else {
-			r.Length = r.Begin - l
+			r.Length = l - r.Begin
 		}
 	}
-
-	p.set(r.Begin, r.Length, Pending)
 	log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
+	p.set(r.Begin, r.Length, Pending)
 	return
 }
 
