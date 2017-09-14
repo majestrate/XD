@@ -151,7 +151,15 @@ func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield, exclude []uint32) 
 			swarm = append(swarm, c.bf)
 		}
 	})
-	idx = remote.FindRarest(swarm, exclude)
+	m := make(map[uint32]bool)
+	for idx := range exclude {
+		m[exclude[idx]] = true
+	}
+	bt := t.st.Bitfield()
+	idx = remote.FindRarest(swarm, func(idx uint32) bool {
+		_, has := m[idx]
+		return bt.Has(idx) || has
+	})
 	return
 }
 
