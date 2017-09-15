@@ -3,7 +3,6 @@ package swarm
 import (
 	"sync"
 	"time"
-	"xd/lib/log"
 	"xd/lib/tracker"
 )
 
@@ -13,6 +12,7 @@ const DefaultAnnouncePort = 6881
 type torrentAnnounce struct {
 	access   sync.Mutex
 	next     time.Time
+	fails    uint32
 	announce tracker.Announcer
 	t        *Torrent
 }
@@ -30,9 +30,9 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			GetNetwork: a.t.Network,
 		}
 		var resp *tracker.Response
-		log.Infof("announcing to %s", a.announce.Name())
 		resp, err = a.announce.Announce(req)
-		a.next = resp.NextAnnounce
+		backoff := time.Minute * time.Duration(a.fails)
+		a.next = resp.NextAnnounce.Add(backoff)
 		if err == nil {
 			a.t.addPeers(resp.Peers)
 		}

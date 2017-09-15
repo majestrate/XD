@@ -465,7 +465,10 @@ func (c *PeerConn) runWriter() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	for !c.t.Done() && c.send != nil {
+	for c.send != nil {
+		if c.t.Done() {
+			break
+		}
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
@@ -486,11 +489,11 @@ func (c *PeerConn) runDownload() {
 		}
 	}
 	if c.send == nil {
-		c.Close()
 		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
-		return
+	} else {
+		log.Debugf("peer %s is 'done'", c.id.String())
 	}
-	log.Debugf("peer %s is 'done'", c.id.String())
+	c.Close()
 
 	// done downloading
 	if c.Done != nil {

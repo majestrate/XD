@@ -114,7 +114,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 }
 
 // picks the next good piece to download
-type PiecePicker func(*bittorrent.Bitfield, []uint32) uint32
+type PiecePicker func(*bittorrent.Bitfield, []uint32) (uint32, bool)
 
 type pieceTracker struct {
 	mtx        sync.Mutex
@@ -182,6 +182,7 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 }
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
+
 	pt.mtx.Lock()
 	defer pt.mtx.Unlock()
 	idx, old := pt.pendingPiece(remote)
@@ -196,12 +197,15 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 			exclude = append(exclude, k)
 		}
 		log.Debugf("get next piece excluding %d", exclude)
-		idx = pt.nextPiece(remote, exclude)
-		_, has := pt.requests[idx]
-		if !has {
-			cp = pt.newPiece(idx)
-			if cp != nil {
-				r = cp.nextRequest()
+		var has bool
+		idx, has = pt.nextPiece(remote, exclude)
+		if has {
+			_, has = pt.requests[idx]
+			if !has {
+				cp = pt.newPiece(idx)
+				if cp != nil {
+					r = cp.nextRequest()
+				}
 			}
 		}
 	}

@@ -139,7 +139,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 	return t
 }
 
-func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield, exclude []uint32) (idx uint32) {
+func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield, exclude []uint32) (idx uint32, has bool) {
 	var swarm []*bittorrent.Bitfield
 	t.VisitPeers(func(c *PeerConn) {
 		if c.bf != nil {
@@ -151,9 +151,8 @@ func (t *Torrent) getRarestPiece(remote *bittorrent.Bitfield, exclude []uint32) 
 		m[exclude[idx]] = true
 	}
 	bt := t.st.Bitfield()
-	idx = remote.FindRarest(swarm, func(idx uint32) bool {
-		_, has := m[idx]
-		return bt.Has(idx) || has
+	idx, has = remote.FindRarest(swarm, func(idx uint32) bool {
+		return bt.Has(idx) || m[idx]
 	})
 	return
 }
@@ -304,8 +303,11 @@ func (t *Torrent) announce(name string, ev tracker.Event) {
 	t.announceMtx.Unlock()
 	if a != nil {
 		err := a.tryAnnounce(ev)
-		if err != nil {
+		if err == nil {
+			a.fails = 0
+		} else {
 			log.Warnf("announce to %s failed: %s", name, err)
+			a.fails++
 		}
 	}
 }
