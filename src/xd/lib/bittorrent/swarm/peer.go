@@ -78,11 +78,15 @@ func (c *PeerConn) tickStats() {
 	}
 }
 
-// queue a send of a bittorrent wire message to this peer
-func (c *PeerConn) Send(msg *common.WireMessage) {
+func (c *PeerConn) doSend(msg *common.WireMessage) {
 	if !c.closing && msg != nil && c.send != nil {
 		c.send <- msg
 	}
+}
+
+// queue a send of a bittorrent wire message to this peer
+func (c *PeerConn) Send(msg *common.WireMessage) {
+	go c.doSend(msg)
 }
 
 func (c *PeerConn) recv(msg *common.WireMessage) (err error) {
@@ -229,6 +233,7 @@ func (c *PeerConn) Close() {
 	if c.send != nil {
 		chnl := c.send
 		c.send = nil
+		time.Sleep(time.Millisecond * 50)
 		close(chnl)
 	}
 	c.c.Close()
@@ -290,7 +295,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	}
 	if msgid == common.Request {
 		ev := msg.GetPieceRequest()
-		c.t.onPieceRequest(c, ev)
+		c.t.handlePieceRequest(c, ev)
 	}
 	if msgid == common.Piece {
 		d := msg.GetPieceData()

@@ -50,8 +50,7 @@ type compactHttpAnnounceResponse struct {
 }
 
 func (t *HttpTracker) Name() string {
-	h, _, _ := net.SplitHostPort(t.u.Host)
-	return h
+	return t.u.String()
 }
 
 // send announce via http request
@@ -174,7 +173,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		}
 	}
 
-	if err != nil {
+	if err == nil {
+		log.Infof("%s got %d peers for %s", t.Name(), len(resp.Peers), req.Infohash.Hex())
+	} else {
 		log.Warnf("%s got error while announcing: %s", t.Name(), err)
 	}
 	if interval == 0 {

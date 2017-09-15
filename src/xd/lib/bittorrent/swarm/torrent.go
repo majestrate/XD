@@ -30,7 +30,6 @@ type Torrent struct {
 	announceTicker *time.Ticker
 	id             common.PeerID
 	st             storage.Torrent
-	piece          chan pieceEvent
 	obconns        map[string]*PeerConn
 	ibconns        map[string]*PeerConn
 	connMtx        sync.Mutex
@@ -84,8 +83,6 @@ func (t *Torrent) Close() error {
 	if t.closing {
 		return nil
 	}
-	chnl := t.piece
-	t.piece = nil
 	t.closing = true
 	t.StopAnnouncing()
 	t.VisitPeers(func(c *PeerConn) {
@@ -94,7 +91,6 @@ func (t *Torrent) Close() error {
 	for t.NumPeers() > 0 {
 		time.Sleep(time.Millisecond)
 	}
-	close(chnl)
 	return t.st.Flush()
 }
 
@@ -132,7 +128,6 @@ func newTorrent(st storage.Torrent) *Torrent {
 		Trackers:    make(map[string]tracker.Announcer),
 		announcers:  make(map[string]*torrentAnnounce),
 		st:          st,
-		piece:       make(chan pieceEvent, 64),
 		ibconns:     make(map[string]*PeerConn),
 		obconns:     make(map[string]*PeerConn),
 		defaultOpts: extensions.New(),
@@ -219,9 +214,11 @@ func (t *Torrent) GetStatus() TorrentStatus {
 			l := file.Length / uint64(nfo.PieceLength)
 			// XXX: this below here is wrong because how the bits are packed in the bitfield
 			l /= 8
+			plen := l
 			var data []byte
 			if l == 0 {
 				data = []byte{bf.Data[idx]}
+				plen = 1
 			} else if idx+l < uint64(len(bf.Data)) {
 				data = bf.Data[idx : idx+l]
 			} else {
@@ -231,7 +228,7 @@ func (t *Torrent) GetStatus() TorrentStatus {
 				FileInfo: file,
 				Progress: bittorrent.Bitfield{
 					Data:   data,
-					Length: uint32(l),
+					Length: uint32(plen),
 				},
 			})
 			idx += l
@@ -484,16 +481,8 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	c.Send(t.Bitfield().ToWireMessage())
 }
 
-// handle a piece request
-func (t *Torrent) onPieceRequest(c *PeerConn, req *common.PieceRequest) {
-	if t.piece != nil {
-		t.piece <- pieceEvent{c, req}
-	}
-}
-
 func (t *Torrent) Run() {
 	go t.pexBroadcastLoop()
-	go t.handlePieces()
 	if t.Started != nil {
 		go t.Started()
 	}
@@ -517,35 +506,26 @@ func (t *Torrent) pexBroadcastLoop() {
 	}
 }
 
-func (t *Torrent) handlePieces() {
-	log.Infof("%s running", t.Name())
-	for {
-		ev, ok := <-t.piece
-		if !ok {
-			log.Infof("%s torrent run exit", t.Name())
-			// channel closed
-			return
-		}
-		log.Debug("tick piece handler")
-		if ev.r != nil && ev.r.Length > 0 {
-			log.Debugf("%s asked for piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)
-			// TODO: cache common pieces (?)
-			t.st.VisitPiece(ev.r, func(p *common.PieceData) error {
-				// have the piece, send it
-				ev.c.Send(p.ToWireMessage())
-				log.Debugf("%s queued piece %d %d-%d", ev.c.id.String(), ev.r.Index, ev.r.Begin, ev.r.Begin+ev.r.Length)
-				return nil
-			})
-			//if err != nil {
-			//	ev.c.Close()
-			//}
-		} else {
-			log.Infof("%s asked for a zero length piece", ev.c.id.String())
-			// TODO: should we close here?
-			ev.c.Close()
-		}
+func (t *Torrent) handlePieceRequest(c *PeerConn, r *common.PieceRequest) {
 
+	if r != nil && r.Length > 0 {
+		log.Debugf("%s asked for piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
+		// TODO: cache common pieces (?)
+		t.st.VisitPiece(r, func(p *common.PieceData) error {
+			// have the piece, send it
+			c.Send(p.ToWireMessage())
+			log.Debugf("%s queued piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
+			return nil
+		})
+		//if err != nil {
+		//	ev.c.Close()
+		//}
+	} else {
+		log.Infof("%s asked for a zero length piece", c.id.String())
+		// TODO: should we close here?
+		c.Close()
 	}
+
 }
 
 func (t *Torrent) Done() bool {
