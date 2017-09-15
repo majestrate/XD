@@ -490,10 +490,10 @@ func (c *PeerConn) runDownload() {
 	}
 	if c.send == nil {
 		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
+		c.Close()
 	} else {
 		log.Debugf("peer %s is 'done'", c.id.String())
 	}
-	c.Close()
 
 	// done downloading
 	if c.Done != nil {
