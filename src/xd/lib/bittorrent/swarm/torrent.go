@@ -336,12 +336,12 @@ func (t *Torrent) addPeers(peers []common.Peer) {
 func (t *Torrent) PersistPeer(a net.Addr, id common.PeerID) {
 
 	triesLeft := 10
-	for !t.Done() {
+	for !t.closing {
 		if t.HasIBConn(a) {
 			return
 		}
 		if !t.HasOBConn(a) {
-			err := t.AddPeer(a, id)
+			err := t.DialPeer(a, id)
 			if err == nil {
 				return
 			} else {
@@ -404,7 +404,7 @@ func (t *Torrent) removeIBConn(c *PeerConn) {
 }
 
 // connect to a new peer for this swarm, blocks
-func (t *Torrent) AddPeer(a net.Addr, id common.PeerID) error {
+func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 	if t.HasOBConn(a) {
 		return nil
 	}
@@ -456,7 +456,7 @@ func (t *Torrent) broadcastHave(idx uint32) {
 		conns[c.c.RemoteAddr().String()] = c
 	})
 	for _, conn := range conns {
-		go conn.Send(msg)
+		conn.Send(msg)
 	}
 }
 
@@ -484,7 +484,9 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 }
 
 func (t *Torrent) Run() {
-	go t.pexBroadcastLoop()
+	if !t.MetaInfo().IsPrivate() {
+		go t.pexBroadcastLoop()
+	}
 	if t.Started != nil {
 		go t.Started()
 	}

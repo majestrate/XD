@@ -12,7 +12,7 @@ const DefaultAnnouncePort = 6881
 type torrentAnnounce struct {
 	access   sync.Mutex
 	next     time.Time
-	fails    uint32
+	fails    time.Duration
 	announce tracker.Announcer
 	t        *Torrent
 }
@@ -31,7 +31,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 		}
 		var resp *tracker.Response
 		resp, err = a.announce.Announce(req)
-		backoff := time.Minute * time.Duration(a.fails)
+		backoff := a.fails * time.Minute
 		a.next = resp.NextAnnounce.Add(backoff)
 		if err == nil {
 			a.t.addPeers(resp.Peers)

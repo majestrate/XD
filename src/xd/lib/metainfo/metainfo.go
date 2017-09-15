@@ -163,3 +163,8 @@ func (tf *TorrentFile) BDecode(r io.Reader) (err error) {
 	err = dec.Decode(tf)
 	return
 }
+
+// IsPrivate returns true if this torrent is a private torrent
+func (tf *TorrentFile) IsPrivate() bool {
+	return tf.Info.Private != nil && *tf.Info.Private > 0
+}
