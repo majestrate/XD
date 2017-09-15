@@ -130,15 +130,6 @@ func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 	return
 }
 
-func (sw *Swarm) logBandwidthLoop() {
-	for sw.Running() {
-		bw := sw.getCurrentBW()
-		log.Infof("Global Speed: %s", bw)
-		time.Sleep(time.Second * 10)
-	}
-
-}
-
 // run with network context
 func (sw *Swarm) Run(n network.Network) (err error) {
 	// give network to swarm
@@ -148,7 +139,6 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 		t.ObtainedNetwork(n)
 	})
 	log.Debug("gave network context to torrents")
-	go sw.logBandwidthLoop()
 	// accept inbound connections
 	for err == nil {
 		var c net.Conn

@@ -450,7 +450,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 
 func (t *Torrent) broadcastHave(idx uint32) {
 	msg := common.NewHave(idx)
-	log.Infof("%s got piece %d", t.Name(), idx)
+	log.Debugf("%s got piece %d", t.Name(), idx)
 	conns := make(map[string]*PeerConn)
 	t.VisitPeers(func(c *PeerConn) {
 		conns[c.c.RemoteAddr().String()] = c

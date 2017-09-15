@@ -20,7 +20,7 @@ type PeerConn struct {
 	c                   net.Conn
 	id                  common.PeerID
 	t                   *Torrent
-	send                chan *common.WireMessage
+	sendMtx             sync.Mutex
 	bf                  *bittorrent.Bitfield
 	peerChoke           bool
 	peerInterested      bool
@@ -58,7 +58,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.usChoke = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
-	p.send = make(chan *common.WireMessage, 24)
 	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
 	return p
@@ -66,8 +65,15 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 
 func (c *PeerConn) start() {
 	go c.runReader()
-	go c.runWriter()
+	go c.runKeepAlive()
 	go c.tickStats()
+}
+
+func (c *PeerConn) runKeepAlive() {
+	for !c.closing {
+		time.Sleep(time.Second)
+		c.sendKeepAlive()
+	}
 }
 
 func (c *PeerConn) tickStats() {
@@ -79,8 +85,28 @@ func (c *PeerConn) tickStats() {
 }
 
 func (c *PeerConn) doSend(msg *common.WireMessage) {
-	if !c.closing && msg != nil && c.send != nil {
-		c.send <- msg
+	if !c.closing && msg != nil {
+		c.sendMtx.Lock()
+		now := time.Now()
+		c.lastSend = now
+		if c.RemoteChoking() && msg.MessageID() == common.Request {
+			// drop
+			log.Debugf("drop request because choke")
+			r := msg.GetPieceRequest()
+			c.cancelDownload(r)
+		} else {
+			log.Debugf("writing %d bytes", msg.Len())
+			err := msg.Send(c.c)
+			if err == nil {
+				if msg.MessageID() == common.Piece {
+					c.tx.AddSample(uint64(msg.Len()))
+				}
+				log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
+			} else {
+				log.Debugf("write error: %s", err.Error())
+			}
+		}
+		c.sendMtx.Unlock()
 	}
 }
 
@@ -230,12 +256,6 @@ func (c *PeerConn) Close() {
 	c.downloading = nil
 	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
-	if c.send != nil {
-		chnl := c.send
-		c.send = nil
-		time.Sleep(time.Millisecond * 50)
-		close(chnl)
-	}
 	c.c.Close()
 	if c.inbound {
 		c.t.removeIBConn(c)
@@ -248,7 +268,7 @@ func (c *PeerConn) Close() {
 func (c *PeerConn) runReader() {
 	err := common.ReadWireMessages(c.c, c.recv)
 	if err != nil {
-		log.Errorf("PeerConn() reader failed: %s", err.Error())
+		log.Debugf("PeerConn() reader failed: %s", err.Error())
 	}
 	c.Close()
 }
@@ -408,67 +428,23 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 					}
 				}
 			} else {
-				log.Warnf("we do not have extension %d", opts.ID)
+				log.Warnf("peer %s gave us extension for message we do not have id=%d", c.id.String(), opts.ID)
 			}
 		}
 	}
 }
 
-func (c *PeerConn) sendKeepAlive() error {
+func (c *PeerConn) sendKeepAlive() {
 	tm := time.Now().Add(0 - (time.Minute * 2))
 	if c.lastSend.Before(tm) {
 		log.Debugf("send keepalive to %s", c.id.String())
-		return common.KeepAlive().Send(c.c)
+		c.doSend(common.KeepAlive())
 	}
-	return nil
-}
-
-// run write loop
-func (c *PeerConn) runWriter() {
-	var err error
-	for err == nil && !c.closing {
-		select {
-		case <-c.keepalive.C:
-			err = c.sendKeepAlive()
-			if err != nil {
-				break
-			}
-		case msg, ok := <-c.send:
-			if ok {
-				now := time.Now()
-				c.lastSend = now
-				if c.RemoteChoking() && msg.MessageID() == common.Request {
-					// drop
-					log.Debugf("drop request because choke")
-					r := msg.GetPieceRequest()
-					c.cancelDownload(r)
-				} else {
-					log.Debugf("writing %d bytes", msg.Len())
-					err = msg.Send(c.c)
-					if err == nil {
-						if msg.MessageID() == common.Piece {
-							c.tx.AddSample(uint64(msg.Len()))
-						}
-						log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
-					} else {
-						log.Warnf("write error: %s", err.Error())
-					}
-				}
-			} else {
-				log.Warn("conn runWriter() failed")
-				break
-			}
-		}
-	}
-	c.Close()
 }
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	for c.send != nil {
-		if c.t.Done() {
-			break
-		}
+	for !c.t.Done() && !c.closing {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
@@ -488,8 +464,7 @@ func (c *PeerConn) runDownload() {
 			c.queueDownload(r)
 		}
 	}
-	if c.send == nil {
-		log.Debugf("peer %s disconnected trying reconnect", c.id.String())
+	if c.closing {
 		c.Close()
 	} else {
 		log.Debugf("peer %s is 'done'", c.id.String())
