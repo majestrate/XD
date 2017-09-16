@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"sync"
+	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -17,9 +18,10 @@ const Obtained = 2
 
 // cached downloading piece
 type cachedPiece struct {
-	piece    *common.PieceData
-	progress []byte
-	mtx      sync.Mutex
+	piece      *common.PieceData
+	progress   []byte
+	lastActive time.Time
+	mtx        sync.Mutex
 }
 
 // is this piece done downloading ?
@@ -67,6 +69,7 @@ func (p *cachedPiece) set(offset, length uint32, b byte) {
 	} else {
 		log.Warnf("invalid cached piece range: %d %d %d", offset, length, l)
 	}
+	p.lastActive = time.Now()
 }
 
 func (p *cachedPiece) hasNextRequest() (has bool) {
@@ -159,6 +162,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 			Data:  make([]byte, sz),
 			Index: piece,
 		},
+		lastActive: time.Now(),
 	}
 	pt.requests[piece] = cp
 	return
@@ -181,10 +185,22 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 	return
 }
 
+// cancel entire pieces that have not been fetched within a duration
+func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
+	now := time.Now()
+	for idx := range pt.requests {
+		if now.Sub(pt.requests[idx].lastActive) > dlt {
+			delete(pt.requests, idx)
+		}
+	}
+}
+
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
 
 	pt.mtx.Lock()
 	defer pt.mtx.Unlock()
+	pt.cancelTimedOut(time.Minute)
+
 	idx, old := pt.pendingPiece(remote)
 	var cp *cachedPiece
 	if old {

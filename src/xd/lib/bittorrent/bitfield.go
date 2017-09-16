@@ -85,6 +85,19 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 	return nil
 }
 
+func (bf *Bitfield) XOR(other *Bitfield) *Bitfield {
+	if bf.Length == other.Length {
+		b := NewBitfield(bf.Length, bf.Data)
+		for idx := range other.Data {
+			if idx < len(b.Data) {
+				b.Data[idx] ^= other.Data[idx]
+			}
+		}
+		return b
+	}
+	return nil
+}
+
 func (bf *Bitfield) Percent() string {
 	fl := float64(bf.CountSet())
 	fl /= float64(bf.Length)

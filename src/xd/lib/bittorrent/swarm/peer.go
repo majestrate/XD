@@ -11,7 +11,7 @@ import (
 	"xd/lib/util"
 )
 
-const DefaultMaxParallelRequests = 8
+const DefaultMaxParallelRequests = 2
 
 // a peer connection
 type PeerConn struct {
@@ -285,11 +285,17 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 		}
 		c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 		log.Debugf("got bitfield from %s", c.id.String())
-		// TODO: determine if we are really interested
-		m := common.NewInterested()
-		c.Send(m)
-		if isnew {
+		bf := c.t.Bitfield()
+		if c.bf.XOR(bf).CountSet() > 0 {
 			c.usInterested = true
+			m := common.NewInterested()
+			c.Send(m)
+		} else {
+			m := common.NewNotInterested()
+			c.Send(m)
+		}
+
+		if isnew {
 			c.Unchoke()
 			if c.ourOpts != nil {
 				c.Send(c.ourOpts.ToWireMessage())
@@ -300,6 +306,9 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	}
 	if msgid == common.Choke {
 		c.remoteChoke()
+		for _, r := range c.downloading {
+			c.t.pt.canceledRequest(r)
+		}
 	}
 	if msgid == common.UnChoke {
 		c.remoteUnchoke()
