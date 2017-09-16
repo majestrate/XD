@@ -27,7 +27,6 @@ type PeerConn struct {
 	usChoke             bool
 	usInterested        bool
 	Done                func()
-	keepalive           *time.Ticker
 	lastSend            time.Time
 	tx                  util.Rate
 	lastRecv            time.Time
@@ -58,7 +57,6 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.usChoke = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
-	p.keepalive = time.NewTicker(time.Minute)
 	p.downloading = []*common.PieceRequest{}
 	return p
 }
@@ -254,7 +252,6 @@ func (c *PeerConn) Close() {
 		c.t.pt.canceledRequest(r)
 	}
 	c.downloading = nil
-	c.keepalive.Stop()
 	log.Debugf("%s closing connection", c.id.String())
 	c.c.Close()
 	if c.inbound {
