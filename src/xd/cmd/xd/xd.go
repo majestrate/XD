@@ -11,6 +11,7 @@ import (
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
+	"xd/lib/network/i2p"
 	"xd/lib/rpc"
 	"xd/lib/util"
 	"xd/lib/version"
@@ -116,25 +117,27 @@ func Run() {
 		}()
 
 	}
-	for _, sw := range swarms {
-		net := conf.I2P.CreateSession()
-		// network mainloop
-		go func() {
-			for sw.Running() {
-				log.Info("opening i2p session")
-				err := net.Open()
-				if err == nil {
-					log.Infof("i2p session made, we are %s", net.B32Addr())
-					err = sw.Run(net)
-					if err != nil {
-						log.Errorf("lost i2p session: %s", err)
-					}
-				} else {
-					log.Errorf("failed to create i2p session: %s", err)
-					time.Sleep(time.Second)
+
+	runFunc := func(n i2p.Session, sw *swarm.Swarm) {
+		for sw.Running() {
+			log.Info("opening i2p session")
+			err := n.Open()
+			if err == nil {
+				log.Infof("i2p session made, we are %s", n.B32Addr())
+				err = sw.Run(n)
+				if err != nil {
+					log.Errorf("lost i2p session: %s", err)
 				}
+			} else {
+				log.Errorf("failed to create i2p session: %s", err)
+				time.Sleep(time.Second)
 			}
-		}()
+		}
+	}
+
+	for idx := range swarms {
+		net := conf.I2P.CreateSession()
+		go runFunc(net, swarms[idx])
 		closers = append(closers, net)
 	}
 	sigchnl := make(chan os.Signal)
