@@ -473,11 +473,11 @@ func (t *Torrent) Name() string {
 func (t *Torrent) onNewPeer(c *PeerConn) {
 	a := c.c.RemoteAddr()
 	if t.HasIBConn(a) {
-		log.Infof("duplicate peer from %s", a)
+		log.Debugf("duplicate peer from %s", a)
 		c.Close()
 		return
 	}
-	log.Infof("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
+	log.Debugf("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 	t.addIBPeer(c)
 	c.start()
 	c.Send(t.Bitfield().ToWireMessage())
