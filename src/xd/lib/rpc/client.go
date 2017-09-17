@@ -3,18 +3,21 @@ package rpc
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"xd/lib/bittorrent/swarm"
 )
 
 type Client struct {
-	url string
+	url     string
+	swarmno string
 }
 
-func NewClient(url string) *Client {
+func NewClient(url string, swarmno int) *Client {
 	return &Client{
-		url: url,
+		url:     url,
+		swarmno: fmt.Sprintf("%d", swarmno),
 	}
 }
 
@@ -33,14 +36,14 @@ func (cl *Client) doRPC(r interface{}, h func(r io.Reader) error) (err error) {
 }
 
 func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
-	err = cl.doRPC(&ListTorrentsRequest{}, func(r io.Reader) error {
+	err = cl.doRPC(&ListTorrentsRequest{BaseRequest{cl.swarmno}}, func(r io.Reader) error {
 		return json.NewDecoder(r).Decode(&torrents)
 	})
 	return
 }
 
 func (cl *Client) SetPieceWindow(n int) (err error) {
-	err = cl.doRPC(&SetPieceWindowRequest{N: n}, func(r io.Reader) error {
+	err = cl.doRPC(&SetPieceWindowRequest{BaseRequest{cl.swarmno}, n}, func(r io.Reader) error {
 		var response interface{}
 		return json.NewDecoder(r).Decode(&response)
 	})
@@ -48,7 +51,7 @@ func (cl *Client) SetPieceWindow(n int) (err error) {
 }
 
 func (cl *Client) AddTorrent(url string) (err error) {
-	err = cl.doRPC(&AddTorrentRequest{URL: url}, func(r io.Reader) error {
+	err = cl.doRPC(&AddTorrentRequest{BaseRequest{cl.swarmno}, url}, func(r io.Reader) error {
 		var response interface{}
 		return json.NewDecoder(r).Decode(&response)
 	})
@@ -56,7 +59,7 @@ func (cl *Client) AddTorrent(url string) (err error) {
 }
 
 func (cl *Client) SwarmStatus(ih string) (st swarm.TorrentStatus, err error) {
-	err = cl.doRPC(&TorrentStatusRequest{Infohash: ih}, func(r io.Reader) error {
+	err = cl.doRPC(&TorrentStatusRequest{BaseRequest{cl.swarmno}, ih}, func(r io.Reader) error {
 		return json.NewDecoder(r).Decode(&st)
 	})
 	return

@@ -7,6 +7,7 @@ import (
 )
 
 type TorrentStatusRequest struct {
+	BaseRequest
 	Infohash string `json:"infohash"`
 }
 
@@ -31,10 +32,11 @@ func (r *TorrentStatusRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter
 	}
 }
 
-func (ltr *TorrentStatusRequest) MarshalJSON() (data []byte, err error) {
+func (r *TorrentStatusRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
+		ParamSwarm:    r.Swarm,
 		ParamMethod:   RPCTorrentStatus,
-		ParamInfohash: ltr.Infohash,
+		ParamInfohash: r.Infohash,
 	})
 	return
 }

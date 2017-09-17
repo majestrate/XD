@@ -6,6 +6,7 @@ import (
 )
 
 type AddTorrentRequest struct {
+	BaseRequest
 	URL string `json:"url"`
 }
 
@@ -16,6 +17,7 @@ func (atr *AddTorrentRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter)
 
 func (atr *AddTorrentRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
+		ParamSwarm:  atr.Swarm,
 		ParamURL:    atr.URL,
 		ParamMethod: RPCAddTorrent,
 	})

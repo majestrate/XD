@@ -6,6 +6,7 @@ import (
 )
 
 type SetPieceWindowRequest struct {
+	BaseRequest
 	N int `json:"n"`
 }
 
@@ -25,6 +26,7 @@ func (r *SetPieceWindowRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
 		ParamMethod: RPCSetPieceWindow,
 		ParamN:      r.N,
+		ParamSwarm:  r.Swarm,
 	})
 	return
 }

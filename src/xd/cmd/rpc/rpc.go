@@ -42,15 +42,27 @@ func Run() {
 		Host:   cfg.RPC.Bind,
 		Path:   rpc.RPCPath,
 	}
-	c := rpc.NewClient(u.String())
-
+	swarms := cfg.Bittorrent.Swarms
+	count := 0
 	switch strings.ToLower(cmd) {
 	case "list":
-		listTorrents(c)
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			listTorrents(c)
+			count++
+		}
 	case "add":
-		addTorrents(c, args...)
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			addTorrents(c, args...)
+			count++
+		}
 	case "set-piece-window":
-		setPieceWindow(c, args[0])
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			setPieceWindow(c, args[0])
+			count++
+		}
 	case "help":
 		printHelp(os.Args[0])
 	}
@@ -128,4 +140,6 @@ func listTorrents(c *rpc.Client) {
 	}
 	fmt.Println()
 	fmt.Printf("%d torrents: tx=%s rx=%s\n", list.Infohashes.Len(), formatRate(globalTx), formatRate(globalRx))
+	fmt.Println()
+	fmt.Println()
 }

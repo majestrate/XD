@@ -6,6 +6,7 @@ import (
 )
 
 type ListTorrentsRequest struct {
+	BaseRequest
 }
 
 func (ltr *ListTorrentsRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
@@ -18,6 +19,7 @@ func (ltr *ListTorrentsRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWrite
 
 func (ltr *ListTorrentsRequest) MarshalJSON() (data []byte, err error) {
 	data, err = json.Marshal(map[string]interface{}{
+		ParamSwarm:  ltr.Swarm,
 		ParamMethod: RPCListTorrents,
 	})
 	return
