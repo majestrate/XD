@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/rpc/assets"
 )
 
 const ParamMethod = "method"
+const ParamSwarm = "swarm"
 
 var ErrNoTorrent = errors.New("no such torrent")
 
@@ -17,11 +19,11 @@ const RPCContentType = "text/json; encoding=UTF-8"
 
 // Bittorrent Swarm RPC Handler
 type Server struct {
-	sw         *swarm.Swarm
+	sw         []*swarm.Swarm
 	fileserver http.Handler
 }
 
-func NewServer(sw *swarm.Swarm) *Server {
+func NewServer(sw []*swarm.Swarm) *Server {
 	fs := assets.GetAssets()
 	if fs == nil {
 		return &Server{
@@ -51,34 +53,52 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if err == nil {
 				var rr Request
 				method := body[ParamMethod]
-				switch method {
-				case RPCListTorrents:
-					rr = &ListTorrentsRequest{}
-				case RPCTorrentStatus:
-					rr = &TorrentStatusRequest{
-						Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
-					}
-				case RPCAddTorrent:
-					rr = &AddTorrentRequest{
-						URL: fmt.Sprintf("%s", body[ParamURL]),
-					}
-				case RPCSetPieceWindow:
-					n, ok := body[ParamN].(float64)
-					if ok {
-						rr = &SetPieceWindowRequest{
-							N: int(n),
+				swarmno, ok := body[ParamSwarm]
+				swarmidx := 0
+				if ok {
+					swarmidx, err = strconv.Atoi(fmt.Sprintf("%s", swarmno))
+				}
+				if err == nil {
+					switch method {
+					case RPCListTorrents:
+						rr = &ListTorrentsRequest{}
+					case RPCTorrentStatus:
+						rr = &TorrentStatusRequest{
+							Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
 						}
-					} else {
+					case RPCAddTorrent:
+						rr = &AddTorrentRequest{
+							URL: fmt.Sprintf("%s", body[ParamURL]),
+						}
+					case RPCSetPieceWindow:
+						n, ok := body[ParamN].(float64)
+						if ok {
+							rr = &SetPieceWindowRequest{
+								N: int(n),
+							}
+						} else {
+							rr = &rpcError{
+								message: fmt.Sprintf("invalid value: %s", body[ParamN]),
+							}
+						}
+					default:
 						rr = &rpcError{
-							message: fmt.Sprintf("invalid value: %s", body[ParamN]),
+							message: fmt.Sprintf("no such method %s", method),
 						}
 					}
-				default:
+				} else {
 					rr = &rpcError{
-						message: fmt.Sprintf("no such method %s", method),
+						message: err.Error(),
 					}
 				}
-				rr.ProcessRequest(r.sw, rw)
+				if swarmidx < len(r.sw) {
+					rr.ProcessRequest(r.sw[swarmidx], rw)
+				} else {
+					rr = &rpcError{
+						message: "no such swarm",
+					}
+					rr.ProcessRequest(nil, rw)
+				}
 			} else {
 				// TODO: whatever fix this later
 				w.WriteHeader(http.StatusInternalServerError)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"time"
+	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/rpc"
@@ -22,7 +23,7 @@ type httpRPC struct {
 
 // Run runs XD main function
 func Run() {
-
+	running := true
 	var closers []io.Closer
 	v := version.Version()
 	conf := new(config.Config)
@@ -68,8 +69,15 @@ func Run() {
 		log.Errorf("error initializing storage: %s", err)
 		return
 	}
-	sw := conf.Bittorrent.CreateSwarm(st)
-	closers = append(closers, sw, st)
+	closers = append(closers, st)
+	var swarms []*swarm.Swarm
+	count := 0
+	for count < conf.Bittorrent.Swarms {
+		sw := conf.Bittorrent.CreateSwarm(st)
+		swarms = append(swarms, sw)
+		closers = append(closers, sw)
+		count++
+	}
 
 	ts, err := st.OpenAllTorrents()
 	if err != nil {
@@ -77,19 +85,27 @@ func Run() {
 		return
 	}
 	for _, t := range ts {
-		err = sw.AddTorrent(t, false)
-		if err != nil {
-			log.Errorf("error adding torrent: %s", err)
-			return
+		for _, sw := range swarms {
+			err = sw.AddTorrent(t)
+			if err != nil {
+				log.Errorf("error adding torrent: %s", err)
+			}
 		}
 	}
 
 	// torrent auto adder
 	go func() {
-		for sw.Running() {
+		for running {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
-				sw.AddTorrent(t, true)
+				err := t.VerifyAll(true)
+				if err == nil {
+					for _, sw := range swarms {
+						sw.AddTorrent(t)
+					}
+				} else {
+					log.Warnf("error verifying data for %s: %s", t.Name(), err)
+				}
 			}
 			time.Sleep(time.Second)
 		}
@@ -98,37 +114,39 @@ func Run() {
 	// start rpc server
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
-		srv := rpc.NewServer(sw)
+		srv := rpc.NewServer(swarms)
 		go func() {
 			log.Errorf("rpc died: %s", http.ListenAndServe(conf.RPC.Bind, srv))
 		}()
 
 	}
-
-	net := conf.I2P.CreateSession()
-	// network mainloop
-	go func() {
-		for sw.Running() {
-			log.Info("opening i2p session")
-			err := net.Open()
-			if err == nil {
-				log.Infof("i2p session made, we are %s", net.B32Addr())
-				err = sw.Run(net)
-				if err != nil {
-					log.Errorf("lost i2p session: %s", err)
+	for _, sw := range swarms {
+		net := conf.I2P.CreateSession()
+		// network mainloop
+		go func() {
+			for sw.Running() {
+				log.Info("opening i2p session")
+				err := net.Open()
+				if err == nil {
+					log.Infof("i2p session made, we are %s", net.B32Addr())
+					err = sw.Run(net)
+					if err != nil {
+						log.Errorf("lost i2p session: %s", err)
+					}
+				} else {
+					log.Errorf("failed to create i2p session: %s", err)
+					time.Sleep(time.Second)
 				}
-			} else {
-				log.Errorf("failed to create i2p session: %s", err)
-				time.Sleep(time.Second)
 			}
-		}
-	}()
-	closers = append(closers, net)
+		}()
+		closers = append(closers, net)
+	}
 	sigchnl := make(chan os.Signal)
 	signal.Notify(sigchnl, os.Interrupt)
 	for {
 		sig := <-sigchnl
 		if sig == os.Interrupt {
+			running = false
 			log.Info("Interrupted")
 			for idx := range closers {
 				closers[idx].Close()

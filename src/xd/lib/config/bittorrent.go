@@ -73,12 +73,14 @@ type BittorrentConfig struct {
 	PEX             bool
 	OpenTrackers    TrackerConfig
 	PieceWindowSize int
+	Swarms          int
 }
 
 func (c *BittorrentConfig) Load(s *configparser.Section) error {
 	c.OpenTrackers.FileName = DefaultOpentrackerFilename
 	c.PieceWindowSize = swarm.DefaultMaxParallelRequests
 	c.PEX = true
+	c.Swarms = 1
 	if s != nil {
 		c.DHT = s.Get("dht", "0") == "1"
 		c.PEX = s.Get("pex", "1") == "1"
@@ -87,6 +89,10 @@ func (c *BittorrentConfig) Load(s *configparser.Section) error {
 		c.PieceWindowSize, e = strconv.Atoi(s.Get("piece-window", fmt.Sprintf("%d", swarm.DefaultMaxParallelRequests)))
 		if e != nil {
 			c.PieceWindowSize = swarm.DefaultMaxParallelRequests
+		}
+		c.Swarms, e = strconv.Atoi(s.Get("swarms", "1"))
+		if e != nil {
+			return e
 		}
 	}
 	return c.OpenTrackers.Load()
@@ -104,6 +110,8 @@ func (c *BittorrentConfig) Save(s *configparser.Section) error {
 	} else {
 		s.Add("dht", "0")
 	}
+
+	s.Add("swarms", fmt.Sprintf("%d", c.Swarms))
 
 	s.Add("tracker-config", c.OpenTrackers.FileName)
 
