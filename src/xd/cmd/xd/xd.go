@@ -98,13 +98,9 @@ func Run() {
 		for running {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
-				err := t.VerifyAll(true)
-				if err == nil {
-					for _, sw := range swarms {
-						sw.AddTorrent(t)
-					}
-				} else {
-					log.Warnf("error verifying data for %s: %s", t.Name(), err)
+				t.VerifyAll(true)
+				for _, sw := range swarms {
+					sw.AddTorrent(t)
 				}
 			}
 			time.Sleep(time.Second)
