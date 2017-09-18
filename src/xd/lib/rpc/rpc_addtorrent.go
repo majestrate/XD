@@ -11,7 +11,7 @@ type AddTorrentRequest struct {
 }
 
 func (atr *AddTorrentRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
-	sw.AddRemoteTorrent(atr.URL)
+	go sw.AddRemoteTorrent(atr.URL)
 	w.Return(map[string]interface{}{"error": nil})
 }
 
