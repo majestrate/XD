@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"encoding/base64"
 	"fmt"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"xd/lib/log"
 	"xd/lib/util"
 )
 
@@ -63,19 +65,27 @@ type sftpFS struct {
 
 func (fs *sftpFS) ensureSSH() (*ssh.Client, error) {
 	if fs.sshClient == nil {
+		log.Debugf("read key %s", fs.keyfile)
 		data, err := ioutil.ReadFile(fs.keyfile)
 		if err != nil {
 			return nil, err
 		}
+		log.Debugf("sftp parse key file")
 		ourKey, err := ssh.ParsePrivateKey(data)
 		if err != nil {
 			return nil, err
 		}
-		theirKey, err := ssh.ParsePublicKey([]byte(fs.remotekey))
+		k, err := base64.StdEncoding.DecodeString(fs.remotekey)
 		if err != nil {
 			return nil, err
 		}
-		fs.sshClient, err = ssh.Dial("tcp", net.JoinHostPort(fs.hostname, fmt.Sprintf("%d", fs.port)), &ssh.ClientConfig{
+		theirKey, err := ssh.ParsePublicKey(k)
+		if err != nil {
+			return nil, err
+		}
+		addr := net.JoinHostPort(fs.hostname, fmt.Sprintf("%d", fs.port))
+		log.Debugf("sftp dial to %s", addr)
+		fs.sshClient, err = ssh.Dial("tcp", addr, &ssh.ClientConfig{
 			User: fs.username,
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(ourKey),
@@ -146,6 +156,9 @@ func (fs *sftpFS) EnsureDir(fname string) (err error) {
 				continue
 			}
 			parents = path.Join(parents, name)
+			if fs.FileExists(parents) {
+				continue
+			}
 			err = client.Mkdir(parents)
 			if status, ok := err.(*sftp.StatusError); ok {
 				if status.Code == 4 {
@@ -174,7 +187,7 @@ func (fs *sftpFS) FileExists(fname string) bool {
 		return false
 	}
 	_, err := fs.sftpClient.Stat(fname)
-	return err != nil
+	return err == nil
 }
 
 func (fs *sftpFS) OpenFileReadOnly(fname string) (r ReadFile, err error) {
@@ -213,6 +226,9 @@ func (fs *sftpFS) Glob(glob string) (matches []string, err error) {
 }
 
 func (fs *sftpFS) EnsureFile(fname string, sz uint64) error {
+	if fs.FileExists(fname) {
+		return nil
+	}
 	return fs.ensureConn(func(c *sftp.Client) error {
 		d, _ := sftp.Split(fname)
 		var err error

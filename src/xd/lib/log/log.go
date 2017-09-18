@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"io"
 )
 
 var mtx sync.Mutex
@@ -55,7 +56,12 @@ func SetLevel(l string) {
 	}
 }
 
-var out = os.Stdout
+var out io.Writer = os.Stdout
+
+// SetOutput sets logging to output to a writer
+func SetOutput(w io.Writer) {
+	out = w
+}
 
 func accept(lvl logLevel) bool {
 	return lvl.Int() >= level.Int()
@@ -68,7 +74,7 @@ func log(lvl logLevel, f string, args ...interface{}) {
 		mtx.Lock()
 		fmt.Fprintf(out, "%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
 		fmt.Fprintln(out)
-		mtx.Unlock()
+		mtx.Unlock()	
 		if lvl == fatal {
 			panic(m)
 		}
