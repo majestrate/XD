@@ -26,6 +26,19 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Unlock()
 }
 
+func (h *Holder) removeTorrent(ih common.Infohash) {
+	if h.closing {
+		return
+	}
+	h.access.Lock()
+	ihh := ih.Hex()
+	_, ok := h.torrents[ihh]
+	if ok {
+		delete(h.torrents, ihh)
+	}
+	h.access.Unlock()
+}
+
 func (h *Holder) forEachTorrent(visit func(*Torrent), fork bool) {
 	if h.torrents == nil {
 		return
@@ -76,21 +89,23 @@ func (h *Holder) Close() (err error) {
 	if h.closing {
 		return
 	}
+	var wg sync.WaitGroup
 	var torrents []string
-	h.access.Lock()
 	h.closing = true
+	h.access.Lock()
 	for n := range h.torrents {
 		torrents = append(torrents, n)
 	}
-	h.access.Unlock()
 	for _, n := range torrents {
+		wg.Add(1)
 		go func(name string) {
-			h.access.Lock()
 			t := h.torrents[name]
 			delete(h.torrents, name)
-			h.access.Unlock()
 			t.Close()
+			wg.Done()
 		}(n)
 	}
+	wg.Wait()
+	h.access.Unlock()
 	return
 }

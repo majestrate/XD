@@ -30,4 +30,10 @@ type Driver interface {
 	EnsureFile(fpath string, sz uint64) error
 	// filepath.Glob lookalike
 	Glob(str string) ([]string, error)
+	// remove single file
+	Remove(fpath string) error
+	// Remove all in filepath
+	RemoveAll(fpath string) error
+	// Join path
+	Join(parts ...string) string
 }

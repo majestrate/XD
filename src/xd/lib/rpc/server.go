@@ -60,6 +60,11 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				}
 				if err == nil {
 					switch method {
+					case RPCChangeTorrent:
+						rr = &ChangeTorrentRequest{
+							Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
+							Action:   fmt.Sprintf("%s", body[ParamAction]),
+						}
 					case RPCListTorrents:
 						rr = &ListTorrentsRequest{}
 					case RPCTorrentStatus:

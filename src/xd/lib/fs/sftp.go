@@ -135,6 +135,8 @@ func (fs *sftpFS) ensureConn(visit func(*sftp.Client) error) error {
 	s, err := fs.ensureSFTP()
 	if err == nil {
 		err = visit(s)
+	} else {
+		err = fs.Close()
 	}
 	return err
 }
@@ -246,6 +248,55 @@ func (fs *sftpFS) EnsureFile(fname string, sz uint64) error {
 			f.Close()
 		}
 		return err
+	})
+}
+
+func (fs *sftpFS) removeAllDir(root string, c *sftp.Client) error {
+	dirs, err := c.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	for idx := range dirs {
+		if dirs[idx].IsDir() {
+			err = fs.removeAllDir(dirs[idx].Name(), c)
+		} else {
+			err = c.Remove(fs.Join(root, dirs[idx].Name()))
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return c.RemoveDirectory(root)
+}
+
+func (fs *sftpFS) Join(paths ...string) string {
+	p := ""
+	err := fs.ensureConn(func(c *sftp.Client) error {
+		p = c.Join(paths...)
+		return nil
+	})
+	if err != nil {
+		panic(err.Error())
+	}
+	return p
+}
+
+func (fs *sftpFS) Remove(fpath string) error {
+	return fs.ensureConn(func(c *sftp.Client) error {
+		return c.Remove(fpath)
+	})
+}
+
+func (fs *sftpFS) RemoveAll(fpath string) error {
+	return fs.ensureConn(func(c *sftp.Client) error {
+		st, err := c.Stat(fpath)
+		if err != nil {
+			return err
+		}
+		if st.IsDir() {
+			return fs.removeAllDir(fpath, c)
+		}
+		return c.Remove(fpath)
 	})
 }
 

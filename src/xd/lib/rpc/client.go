@@ -35,6 +35,39 @@ func (cl *Client) doRPC(r interface{}, h func(r io.Reader) error) (err error) {
 	return
 }
 
+func (cl *Client) torrentAction(ih, action string) (err error) {
+	err = cl.doRPC(&ChangeTorrentRequest{BaseRequest{cl.swarmno}, ih, action}, func(r io.Reader) error {
+		var response map[string]interface{}
+		e := json.NewDecoder(r).Decode(&response)
+		if e == nil {
+			emsg, has := response["error"]
+			if has {
+				if emsg != nil {
+					return fmt.Errorf("%s", emsg)
+				}
+			}
+		}
+		return e
+	})
+	return
+}
+
+func (cl *Client) StopTorrent(ih string) error {
+	return cl.torrentAction(ih, TorrentChangeStop)
+}
+
+func (cl *Client) StartTorrent(ih string) error {
+	return cl.torrentAction(ih, TorrentChangeStart)
+}
+
+func (cl *Client) RemoveTorrent(ih string) error {
+	return cl.torrentAction(ih, TorrentChangeRemove)
+}
+
+func (cl *Client) DeleteTorrent(ih string) error {
+	return cl.torrentAction(ih, TorrentChangeDelete)
+}
+
 func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
 	err = cl.doRPC(&ListTorrentsRequest{BaseRequest{cl.swarmno}}, func(r io.Reader) error {
 		return json.NewDecoder(r).Decode(&torrents)

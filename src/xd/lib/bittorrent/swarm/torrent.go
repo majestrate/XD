@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ type Torrent struct {
 	Completed      func()
 	Started        func()
 	Stopped        func()
+	RemoveSelf     func()
 	netacces       sync.Mutex
 	suspended      bool
 	netContext     network.Network
@@ -36,6 +38,7 @@ type Torrent struct {
 	pt             *pieceTracker
 	defaultOpts    *extensions.Message
 	closing        bool
+	started        bool
 	MaxRequests    int
 	pexState       *PEXSwarmState
 	xdht           *dht.XDHT
@@ -84,7 +87,7 @@ func (t *Torrent) Close() error {
 		return nil
 	}
 	t.closing = true
-	t.StopAnnouncing()
+	t.started = false
 	t.VisitPeers(func(c *PeerConn) {
 		c.Close()
 	})
@@ -483,13 +486,14 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	c.Send(t.Bitfield().ToWireMessage())
 }
 
-func (t *Torrent) Run() {
+func (t *Torrent) run() {
 	if !t.MetaInfo().IsPrivate() {
 		go t.pexBroadcastLoop()
 	}
 	if t.Started != nil {
 		go t.Started()
 	}
+	t.started = true
 	for !t.Done() {
 		time.Sleep(time.Second * 5)
 	}
@@ -538,4 +542,43 @@ func (t *Torrent) Done() bool {
 		return false
 	}
 	return bf.Completed()
+}
+
+var ErrAlreadyStopped = errors.New("torrent already stopped")
+var ErrAlreadyStarted = errors.New("torrent already started")
+
+func (t *Torrent) Stop() error {
+	if t.closing {
+		return ErrAlreadyStopped
+	}
+	t.StopAnnouncing()
+	return t.Close()
+}
+
+func (t *Torrent) Delete() error {
+	t.StopAnnouncing()
+	t.Close()
+	err := t.st.Delete()
+	if err == nil {
+		t.RemoveSelf()
+	}
+	return err
+}
+
+func (t *Torrent) Remove() error {
+	err := t.Stop()
+	if err != nil {
+		return err
+	}
+	t.RemoveSelf()
+	return nil
+}
+
+func (t *Torrent) Start() error {
+	if t.started {
+		return ErrAlreadyStarted
+	}
+	t.closing = false
+	go t.run()
+	return nil
 }

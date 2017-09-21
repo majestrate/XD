@@ -41,6 +41,9 @@ type Torrent interface {
 
 	// get name of this torrent
 	Name() string
+
+	// delete all files and metadata for this torrent
+	Delete() error
 }
 
 // torrent storage driver

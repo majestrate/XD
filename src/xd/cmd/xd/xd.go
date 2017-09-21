@@ -138,7 +138,6 @@ func Run() {
 	for idx := range swarms {
 		net := conf.I2P.CreateSession()
 		go runFunc(net, swarms[idx])
-		closers = append(closers, net)
 	}
 	sigchnl := make(chan os.Signal)
 	signal.Notify(sigchnl, os.Interrupt)

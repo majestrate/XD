@@ -57,6 +57,30 @@ func Run() {
 			addTorrents(c, args...)
 			count++
 		}
+	case "start":
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			startTorrents(c, args...)
+			count++
+		}
+	case "stop":
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			stopTorrents(c, args...)
+			count++
+		}
+	case "remove":
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			removeTorrents(c, args...)
+			count++
+		}
+	case "delete":
+		for count < swarms {
+			c := rpc.NewClient(u.String(), count)
+			deleteTorrents(c, args...)
+			count++
+		}
 	case "set-piece-window":
 		for count < swarms {
 			c := rpc.NewClient(u.String(), count)
@@ -83,8 +107,61 @@ func setPieceWindow(c *rpc.Client, str string) {
 
 func addTorrents(c *rpc.Client, urls ...string) {
 	for idx := range urls {
-		fmt.Printf("fetch %s", urls[idx])
-		c.AddTorrent(urls[idx])
+		fmt.Printf("fetch %s ... ", urls[idx])
+		err := c.AddTorrent(urls[idx])
+		if err == nil {
+			fmt.Println("OK")
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+func startTorrents(c *rpc.Client, ih ...string) {
+	for idx := range ih {
+		fmt.Printf("start %s ... ", ih[idx])
+		err := c.AddTorrent(ih[idx])
+		if err == nil {
+			fmt.Println("OK")
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+func stopTorrents(c *rpc.Client, ih ...string) {
+	for idx := range ih {
+		fmt.Printf("stop %s ... ", ih[idx])
+		err := c.StopTorrent(ih[idx])
+		if err == nil {
+			fmt.Println("OK")
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+func removeTorrents(c *rpc.Client, ih ...string) {
+	for idx := range ih {
+		fmt.Printf("remove %s ... ", ih[idx])
+		err := c.RemoveTorrent(ih[idx])
+		if err == nil {
+			fmt.Println("OK")
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+func deleteTorrents(c *rpc.Client, ih ...string) {
+	for idx := range ih {
+		fmt.Printf("delete %s ... ", ih[idx])
+		err := c.DeleteTorrent(ih[idx])
+		if err == nil {
+			fmt.Println("OK")
+		} else {
+			fmt.Println(err.Error())
+		}
 	}
 }
 

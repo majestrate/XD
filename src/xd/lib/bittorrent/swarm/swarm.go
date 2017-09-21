@@ -38,6 +38,9 @@ func (sw *Swarm) WaitForNetwork() {
 }
 
 func (sw *Swarm) startTorrent(t *Torrent) {
+	t.RemoveSelf = func() {
+		sw.Torrents.removeTorrent(t.st.Infohash())
+	}
 	sw.WaitForNetwork()
 	t.ObtainedNetwork(sw.net)
 	t.xdht = &sw.xdht
@@ -63,7 +66,7 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	// start annoucing
 	go t.StartAnnouncing()
 	// handle messages
-	go t.Run()
+	t.Start()
 }
 
 // got inbound connection
@@ -187,7 +190,8 @@ func (sw *Swarm) AddOpenTracker(url string) {
 func (sw *Swarm) Close() (err error) {
 	if !sw.closing {
 		sw.closing = true
-		err = sw.Torrents.Close()
+		sw.Torrents.Close()
+		err = sw.net.Close()
 	}
 	return
 }
