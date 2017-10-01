@@ -274,6 +274,7 @@ func (t *Torrent) StartAnnouncing() {
 func (t *Torrent) StopAnnouncing() {
 	if t.announceTicker != nil {
 		t.announceTicker.Stop()
+		t.announceTicker = nil
 	}
 	for name := range t.Trackers {
 		t.announce(name, tracker.Stopped)
@@ -294,7 +295,7 @@ func (t *Torrent) pollAnnounce() {
 		}
 		for name := range t.Trackers {
 			if t.shouldAnnounce(name) {
-				go t.announce(name, ev)
+				t.announce(name, ev)
 			}
 		}
 	}

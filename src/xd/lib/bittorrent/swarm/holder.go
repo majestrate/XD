@@ -96,16 +96,18 @@ func (h *Holder) Close() (err error) {
 	for n := range h.torrents {
 		torrents = append(torrents, n)
 	}
+	h.access.Unlock()
 	for _, n := range torrents {
 		wg.Add(1)
 		go func(name string) {
+			h.access.Lock()
 			t := h.torrents[name]
 			delete(h.torrents, name)
+			h.access.Unlock()
 			t.Close()
 			wg.Done()
 		}(n)
 	}
 	wg.Wait()
-	h.access.Unlock()
 	return
 }

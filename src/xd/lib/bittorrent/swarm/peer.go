@@ -55,6 +55,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
+	p.usInterested = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
 	p.downloading = []*common.PieceRequest{}
@@ -270,6 +271,19 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
+func (c *PeerConn) checkInterested() {
+	bf := c.t.Bitfield()
+	if c.bf.XOR(bf).CountSet() > 0 {
+		c.usInterested = true
+		m := common.NewInterested()
+		c.Send(m)
+	} else {
+		c.usInterested = false
+		m := common.NewNotInterested()
+		c.Send(m)
+	}
+}
+
 func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 
 	if msg.KeepAlive() {
@@ -285,16 +299,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 		}
 		c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 		log.Debugf("got bitfield from %s", c.id.String())
-		bf := c.t.Bitfield()
-		if c.bf.XOR(bf).CountSet() > 0 {
-			c.usInterested = true
-			m := common.NewInterested()
-			c.Send(m)
-		} else {
-			m := common.NewNotInterested()
-			c.Send(m)
-		}
-
+		c.checkInterested()
 		if isnew {
 			c.Unchoke()
 			if c.ourOpts != nil {
@@ -337,6 +342,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 		// update bitfield
 		idx := msg.GetHave()
 		c.bf.Set(idx)
+		c.checkInterested()
 	}
 	if msgid == common.Cancel {
 		// TODO: check validity
@@ -450,7 +456,7 @@ func (c *PeerConn) sendKeepAlive() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
-	for !c.t.Done() && !c.closing {
+	for !c.t.Done() && !c.closing && (c.usInterested || c.peerInterested) {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
