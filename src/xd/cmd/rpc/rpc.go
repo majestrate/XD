@@ -24,7 +24,7 @@ func formatRate(r float64) string {
 
 func Run() {
 	var args []string
-	cmd := "list"
+	cmd := "help"
 	fname := "torrents.ini"
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
@@ -93,7 +93,7 @@ func Run() {
 }
 
 func printHelp(cmd string) {
-	fmt.Printf("usage: %s [list|add http://somesite.i2p/some.torrent|set-piece-window n|help]", cmd)
+	fmt.Printf("usage: %s [help|list|add http://somesite.i2p/some.torrent|set-piece-window n|remove infohash|delete infohash|stop infohash|start infohash]", cmd)
 	fmt.Println()
 }
 
