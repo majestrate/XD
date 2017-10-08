@@ -35,20 +35,24 @@ func (opts *Message) PEX() bool {
 	return opts.IsSupported(PeerExchange.String())
 }
 
+// supports XDHT
 func (opts *Message) XDHT() bool {
 	return opts.IsSupported(XDHT.String())
 }
 
+// set a bittorrent extension as supported
 func (opts *Message) SetSupported(ext Extension) {
 	// TODO: this will error if we do not support this extension
 	opts.Extensions[ext.String()] = extensionDefaults[ext]
 }
 
+// return true if an extension by its name is supported
 func (opts *Message) IsSupported(ext string) (has bool) {
 	_, has = opts.Extensions[ext]
 	return
 }
 
+// Lookup finds the extension name of the extension by id
 func (opts *Message) Lookup(id uint8) (string, bool) {
 	for k, v := range opts.Extensions {
 		if v == id {
@@ -92,6 +96,7 @@ func New() *Message {
 	}
 }
 
+// NewPEX creates a new PEX message for i2p peers
 func NewPEX(id uint8, connected, disconnected []byte) *Message {
 	payload := map[string]interface{}{
 		"added":   connected,

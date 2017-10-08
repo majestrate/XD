@@ -6,11 +6,14 @@ import (
 	"xd/lib/network/i2p"
 )
 
+
+// PEXSwarmState manages PeerExchange state on a bittorrent swarm
 type PEXSwarmState struct {
 	active map[string]bool
 	access sync.Mutex
 }
 
+// Create a new PEXSwarmState
 func NewPEXSwarmState() *PEXSwarmState {
 
 	return &PEXSwarmState{
@@ -31,7 +34,7 @@ func (p *PEXSwarmState) onPeerDisconnected(addr net.Addr) {
 
 }
 
-// GetDestHashList gets list of i2p destination hashes of currently active and disconnected peers
+// PopDestHashList gets list of i2p destination hashes of currently active and disconnected peers
 func (p *PEXSwarmState) PopDestHashLists() (connected, disconnected []byte) {
 	p.access.Lock()
 	var remove []string

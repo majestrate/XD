@@ -190,8 +190,8 @@ func (sw *Swarm) AddOpenTracker(url string) {
 func (sw *Swarm) Close() (err error) {
 	if !sw.closing {
 		sw.closing = true
-		sw.Torrents.Close()
-		err = sw.net.Close()
+		log.Info("Swarm closing")
+		err = sw.Torrents.Close()
 	}
 	return
 }

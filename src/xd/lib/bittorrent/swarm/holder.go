@@ -104,7 +104,7 @@ func (h *Holder) Close() (err error) {
 			t := h.torrents[name]
 			delete(h.torrents, name)
 			h.access.Unlock()
-			t.Close()
+			t.Stop()
 			wg.Done()
 		}(n)
 	}

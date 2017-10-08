@@ -200,6 +200,7 @@ func (c *PeerConn) clearDownloading() {
 	c.access.Unlock()
 }
 
+// returns true if the remote peer has piece with given index
 func (c *PeerConn) HasPiece(piece uint32) bool {
 	if c.bf == nil {
 		// no bitfield
@@ -244,6 +245,7 @@ func (c *PeerConn) markNotInterested() {
 	log.Debugf("%s is not interested", c.id.String())
 }
 
+// hard close connection
 func (c *PeerConn) Close() {
 	if c.closing {
 		return
@@ -338,11 +340,16 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 		}
 	}
 
-	if msgid == common.Have && c.bf != nil {
+	if msgid == common.Have {
 		// update bitfield
 		idx := msg.GetHave()
-		c.bf.Set(idx)
-		c.checkInterested()
+		if c.bf != nil {
+			c.bf.Set(idx)
+			c.checkInterested()
+		} else {
+			// default to interested if we have no bitfield yet
+			c.Send(common.NewInterested())
+		}
 	}
 	if msgid == common.Cancel {
 		// TODO: check validity
