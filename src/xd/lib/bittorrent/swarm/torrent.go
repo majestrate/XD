@@ -283,7 +283,7 @@ func (t *Torrent) StopAnnouncing() {
 
 // poll announce ticker channel and issue announces
 func (t *Torrent) pollAnnounce() {
-	for {
+	for t.announceTicker != nil {
 		_, ok := <-t.announceTicker.C
 		if !ok {
 			// done
