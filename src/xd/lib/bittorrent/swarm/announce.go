@@ -29,6 +29,9 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			Left:       a.t.st.DownloadRemaining(),
 			GetNetwork: a.t.Network,
 		}
+		if ev == tracker.Stopped {
+			req.NumWant = 0
+		}
 		var resp *tracker.Response
 		resp, err = a.announce.Announce(req)
 		backoff := a.fails * time.Minute

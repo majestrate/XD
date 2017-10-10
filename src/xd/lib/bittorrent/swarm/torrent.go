@@ -278,7 +278,9 @@ func (t *Torrent) StopAnnouncing() {
 	}
 	for name := range t.Trackers {
 		t.announce(name, tracker.Stopped)
+		log.Debugf("%s stopped", name)
 	}
+	log.Debugf("%s stopped annoucing", t.Name())
 }
 
 // poll announce ticker channel and issue announces
@@ -552,13 +554,14 @@ func (t *Torrent) Stop() error {
 	if t.closing {
 		return ErrAlreadyStopped
 	}
+	err := t.Close()
 	t.StopAnnouncing()
-	return t.Close()
+	return err
 }
 
 func (t *Torrent) Delete() error {
-	t.StopAnnouncing()
 	t.Close()
+	t.StopAnnouncing()
 	err := t.st.Delete()
 	if err == nil {
 		t.RemoveSelf()
