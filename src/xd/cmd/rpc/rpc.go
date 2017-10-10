@@ -167,8 +167,8 @@ func deleteTorrents(c *rpc.Client, ih ...string) {
 
 func listTorrents(c *rpc.Client) {
 	var err error
-	var list swarm.TorrentsList
-	list, err = c.ListTorrents()
+	var st swarm.SwarmStatus
+	st, err = c.GetSwarmStatus()
 	if err != nil {
 		log.Errorf("rpc error: %s", err)
 		return
@@ -176,19 +176,8 @@ func listTorrents(c *rpc.Client) {
 	var globalTx, globalRx float64
 
 	var torrents swarm.TorrentStatusList
-	sort.Stable(&list.Infohashes)
-
-	for _, ih := range list.Infohashes {
-		var status swarm.TorrentStatus
-		status, err = c.SwarmStatus(ih)
-
-		if err != nil {
-			log.Errorf("rpc error: %s", err)
-			return
-		}
-
+	for _, status := range st {
 		torrents = append(torrents, status)
-
 	}
 	sort.Stable(&torrents)
 	for _, status := range torrents {
@@ -216,7 +205,7 @@ func listTorrents(c *rpc.Client) {
 		globalTx += tx
 	}
 	fmt.Println()
-	fmt.Printf("%d torrents: tx=%s rx=%s\n", list.Infohashes.Len(), formatRate(globalTx), formatRate(globalRx))
+	fmt.Printf("%d torrents: tx=%s rx=%s\n", torrents.Len(), formatRate(globalTx), formatRate(globalRx))
 	fmt.Println()
 	fmt.Println()
 }

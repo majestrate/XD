@@ -75,6 +75,13 @@ func (cl *Client) ListTorrents() (torrents swarm.TorrentsList, err error) {
 	return
 }
 
+func (cl *Client) GetSwarmStatus() (status swarm.SwarmStatus, err error) {
+	err = cl.doRPC(&ListTorrentStatusRequest{BaseRequest{cl.swarmno}}, func(r io.Reader) error {
+		return json.NewDecoder(r).Decode(&status)
+	})
+	return
+}
+
 func (cl *Client) SetPieceWindow(n int) (err error) {
 	err = cl.doRPC(&SetPieceWindowRequest{BaseRequest{cl.swarmno}, n}, func(r io.Reader) error {
 		var response interface{}

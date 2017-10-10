@@ -86,6 +86,8 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 								message: fmt.Sprintf("invalid value: %s", body[ParamN]),
 							}
 						}
+					case RPCListTorrentStatus:
+						rr = &ListTorrentStatusRequest{}
 					default:
 						rr = &rpcError{
 							message: fmt.Sprintf("no such method %s", method),

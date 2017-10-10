@@ -112,3 +112,6 @@ type SwarmBandwidth struct {
 func (sb SwarmBandwidth) String() string {
 	return fmt.Sprintf("Upload: %s Download: %s", sb.Upload, sb.Download)
 }
+
+// infohash -> torrent status map
+type SwarmStatus map[string]TorrentStatus
