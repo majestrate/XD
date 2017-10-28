@@ -98,6 +98,12 @@ func (bf *Bitfield) XOR(other *Bitfield) *Bitfield {
 	return nil
 }
 
+func (bf *Bitfield) Progress() float64 {
+	fl := float64(bf.CountSet())
+	fl /= float64(bf.Length)
+	return fl
+}
+
 func (bf *Bitfield) Percent() string {
 	fl := float64(bf.CountSet())
 	fl /= float64(bf.Length)

@@ -2,14 +2,13 @@ package swarm
 
 import (
 	"fmt"
-	"xd/lib/bittorrent"
 	"xd/lib/metainfo"
 	"xd/lib/util"
 )
 
 type TorrentFileInfo struct {
 	FileInfo metainfo.FileInfo
-	Progress bittorrent.Bitfield
+	Progress float64
 }
 
 type TorrentPeers []*PeerConnStats
@@ -73,7 +72,7 @@ type TorrentStatus struct {
 	Name     string
 	State    TorrentState
 	Infohash string
-	Bitfield bittorrent.Bitfield
+	Progress float64
 }
 
 type TorrentStatusList []TorrentStatus

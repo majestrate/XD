@@ -204,12 +204,13 @@ func (t *Torrent) GetStatus() TorrentStatus {
 	var idx uint64
 	f := nfo.GetFiles()
 	if len(f) == 1 {
+		b := bittorrent.Bitfield{
+			Data:   bf.Data,
+			Length: bf.Length,
+		}
 		files = append(files, TorrentFileInfo{
 			FileInfo: f[0],
-			Progress: bittorrent.Bitfield{
-				Data:   bf.Data,
-				Length: bf.Length,
-			},
+			Progress: b.Progress(),
 		})
 	} else {
 		for _, file := range f {
@@ -226,26 +227,28 @@ func (t *Torrent) GetStatus() TorrentStatus {
 			} else {
 				data = bf.Data[idx:]
 			}
+			b := bittorrent.Bitfield{
+				Data:   data,
+				Length: uint32(plen),
+			}
 			files = append(files, TorrentFileInfo{
 				FileInfo: file,
-				Progress: bittorrent.Bitfield{
-					Data:   data,
-					Length: uint32(plen),
-				},
+				Progress: b.Progress(),
 			})
 			idx += l
 		}
+	}
+	b := bittorrent.Bitfield{
+		Data:   bf.Data,
+		Length: bf.Length,
 	}
 	return TorrentStatus{
 		Peers:    peers,
 		Name:     name,
 		State:    state,
 		Infohash: t.MetaInfo().Infohash().Hex(),
-		Bitfield: bittorrent.Bitfield{
-			Data:   bf.Data,
-			Length: bf.Length,
-		},
-		Files: files,
+		Progress: b.Progress(),
+		Files:    files,
 	}
 }
 

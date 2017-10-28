@@ -1,20 +1,21 @@
 {
-    "name": "xd-webui",
-    "version": "0.0.0",
-    "description": "web ui for XD bittorrent client",
-    "repository": "https://github.com/majestrate/XD",
-    "author": "Jeff",
-    "license": "MIT",
-    "dependencies": {
-        "bootstrap": "4.0.0-beta",
-        "browserify": "^14.4.0",
-        "express": "^4.15.4",
-        "http-server": "^0.10.0",
-        "jquery": "^3.2.1",
-        "uglify-js": "^2.4.11"
-    },
-    "scripts": {
-        "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && mkdir -p docroot/contrib/bootstrap/dist/css/ && cp -a node_modules/bootstrap/dist/css/*.css docroot/contrib/bootstrap/dist/css/",
-        "server": "node server.js"
-    }
+  "name": "xd-webui",
+  "version": "0.0.0",
+  "description": "web ui for XD bittorrent client",
+  "repository": "https://github.com/majestrate/XD",
+  "author": "Jeff",
+  "license": "MIT",
+  "dependencies": {
+    "bootstrap": "4.0.0-beta",
+    "browserify": "^14.4.0",
+    "express": "^4.15.4",
+    "http-server": "^0.10.0",
+    "jquery": "^3.2.1",
+    "uglify-js": "^2.4.11"
+  },
+  "scripts": {
+    "clean": "rm -f docroot/xd.min.js",
+    "build": "browserify lib/main.js | uglifyjs > docroot/xd.min.js && mkdir -p docroot/contrib/bootstrap/dist/css/ && cp -a node_modules/bootstrap/dist/css/*.css docroot/contrib/bootstrap/dist/css/",
+    "server": "node server.js"
+  }
 }
