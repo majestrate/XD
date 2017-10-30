@@ -6,15 +6,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="favicon.png">
     <title>XD WebUI</title>
-    <link href="contrib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="contrib/bootstrap/dist/css/bootstrap-grid.min.css" rel="stylesheet">
-    <link href="contrib/bootstrap/dist/css/bootstrap-reboot.min.css" rel="stylesheet">
-    <link href="bootstrap.min.css" rel="stylesheet">
+    <!-- <link href="css/normalize.css" rel="stylesheet"> -->
+    <!-- <link href="css/skeleton.css" rel="stylesheet"> -->
+    <!-- <link href="css/main.css" rel="stylesheet"> -->
+    <link href="xd.css" rel="stylesheet">
   </head>
   <body>
-      <noscript> XD WebUI is injected via Javascript &gt;:DDDDD </noscript>
-      <div id="xd-root">
+    <noscript> XD WebUI is injected via Javascript &gt;:DDDDD </noscript>
+    <div class="container">
+        <nav>
+            <div class="row">
+                <div class="four columns filter-panel">
+                  <ul data-bind="foreach: torrentStates" class="filter-buttons">
+                      <li data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
+                  </ul>
+                </div>
+                <div class="six columns">
+                  <input class="u-full-width" type="text" 
+                      placeholder="Torrent location (URL or local file)" 
+                      data-bind="value: torrentURL"
+                      id="exampleEmailInput">
+                </div>
+                <div class="two columns">
+                  <input class="u-full-width button-primary" type="submit" 
+                      data-bind="click: addTorrent"
+                      value="Add">
+                </div>
+            </div>
+        </nav>
+
+          <div data-bind="foreach: torrents">
+              <div data-bind="css: 'torrent-row-' + $data.State" class="row torrent-row">
+                  <div class="ten columns">
+                      <div>
+                          <span data-bind="text: Name"></span>
+                      </div>
+                      <div><span data-bind="text: $data.TotalSize()"></span> <span data-bind="text: $data.State"></span></div>
+                      <div><progress data-bind="value: $data.Progress" max="100"></progress></div>
+                      <div><span data-bind="text: $data.Peers()"></span> peers connected. <span data-bind="text: $data.Speed()"></span></div>
+                  </div>
+                  <div class="two columns torrent-buttons">
+                      <span class="button-remove" data-bind="click: remove" title="Remove torrent and delete files">X</span></div>
+              </div>
+          </div>
       </div>
+
       <script src="xd.min.js"></script>
   </body>
 </html>

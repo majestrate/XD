@@ -1,0 +1,69 @@
+nav {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+progress {
+    width: 100%;
+}
+
+.button-remove {
+    background: red;
+    color: snow;
+    font-weight: bold;
+    padding: 3px 5px;
+    border-radius: 10px;
+}
+.button-remove:hover {
+    cursor: pointer;
+    background: darkred;
+}
+
+.torrent-row {
+    padding: 10px;
+    font-size: 0.8em;
+}
+
+.torrent-buttons {
+    text-align: right;
+}
+
+.torrent-row:hover {
+    background: lightgrey;
+}
+
+.torrent-row-seeding {
+    color: darkgreen;
+}
+
+.filter-buttons {
+    text-align: center;
+}
+
+.filter-buttons li {
+    display: inline-block;
+    font-size: 0.7em;
+    height: 38px;
+    padding: 0 10px;
+    color: #555;
+    text-align: center;
+    line-height: 38px;
+    letter-spacing: .1rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: transparent;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    cursor: pointer;
+    margin: 0px;
+    box-sizing: border-box;
+}
+
+.filter-buttons li.active {
+    background: lightcyan;
+}
+
+.filter-buttons li:hover {
+    background: lightgrey;
+}

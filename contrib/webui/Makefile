@@ -5,8 +5,12 @@ build:
 	yarn install
 	yarn run build
 
-run: build
+build-debug:
+	yarn install
+	yarn run build-debug
+
+run:
 	yarn run server
 
 clean:
-	yarn clean
+	yarn autoclean --force
