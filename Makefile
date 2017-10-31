@@ -7,10 +7,7 @@ DOCROOT = $(WEBUI)/docroot
 WEBUI_LOGO = $(DOCROOT)/favicon.png
 WEB_FILES = $(DOCROOT)/index.html
 WEB_FILES += $(DOCROOT)/xd.min.js
-WEB_FILES += $(DOCROOT)/contrib/bootstrap/dist/css/bootstrap.min.css
-WEB_FILES += $(DOCROOT)/contrib/bootstrap/dist/css/bootstrap-grid.min.css
-WEB_FILES += $(DOCROOT)/contrib/bootstrap/dist/css/bootstrap-reboot.min.css
-WEB_FILES += $(DOCROOT)/bootstrap.min.css
+WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
 
