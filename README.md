@@ -24,8 +24,6 @@ Eventually:
 
 * GNU Make
 * GO 1.9
-* node.js 8.x
-* yarn 0.24.x
 
 
 ## Building

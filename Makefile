@@ -40,7 +40,12 @@ $(XD): assets
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
 
-clean:
+clean: webui-clean go-clean
+
+webui-clean:
+	$(MAKE) -C $(WEBUI) clean
+
+go-clean:
 	GOPATH=$(GOPATH) $(GO) clean
 
 $(WEBUI_LOGO):
