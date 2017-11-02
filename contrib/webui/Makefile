@@ -12,7 +12,7 @@ build:
 	cat $(JS_ROOT)/*.js > $(JS)
 
 run:
-	yarn run server
+	node server.js
 
 clean:
 	rm -f $(CSS) $(JS)
