@@ -8,15 +8,17 @@ progress {
 }
 
 .button-remove {
-    background: red;
-    color: snow;
+    color: #222;
     font-weight: bold;
-    padding: 3px 5px;
-    border-radius: 10px;
+    padding: 0px 10px;
+    border-radius: 4px;
+    border:1px #bbb solid;
 }
+
 .button-remove:hover {
     cursor: pointer;
-    background: darkred;
+    background: crimson;
+    color: snow;
 }
 
 .torrent-row {

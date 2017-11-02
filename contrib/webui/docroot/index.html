@@ -22,7 +22,7 @@
                   <input class="u-full-width" type="text" 
                       placeholder="Torrent location (URL or local file)" 
                       data-bind="value: torrentURL"
-                      id="exampleEmailInput">
+                      id="torrent-url-input">
                 </div>
                 <div class="two columns">
                   <input class="u-full-width button-primary" type="submit" 
@@ -43,7 +43,7 @@
                       <div><span data-bind="text: $data.Peers()"></span> peers connected. <span data-bind="text: $data.Speed()"></span></div>
                   </div>
                   <div class="two columns torrent-buttons">
-                      <span class="button-remove" data-bind="click: remove" title="Remove torrent and delete files">X</span></div>
+                      <span class="button-remove" data-bind="click: remove" title="Remove torrent and delete files">&mdash;</span></div>
               </div>
           </div>
       </div>
