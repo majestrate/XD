@@ -6,7 +6,6 @@ XD web ui source code
 ## dependencies
 
 * nodejs
-* yarn
 * GNU Make
 
 ## building
