@@ -1,5 +1,13 @@
+body {
+    background: #160116;
+}
+
+.base.container {
+    max-width: none;
+    padding: 24px;
+}
+
 nav {
-    padding-top: 20px;
     padding-bottom: 20px;
 }
 
@@ -7,39 +15,58 @@ progress {
     width: 100%;
 }
 
+.logo img {
+    width: 38px;
+}
+
 .button-remove {
-    color: #222;
+    color: #A517A5;
     font-weight: bold;
     padding: 0px 10px;
     border-radius: 4px;
-    border:1px #bbb solid;
+    border:1px #A517A5 solid;
 }
 
 .button-remove:hover {
     cursor: pointer;
-    background: crimson;
-    color: snow;
+    background: #A517A5;
+    color: #ccc;
 }
 
 .torrent-row {
     padding: 10px;
     font-size: 0.8em;
+    border: 1px solid #222;
+    border-top: none;
+}
+
+.torrent-row:first-child {
+    border-top: 1px solid #222;
 }
 
 .torrent-buttons {
     text-align: right;
 }
 
+.torrent-row:nth-child(odd) {
+    background: #222;
+}
+
 .torrent-row:hover {
-    background: lightgrey;
+    background: #DDD;
+}
+
+.torrent-row-downloading {
+    color: #A517A5;
 }
 
 .torrent-row-seeding {
-    color: darkgreen;
+    color: #00BB00;
 }
 
-.filter-buttons {
-    text-align: center;
+progress {
+    -webkit-appearance: none;
+     appearance: none;
 }
 
 .filter-buttons li {
@@ -47,7 +74,7 @@ progress {
     font-size: 0.7em;
     height: 38px;
     padding: 0 10px;
-    color: #555;
+    color: #A517A5;
     text-align: center;
     line-height: 38px;
     letter-spacing: .1rem;
@@ -56,16 +83,66 @@ progress {
     white-space: nowrap;
     background-color: transparent;
     border-radius: 4px;
-    border: 1px solid #bbb;
+    border: 1px solid #A517A5;
     cursor: pointer;
     margin: 0px;
     box-sizing: border-box;
 }
 
 .filter-buttons li.active {
-    background: lightcyan;
+    background: #A517A5;
+    color: #DDD;
 }
 
 .filter-buttons li:hover {
-    background: lightgrey;
+    background: #A517A5;
+    color: #DDD;
 }
+
+.button.button-primary,
+button.button-primary,
+input[type="submit"].button-primary,
+input[type="reset"].button-primary,
+input[type="button"].button-primary {
+  color: #DDD !important;
+  background-color: #A517A5 !important;
+  border-color: #A517A5 !important; }
+.button.button-primary:hover,
+button.button-primary:hover,
+input[type="submit"].button-primary:hover,
+input[type="reset"].button-primary:hover,
+input[type="button"].button-primary:hover,
+.button.button-primary:focus,
+button.button-primary:focus,
+input[type="submit"].button-primary:focus,
+input[type="reset"].button-primary:focus,
+input[type="button"].button-primary:focus {
+  color: #FFF !important;
+  background-color: #00BB00 !important;
+  border-color: #00BB00 !important; }
+
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  background-color: transparent !important;
+  border: 1px solid #A517A5 !important;
+  color: #A517A5 !important; }
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border: 1px solid #00BB00 !important;
+  color: #00BB00 !important; }
+
+

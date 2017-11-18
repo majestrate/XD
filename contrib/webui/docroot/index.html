@@ -10,22 +10,25 @@
   </head>
   <body>
     <noscript> XD WebUI is injected via Javascript &gt;:DDDDD </noscript>
-    <div class="container">
+    <div class="base container u-full-width">
         <nav>
             <div class="row">
+                <div class="one columns logo">
+                  <img src="favicon.png" />
+                </div>
                 <div class="four columns filter-panel">
                   <ul data-bind="foreach: torrentStates" class="filter-buttons">
                       <li data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
                   </ul>
                 </div>
-                <div class="six columns">
-                  <input class="u-full-width" type="text" 
-                      placeholder="Torrent location (URL or local file)" 
+                <div class="five columns">
+                  <input class="u-full-width" type="text"
+                      placeholder="Torrent location (URL or local file)"
                       data-bind="value: torrentURL"
                       id="torrent-url-input">
                 </div>
                 <div class="two columns">
-                  <input class="u-full-width button-primary" type="submit" 
+                  <input class="u-full-width button-primary" type="submit"
                       data-bind="click: addTorrent"
                       value="Add">
                 </div>
