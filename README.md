@@ -67,7 +67,7 @@ To use the RPC Tool symlink `XD` to `XD-CLI`
 
 to list torrents run:
 
-    $ ./XD-CLI
+    $ ./XD-CLI list
 
 
 to add a torrent from http server:
