@@ -52,11 +52,12 @@ type Handshake struct {
 	PeerID   common.PeerID
 }
 
-// Recv reads handshake via reader
-func (h *Handshake) Recv(r io.Reader) (err error) {
-	var buff [68]byte
-	_, err = io.ReadFull(r, buff[:])
-	if err == nil {
+// parse handshake from bytes
+func (h *Handshake) FromBytes(data []byte) (err error) {
+	if len(data) < 68 {
+		err = ErrInvalidHandshake
+	} else {
+		buff := data[:68]
 		if buff[0] == 19 && bytes.Equal(buff[1:20], []byte(handshakeV1)) {
 			copy(h.Reserved.data[:], buff[20:28])
 			copy(h.Infohash[:], buff[28:48])
@@ -64,6 +65,16 @@ func (h *Handshake) Recv(r io.Reader) (err error) {
 		} else {
 			err = ErrInvalidHandshake
 		}
+	}
+	return
+}
+
+// Recv reads handshake via reader
+func (h *Handshake) Recv(r io.Reader) (err error) {
+	var buff [68]byte
+	_, err = io.ReadFull(r, buff[:])
+	if err == nil {
+		err = h.FromBytes(buff[:])
 	}
 	return
 }

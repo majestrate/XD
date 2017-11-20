@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"bytes"
 	"net"
 	"net/http"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/dht"
+	"xd/lib/gnutella"
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/network"
@@ -24,6 +26,7 @@ type Swarm struct {
 	id       common.PeerID
 	trackers map[string]tracker.Announcer
 	xdht     dht.XDHT
+	gnutella *gnutella.Swarm
 }
 
 func (sw *Swarm) Running() bool {
@@ -71,40 +74,76 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 
 // got inbound connection
 func (sw *Swarm) inboundConn(c net.Conn) {
-	h := new(bittorrent.Handshake)
-	log.Debug("read bittorrent handshake")
-	err := h.Recv(c)
-	if err != nil {
-		log.Warn("read bittorrent handshake failed, closing connection")
-		// read error
+	var firstBytes [20]byte
+	n, err := c.Read(firstBytes[:])
+	if err != nil || n != 20 {
+		log.Debug("failed to read first bytes")
 		c.Close()
 		return
 	}
-	t := sw.Torrents.GetTorrent(h.Infohash)
-	if t == nil {
-		log.Warnf("we don't have torrent with infohash %s, closing connection", h.Infohash.Hex())
-		// no such torrent
+	if firstBytes[0] == 19 {
+		// bittorrent
+		var buff [68]byte
+		copy(buff[:], firstBytes[:])
+		n, err = c.Read(buff[20:])
+		if err != nil || n != 48 {
+			log.Debugf("failed to read bittorrent handshake: %d bytes", n)
+			c.Close()
+			return
+		}
+		h := new(bittorrent.Handshake)
+		err := h.FromBytes(buff[:])
+		if err != nil {
+			log.Debug(err.Error())
+			c.Close()
+			return
+		}
+		t := sw.Torrents.GetTorrent(h.Infohash)
+		if t == nil {
+			log.Warnf("we don't have torrent with infohash %s, closing connection", h.Infohash.Hex())
+			// no such torrent
+			c.Close()
+			return
+		}
+		var opts *extensions.Message
+		if h.Reserved.Has(bittorrent.Extension) {
+			opts = extensions.New()
+		}
+		// reply to handshake
+		var id common.PeerID
+		copy(id[:], h.PeerID[:])
+		copy(h.PeerID[:], sw.id[:])
+		err = h.Send(c)
+		if err != nil {
+			log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
+			// write error
+			c.Close()
+			return
+		}
+		// make peer conn
+		p := makePeerConn(c, t, id, opts)
+		t.onNewPeer(p)
+
+	} else if bytes.Equal(firstBytes[:], []byte(gnutella.Handshake)) {
+		// gnutella
+		var delim [2]byte
+		// discard crlf
+		c.Read(delim[:])
+		// do the rest of the handshake
+		conn := gnutella.NewConn(c)
+		err = conn.Handshake(sw.gnutella == nil)
+		if err == nil && sw.gnutella != nil {
+			log.Debug("got GNUTella Peer")
+			sw.gnutella.AddInboundPeer(conn)
+		} else {
+			conn.Close()
+		}
+	} else {
+		// unknown
+		log.Debug("bad protocol handshake")
 		c.Close()
 		return
 	}
-	var opts *extensions.Message
-	if h.Reserved.Has(bittorrent.Extension) {
-		opts = extensions.New()
-	}
-	// reply to handshake
-	var id common.PeerID
-	copy(id[:], h.PeerID[:])
-	copy(h.PeerID[:], sw.id[:])
-	err = h.Send(c)
-	if err != nil {
-		log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
-		// write error
-		c.Close()
-		return
-	}
-	// make peer conn
-	p := makePeerConn(c, t, id, opts)
-	t.onNewPeer(p)
 }
 
 // add a torrent to this swarm
@@ -160,13 +199,14 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 }
 
 // create a new swarm using a storage backend for storing downloads and torrent metadata
-func NewSwarm(storage storage.Storage) *Swarm {
+func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 	sw := &Swarm{
 		Torrents: Holder{
 			st:       storage,
 			torrents: make(map[string]*Torrent),
 		},
 		trackers: map[string]tracker.Announcer{},
+		gnutella: gnutella,
 	}
 	sw.id = common.GeneratePeerID()
 	log.Infof("generated peer id %s", sw.id.String())
@@ -215,10 +255,8 @@ func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
 				var t storage.Torrent
 				t, err = sw.Torrents.st.OpenTorrent(&info)
 				if err == nil {
-					err = t.VerifyAll(true)
-					if err == nil {
-						sw.AddTorrent(t)
-					}
+					t.VerifyAll(true)
+					sw.AddTorrent(t)
 				}
 			}
 		}

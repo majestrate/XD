@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/configparser"
+	"xd/lib/gnutella"
 	"xd/lib/storage"
 	"xd/lib/util"
 )
@@ -129,8 +130,8 @@ func (cfg *BittorrentConfig) LoadEnv() {
 	}
 }
 
-func (c *BittorrentConfig) CreateSwarm(st storage.Storage) *swarm.Swarm {
-	sw := swarm.NewSwarm(st)
+func (c *BittorrentConfig) CreateSwarm(st storage.Storage, gnutella *gnutella.Swarm) *swarm.Swarm {
+	sw := swarm.NewSwarm(st, gnutella)
 	for name := range c.OpenTrackers.Trackers {
 		sw.AddOpenTracker(c.OpenTrackers.Trackers[name])
 	}

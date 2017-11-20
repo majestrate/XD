@@ -74,7 +74,11 @@ func Run() {
 	var swarms []*swarm.Swarm
 	count := 0
 	for count < conf.Bittorrent.Swarms {
-		sw := conf.Bittorrent.CreateSwarm(st)
+		gnutella := conf.Gnutella.CreateSwarm()
+		sw := conf.Bittorrent.CreateSwarm(st, gnutella)
+		if gnutella != nil {
+			closers = append(closers, gnutella)
+		}
 		swarms = append(swarms, sw)
 		closers = append(closers, sw)
 		count++

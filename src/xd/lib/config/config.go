@@ -10,6 +10,7 @@ type Config struct {
 	RPC        RPCConfig
 	Log        LogConfig
 	Bittorrent BittorrentConfig
+	Gnutella   G2Config
 }
 
 // Configurable interface for entity serializable to/from config parser section
@@ -27,6 +28,7 @@ func (cfg *Config) Load(fname string) (err error) {
 		"rpc":        &cfg.RPC,
 		"log":        &cfg.Log,
 		"bittorrent": &cfg.Bittorrent,
+		"gnutella":   &cfg.Gnutella,
 	}
 	var c *configparser.Configuration
 	c, err = configparser.Read(fname)
@@ -53,6 +55,7 @@ func (cfg *Config) Save(fname string) (err error) {
 		"rpc":        &cfg.RPC,
 		"log":        &cfg.Log,
 		"bittorrent": &cfg.Bittorrent,
+		"gnutella":   &cfg.Gnutella,
 	}
 	c := configparser.NewConfiguration()
 	for sect, conf := range sects {
