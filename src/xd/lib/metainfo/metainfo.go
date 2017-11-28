@@ -32,6 +32,16 @@ type FileInfo struct {
 	Sum []byte `bencode:"md5sum,omitempty"`
 }
 
+// (v2)
+type FileTreeEntry struct {
+	Length     uint64 `bencode:"length"`
+	MerkleRoot []byte `bencode:"pieces root,omitempty"`
+}
+
+// (v2)
+type FileTree struct {
+}
+
 // info section of torrent file
 type Info struct {
 	// length of pices in bytes
@@ -48,6 +58,25 @@ type Info struct {
 	Length uint64 `bencode:"length,omitempty"`
 	// md5sum
 	Sum []byte `bencode:"md5sum,omitempty"`
+	// metainfo version (v2)
+	MetaVersion *uint64 `bencode:"meta version,omitempty"`
+	// file tree (v2)
+	FileTree *FileTree `bencode:"file tree,omitempty"`
+}
+
+// is this a version 2 compatable info
+func (i Info) IsV2Compat() bool {
+	return i.MetaVersion != nil && *i.MetaVersion == 2
+}
+
+// is this a version 1 compatable info
+func (i Info) IsV1Compat() bool {
+	return i.MetaVersion == nil || *i.MetaVersion == 1
+}
+
+// is this a version 1 only info
+func (i Info) IsV1Only() bool {
+	return i.MetaVersion == nil
 }
 
 // get fileinfos from this info section
@@ -81,6 +110,9 @@ func (i Info) NumPieces() uint32 {
 	return uint32(len(i.Pieces) / 20)
 }
 
+// (v2)
+type PieceLayers map[string][]byte
+
 // a torrent file
 type TorrentFile struct {
 	Info         Info       `bencode:"info"`
@@ -90,6 +122,8 @@ type TorrentFile struct {
 	Comment      []byte     `bencode:"comment"`
 	CreatedBy    []byte     `bencode:"created by"`
 	Encoding     []byte     `bencode:"encoding"`
+	// (v2)
+	PieceLayers PieceLayers `bencode:"piece layers,omitemtpy"`
 }
 
 func (tf *TorrentFile) LengthOfPiece(idx uint32) (l uint32) {
@@ -135,13 +169,24 @@ func (tf *TorrentFile) TorrentName() string {
 	return tf.Info.Path
 }
 
-// calculate infohash
-func (tf *TorrentFile) Infohash() (ih common.Infohash) {
+// calculate infohash v1
+func (tf *TorrentFile) InfohashV1() (ih common.InfohashV1) {
 	s := sha1.New()
 	enc := bencode.NewEncoder(s)
 	enc.Encode(&tf.Info)
 	d := s.Sum(nil)
 	copy(ih[:], d[:])
+	return
+}
+
+func (tf *TorrentFile) Infohash() common.Infohash {
+	if tf.Info.IsV1Only() {
+		return tf.InfohashV1()
+	}
+	return tf.InfohashV2()
+}
+
+func (tf *TorrentFile) InfohashV2() (ih common.InfohashV2) {
 	return
 }
 

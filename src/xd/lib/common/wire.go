@@ -43,6 +43,15 @@ const Cancel = WireMessageType(8)
 // Extended is messageid for ExtendedOptions message
 const Extended = WireMessageType(20)
 
+// HashReqeuest (v2)
+const HashRequest = WireMessageType(21)
+
+// Hashes (v2)
+const Hashes = WireMessageType(22)
+
+// HashReject (v2)
+const HashReject = WireMessageType(23)
+
 // special for invalid
 const Invalid = WireMessageType(255)
 
@@ -69,6 +78,12 @@ func (t WireMessageType) String() string {
 		return "Cancel"
 	case Extended:
 		return "Extended"
+	case HashRequest:
+		return "HashRequest"
+	case Hashes:
+		return "Hashes"
+	case HashReject:
+		return "HashReject"
 	case Invalid:
 		return "INVALID"
 	default:

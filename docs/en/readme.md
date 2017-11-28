@@ -56,3 +56,7 @@ Example config:
 This will login to `remote.server.tld:22` with user `your_ssh_user` using (unencrypted) private key and use `/mnt/storage/XD/` on the remote server as the storage for torrents and metadata. 
 
 The server's public key is usually located at `/etc/ssh/ssh_host_*.pub` in the form: `ssh-whatever base64goeshere root@hostname`, you want to use the base64 value in `sftp_remotekey` .
+
+### note
+
+sftp is best for **seeding** files from another box like a NAS, if sftp storage driver is used then file preallocation is done via sftp which is very inefficient.

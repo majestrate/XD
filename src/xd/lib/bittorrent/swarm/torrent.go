@@ -425,7 +425,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 		h := new(bittorrent.Handshake)
 		// enable bittorrent extensions
 		h.Reserved.Set(bittorrent.Extension)
-		copy(h.Infohash[:], ih[:])
+		copy(h.Infohash.Bytes(), ih.ToV1().Bytes())
 		copy(h.PeerID[:], t.id[:])
 		// send handshake
 		err = h.Send(c)
@@ -433,7 +433,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 			// get response to handshake
 			err = h.Recv(c)
 			if err == nil {
-				if bytes.Equal(ih[:], h.Infohash[:]) {
+				if bytes.Equal(ih.ToV1().Bytes(), h.Infohash.ToV1().Bytes()) {
 					// infohashes match
 					var opts *extensions.Message
 					if h.Reserved.Has(bittorrent.Extension) {

@@ -60,7 +60,7 @@ func (h *Handshake) FromBytes(data []byte) (err error) {
 		buff := data[:68]
 		if buff[0] == 19 && bytes.Equal(buff[1:20], []byte(handshakeV1)) {
 			copy(h.Reserved.data[:], buff[20:28])
-			copy(h.Infohash[:], buff[28:48])
+			copy(h.Infohash.Bytes(), buff[28:48])
 			copy(h.PeerID[:], buff[48:68])
 		} else {
 			err = ErrInvalidHandshake
@@ -85,7 +85,7 @@ func (h *Handshake) Send(w io.Writer) (err error) {
 	buff[0] = 19
 	copy(buff[1:], []byte(handshakeV1))
 	copy(buff[20:28], h.Reserved.data[:])
-	copy(buff[28:48], h.Infohash[:])
+	copy(buff[28:48], h.Infohash.ToV1().Bytes())
 	copy(buff[48:68], h.PeerID[:])
 	err = util.WriteFull(w, buff[:])
 	return

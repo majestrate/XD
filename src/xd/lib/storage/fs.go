@@ -195,7 +195,9 @@ func (t *fsTorrent) Name() string {
 }
 
 func (t *fsTorrent) Infohash() (ih common.Infohash) {
-	copy(ih[:], t.ih[:])
+	var ihv1 common.InfohashV1
+	copy(ihv1[:], t.ih.ToV1().Bytes())
+	ih = ihv1
 	return
 }
 
