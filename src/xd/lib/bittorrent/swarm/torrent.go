@@ -17,6 +17,9 @@ import (
 	"xd/lib/tracker"
 )
 
+// max peers peer swarm default
+const DefaultMaxSwarmPeers = 50
+
 // single torrent tracked in a swarm
 type Torrent struct {
 	Completed      func()
@@ -40,6 +43,7 @@ type Torrent struct {
 	closing        bool
 	started        bool
 	MaxRequests    int
+	MaxPeers       uint
 	pexState       *PEXSwarmState
 	xdht           *dht.XDHT
 }
@@ -106,7 +110,7 @@ func (t *Torrent) SetPieceWindow(n int) {
 	t.VisitPeers(func(c *PeerConn) {
 		c.MaxParalellRequests = n
 	})
-	t.pt.maxPending = n
+	// t.pt.maxPending = n
 }
 
 func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
@@ -136,6 +140,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		defaultOpts: extensions.New(),
 		MaxRequests: DefaultMaxParallelRequests,
 		pexState:    NewPEXSwarmState(),
+		MaxPeers:    DefaultMaxSwarmPeers,
 	}
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
@@ -324,6 +329,10 @@ func (t *Torrent) announce(name string, ev tracker.Event) {
 // add peers to torrent
 func (t *Torrent) addPeers(peers []common.Peer) {
 	for _, p := range peers {
+		if !t.NeedsPeers() {
+			// no more peers needed
+			return
+		}
 		a, e := p.Resolve(t.Network())
 		if e == nil {
 			if a.String() == t.Network().Addr().String() {
@@ -417,10 +426,10 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 	if t.HasOBConn(a) {
 		return nil
 	}
+	ih := t.st.Infohash()
 	c, err := t.Network().Dial(a.Network(), a.String())
 	if err == nil {
 		// connected
-		ih := t.st.Infohash()
 		// build handshake
 		h := new(bittorrent.Handshake)
 		// enable bittorrent extensions
@@ -478,6 +487,11 @@ func (t *Torrent) Name() string {
 	return t.MetaInfo().TorrentName()
 }
 
+// return false if we reached max peers for this torrent
+func (t *Torrent) NeedsPeers() bool {
+	return t.NumPeers() <= t.MaxPeers
+}
+
 // callback called when we get a new inbound peer
 func (t *Torrent) onNewPeer(c *PeerConn) {
 	a := c.c.RemoteAddr()
@@ -486,10 +500,14 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 		c.Close()
 		return
 	}
-	log.Debugf("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
-	t.addIBPeer(c)
-	c.start()
-	c.Send(t.Bitfield().ToWireMessage())
+	if t.NeedsPeers() {
+		log.Debugf("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
+		t.addIBPeer(c)
+		c.start()
+		c.Send(t.Bitfield().ToWireMessage())
+	} else {
+		c.Close()
+	}
 }
 
 func (t *Torrent) run() {

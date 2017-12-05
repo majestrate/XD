@@ -133,7 +133,7 @@ func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracke
 		requests:   make(map[uint32]*cachedPiece),
 		st:         st,
 		nextPiece:  picker,
-		maxPending: 5,
+		maxPending: 8,
 	}
 	return
 }
@@ -199,7 +199,7 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 
 	pt.mtx.Lock()
 	defer pt.mtx.Unlock()
-	pt.cancelTimedOut(time.Minute)
+	pt.cancelTimedOut(time.Second * 30)
 
 	idx, old := pt.pendingPiece(remote)
 	var cp *cachedPiece
