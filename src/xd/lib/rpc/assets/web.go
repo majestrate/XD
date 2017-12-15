@@ -1,4 +1,4 @@
-// +build !no_webui
+// +build webui
 
 package assets
 

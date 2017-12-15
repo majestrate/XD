@@ -36,7 +36,7 @@ assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
 
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
@@ -56,4 +56,4 @@ webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
 no-webui:
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
