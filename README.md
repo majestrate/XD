@@ -42,6 +42,8 @@ you can build with go get using:
 
     $ go get -u -v github.com/majestrate/XD
 
+please note that using `go get` disables the webui.
+
 ### cross compile for Raspberry PI
 
 Set `GOARCH` and `GOOS` when building with make:
