@@ -11,7 +11,7 @@ WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
 
-GIT_VERSION ?= $(shell git rev-parse --short HEAD || true)
+GIT_VERSION ?= $(shell test -e .git && git rev-parse --short HEAD || true)
 
 ifdef GOROOT
 	GO = $(GOROOT)/bin/go
