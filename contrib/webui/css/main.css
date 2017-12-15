@@ -53,7 +53,7 @@ progress {
 }
 
 .torrent-row:hover {
-    background: #DDD;
+    background: #353535;
 }
 
 .torrent-row-downloading {
