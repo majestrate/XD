@@ -4,6 +4,7 @@ import (
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/metainfo"
+	"xd/lib/stats"
 )
 
 // storage session for 1 torrent
@@ -44,6 +45,9 @@ type Torrent interface {
 
 	// delete all files and metadata for this torrent
 	Delete() error
+
+	// save torrent stats
+	SaveStats(s *stats.Tracker) error
 }
 
 // torrent storage driver

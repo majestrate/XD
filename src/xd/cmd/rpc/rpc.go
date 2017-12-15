@@ -195,7 +195,7 @@ func listTorrents(c *rpc.Client) {
 			tx += peer.TX
 			rx += peer.RX
 		}
-		fmt.Printf("%s tx=%s rx=%s\n", status.State, formatRate(tx), formatRate(rx))
+		fmt.Printf("%s tx=%s rx=%s (%s)\n", status.State, formatRate(tx), formatRate(rx), formatRate(status.Ratio()))
 		fmt.Println("files:")
 		for idx, f := range status.Files {
 			fmt.Printf("\t[%d] %s (%.2f)\n", idx, f.FileInfo.Path.FilePath(), f.Progress)
@@ -205,7 +205,7 @@ func listTorrents(c *rpc.Client) {
 		globalTx += tx
 	}
 	fmt.Println()
-	fmt.Printf("%d torrents: tx=%s rx=%s\n", torrents.Len(), formatRate(globalTx), formatRate(globalRx))
+	fmt.Printf("%d torrents: tx=%s rx=%s (%s)\n", torrents.Len(), formatRate(globalTx), formatRate(globalRx), formatRate(torrents.Ratio()))
 	fmt.Println()
 	fmt.Println()
 }

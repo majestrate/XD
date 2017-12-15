@@ -9,6 +9,7 @@ import (
 	"xd/lib/fs"
 	"xd/lib/log"
 	"xd/lib/metainfo"
+	"xd/lib/stats"
 )
 
 // filesystem based storrent storage session
@@ -316,6 +317,11 @@ func (t *fsTorrent) Close() error {
 	return t.Flush()
 }
 
+func (t *fsTorrent) SaveStats(s *stats.Tracker) (err error) {
+	err = t.st.saveStatsForTorrent(t.ih, s)
+	return
+}
+
 // filesystem based torrent storage
 type FsStorage struct {
 	// directory for downloaded data
@@ -393,6 +399,20 @@ func (st *FsStorage) CreateNewBitfield(ih common.Infohash, bits uint32) {
 
 func (st *FsStorage) metainfoFilename(ih common.Infohash) string {
 	return st.FS.Join(st.MetaDir, ih.Hex()+".torrent")
+}
+
+func (st *FsStorage) statsFilename(ih common.Infohash) string {
+	return st.FS.Join(st.MetaDir, ih.Hex()+".stats")
+}
+
+func (st *FsStorage) saveStatsForTorrent(ih common.Infohash, s *stats.Tracker) (err error) {
+	var f fs.WriteFile
+	f, err = st.FS.OpenFileWriteOnly(st.statsFilename(ih))
+	if err == nil {
+		err = s.BEncode(f)
+		f.Close()
+	}
+	return
 }
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {

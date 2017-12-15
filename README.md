@@ -48,7 +48,6 @@ Set `GOARCH` and `GOOS` when building with make:
 
     $ make GOARCH=arm GOOS=linux
 
-
 ## Usage
 
 To autogenerate a new config and start:
@@ -68,7 +67,6 @@ To use the RPC Tool symlink `XD` to `XD-CLI`
 to list torrents run:
 
     $ ./XD-CLI list
-
 
 to add a torrent from http server:
 

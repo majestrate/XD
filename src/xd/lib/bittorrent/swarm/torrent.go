@@ -13,12 +13,21 @@ import (
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/network"
+	"xd/lib/stats"
 	"xd/lib/storage"
 	"xd/lib/tracker"
 )
 
 // max peers peer swarm default
 const DefaultMaxSwarmPeers = 50
+
+// rate name for upload
+const RateUpload = "upload"
+
+// rate name for download
+const RateDownload = "download"
+
+var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
@@ -46,6 +55,7 @@ type Torrent struct {
 	MaxPeers       uint
 	pexState       *PEXSwarmState
 	xdht           *dht.XDHT
+	statsTracker   *stats.Tracker
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -98,6 +108,7 @@ func (t *Torrent) Close() error {
 	for t.NumPeers() > 0 {
 		time.Sleep(time.Millisecond)
 	}
+	t.saveStats()
 	return t.st.Flush()
 }
 
@@ -132,16 +143,21 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 
 func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
-		Trackers:    make(map[string]tracker.Announcer),
-		announcers:  make(map[string]*torrentAnnounce),
-		st:          st,
-		ibconns:     make(map[string]*PeerConn),
-		obconns:     make(map[string]*PeerConn),
-		defaultOpts: extensions.New(),
-		MaxRequests: DefaultMaxParallelRequests,
-		pexState:    NewPEXSwarmState(),
-		MaxPeers:    DefaultMaxSwarmPeers,
+		Trackers:     make(map[string]tracker.Announcer),
+		announcers:   make(map[string]*torrentAnnounce),
+		st:           st,
+		ibconns:      make(map[string]*PeerConn),
+		obconns:      make(map[string]*PeerConn),
+		defaultOpts:  extensions.New(),
+		MaxRequests:  DefaultMaxParallelRequests,
+		pexState:     NewPEXSwarmState(),
+		MaxPeers:     DefaultMaxSwarmPeers,
+		statsTracker: stats.NewTracker(),
 	}
+	for _, rate := range defaultRates {
+		t.statsTracker.NewRate(rate)
+	}
+
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
 	return t
@@ -284,11 +300,16 @@ func (t *Torrent) StopAnnouncing() {
 		t.announceTicker.Stop()
 		t.announceTicker = nil
 	}
-	for name := range t.Trackers {
-		t.announce(name, tracker.Stopped)
-		log.Debugf("%s stopped", name)
+	var wg sync.WaitGroup
+	for n := range t.Trackers {
+		wg.Add(1)
+		go func(name string) {
+			t.announce(name, tracker.Stopped)
+			log.Debugf("%s stopped", name)
+			wg.Add(-1)
+		}(n)
 	}
-	log.Debugf("%s stopped annoucing", t.Name())
+	wg.Wait()
 }
 
 // poll announce ticker channel and issue announces
@@ -518,6 +539,7 @@ func (t *Torrent) run() {
 		go t.Started()
 	}
 	t.started = true
+	go t.runRateTicker()
 	for !t.Done() {
 		time.Sleep(time.Second * 5)
 	}
@@ -571,6 +593,13 @@ func (t *Torrent) Done() bool {
 var ErrAlreadyStopped = errors.New("torrent already stopped")
 var ErrAlreadyStarted = errors.New("torrent already started")
 
+func (t *Torrent) runRateTicker() {
+	for t.started {
+		time.Sleep(time.Second)
+		t.statsTracker.Tick()
+	}
+}
+
 func (t *Torrent) Stop() error {
 	if t.closing {
 		return ErrAlreadyStopped
@@ -606,4 +635,9 @@ func (t *Torrent) Start() error {
 	t.closing = false
 	go t.run()
 	return nil
+}
+
+func (t *Torrent) saveStats() (err error) {
+	err = t.st.SaveStats(t.statsTracker)
+	return
 }

@@ -28,9 +28,9 @@ type PeerConn struct {
 	usInterested        bool
 	Done                func()
 	lastSend            time.Time
-	tx                  util.Rate
+	tx                  *util.Rate
 	lastRecv            time.Time
-	rx                  util.Rate
+	rx                  *util.Rate
 	downloading         []*common.PieceRequest
 	ourOpts             *extensions.Message
 	theirOpts           *extensions.Message
@@ -41,8 +41,8 @@ type PeerConn struct {
 // get stats for this connection
 func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st = new(PeerConnStats)
-	st.TX = c.tx.Rate()
-	st.RX = c.rx.Rate()
+	st.TX = c.tx.Mean()
+	st.RX = c.rx.Mean()
 	st.Addr = c.c.RemoteAddr().String()
 	st.ID = c.id.String()
 	return
@@ -52,6 +52,8 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p := new(PeerConn)
 	p.c = c
 	p.t = t
+	p.tx = util.NewRate(10)
+	p.rx = util.NewRate(10)
 	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
@@ -98,7 +100,9 @@ func (c *PeerConn) doSend(msg *common.WireMessage) {
 			err := msg.Send(c.c)
 			if err == nil {
 				if msg.MessageID() == common.Piece {
-					c.tx.AddSample(uint64(msg.Len()))
+					n := uint64(msg.Len())
+					c.tx.AddSample(n)
+					c.t.statsTracker.AddSample(RateUpload, n)
 				}
 				log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 			} else {
@@ -117,7 +121,9 @@ func (c *PeerConn) Send(msg *common.WireMessage) {
 func (c *PeerConn) recv(msg *common.WireMessage) (err error) {
 	c.lastRecv = time.Now()
 	if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
-		c.rx.AddSample(uint64(msg.Len()))
+		n := uint64(msg.Len())
+		c.rx.AddSample(n)
+		c.t.statsTracker.AddSample(RateDownload, n)
 	}
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 	err = c.inboundMessage(msg)

@@ -75,12 +75,27 @@ type TorrentStatus struct {
 	Progress float64
 }
 
+func (t TorrentStatus) Ratio() (r float64) {
+	r = t.Peers.TX() / t.Peers.RX()
+	return
+}
+
 type TorrentStatusList []TorrentStatus
 
 func (l TorrentStatusList) TX() (tx float64) {
 	for idx := range l {
 		tx += l[idx].Peers.TX()
 	}
+	return
+}
+
+func (l TorrentStatusList) Ratio() (r float64) {
+	var tx, rx float64
+	for idx := range l {
+		tx += l[idx].Peers.TX()
+		rx += l[idx].Peers.RX()
+	}
+	r = tx / rx
 	return
 }
 
