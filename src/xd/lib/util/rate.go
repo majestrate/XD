@@ -17,17 +17,17 @@ func (s RateSample) Time() time.Time {
 	return time.Unix(int64(s[1]), 0)
 }
 
-func (s RateSample) Clear() {
+func (s *RateSample) Clear() {
 	s.Set(0)
 }
 
-func (s RateSample) Set(n uint64) {
-	s[0] = n
-	s[1] = uint64(time.Now().Unix())
+func (s *RateSample) Set(n uint64) {
+	(*s)[0] = n
+	(*s)[1] = uint64(time.Now().Unix())
 }
 
-func (s RateSample) Add(n uint64) {
-	s[0] += n
+func (s *RateSample) Add(n uint64) {
+	(*s)[0] += n
 }
 
 type Rate struct {
@@ -92,14 +92,14 @@ func (r *Rate) PrevTickTime() time.Time {
 
 func (r *Rate) Mean() float64 {
 	lastTick := r.PrevTickTime().Unix()
-	mean := uint64(0)
+	sum := uint64(0)
 	for idx := range r.Samples {
-		mean += r.Samples[idx].Value()
+		sum += r.Samples[idx].Value()
 	}
-	mean /= uint64(len(r.Samples))
+	sum /= uint64(len(r.Samples))
 	now := float64(time.Now().Unix() - lastTick)
 	if now <= 0 {
 		now = 1.0
 	}
-	return float64(mean) / now
+	return float64(sum) / now
 }
