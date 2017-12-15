@@ -40,7 +40,7 @@ if you do not want to build with embedded webui instead run:
 
 you can build with go get using:
 
-    $ go get -u -v -tags no_webui github.com/majestrate/XD
+    $ go get -u -v github.com/majestrate/XD
 
 ### cross compile for Raspberry PI
 
