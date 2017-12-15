@@ -11,6 +11,7 @@ WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
 
+GIT_VERSION ?= $(shell git rev-parse --short HEAD || true)
 
 ifdef GOROOT
 	GO = $(GOROOT)/bin/go
@@ -35,7 +36,7 @@ assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
 
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
@@ -55,4 +56,4 @@ webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 
 no-webui:
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=-$(shell git rev-parse --short HEAD) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
+	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags no_webui -o $(XD)
