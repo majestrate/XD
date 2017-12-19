@@ -20,18 +20,18 @@ endif
 GO ?= $(shell which go)
 
 ifeq ($(GOOS),windows)
-	XD := $(REPO)/XD.exe
-	CLI := $(REPO)/XD-cli.exe
+	XD := XD.exe
+	CLI := XD-cli.exe
 	PREFIX ?= /usr/local # FIXME
 else
-	XD := $(REPO)/XD
-	CLI := $(REPO)/XD-cli
+	XD := XD
+	CLI := XD-cli
 	PREFIX ?= /usr/local
 endif
 
 GOPATH := $(REPO)
 
-build: clean $(XD)
+build: clean $(CLI)
 
 $(GO_ASSETS):
 	GOPATH=$(GOPATH) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
@@ -43,8 +43,8 @@ $(XD): assets
 	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
 
 $(CLI): $(XD)
-	ln -s XD XD-cli
-	chmod 755 XD-cli
+	ln -s $(XD) $(CLI)
+	chmod 755 $(CLI)
 
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
