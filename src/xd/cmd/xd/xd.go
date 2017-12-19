@@ -3,10 +3,12 @@ package xd
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
@@ -116,10 +118,36 @@ func Run() {
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
 		srv := rpc.NewServer(swarms)
-		go func() {
-			log.Errorf("rpc died: %s", http.ListenAndServe(conf.RPC.Bind, srv))
-		}()
 
+		var l net.Listener
+		var e error
+		var closeSock func()
+		if strings.HasPrefix(conf.RPC.Bind, "unix:") {
+			sock := conf.RPC.Bind[5:]
+			closeSock = func() {
+				os.Remove(sock)
+			}
+			l, e = net.Listen("unix", sock)
+			if e == nil {
+				e = os.Chmod(sock, 0640)
+			}
+		} else {
+			l, e = net.Listen("tcp", conf.RPC.Bind)
+			closeSock = func() {
+			}
+		}
+		if e == nil {
+			closers = append(closers, l)
+			s := http.Server{
+				Handler: srv,
+			}
+			go func() {
+				log.Errorf("rpc died: %s", s.Serve(l))
+				closeSock()
+			}()
+		} else {
+			log.Errorf("failed to bind rpc: %s", e)
+		}
 	}
 
 	runFunc := func(n i2p.Session, sw *swarm.Swarm) {

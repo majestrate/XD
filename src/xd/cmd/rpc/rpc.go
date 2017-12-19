@@ -37,53 +37,59 @@ func Run() {
 		return
 	}
 	log.SetLevel(cfg.Log.Level)
-	u := url.URL{
-		Scheme: "http",
-		Host:   cfg.RPC.Bind,
-		Path:   rpc.RPCPath,
+	var rpcURL string
+	if strings.HasPrefix(cfg.RPC.Bind, "unix:") {
+		rpcURL = cfg.RPC.Bind
+	} else {
+		u := url.URL{
+			Scheme: "http",
+			Host:   cfg.RPC.Bind,
+			Path:   rpc.RPCPath,
+		}
+		rpcURL = u.String()
 	}
 	swarms := cfg.Bittorrent.Swarms
 	count := 0
 	switch strings.ToLower(cmd) {
 	case "list":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			listTorrents(c)
 			count++
 		}
 	case "add":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			addTorrents(c, args...)
 			count++
 		}
 	case "start":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			startTorrents(c, args...)
 			count++
 		}
 	case "stop":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			stopTorrents(c, args...)
 			count++
 		}
 	case "remove":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			removeTorrents(c, args...)
 			count++
 		}
 	case "delete":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			deleteTorrents(c, args...)
 			count++
 		}
 	case "set-piece-window":
 		for count < swarms {
-			c := rpc.NewClient(u.String(), count)
+			c := rpc.NewClient(rpcURL, count)
 			setPieceWindow(c, args[0])
 			count++
 		}

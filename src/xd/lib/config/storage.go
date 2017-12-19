@@ -54,14 +54,17 @@ type StorageConfig struct {
 
 func (cfg *StorageConfig) Load(s *configparser.Section) error {
 
-	cfg.Root = "storage"
-	if s != nil {
-		cfg.Root = s.Get("rootdir", cfg.Root)
+	if cfg.Root == "" {
+		cfg.Root = "storage"
+		if s != nil {
+			cfg.Root = s.Get("rootdir", cfg.Root)
+		}
 	}
 
 	cfg.Meta = filepath.Join(cfg.Root, "metadata")
 
 	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
+
 	if s != nil {
 		cfg.Downloads = s.Get("downloads", cfg.Downloads)
 	}

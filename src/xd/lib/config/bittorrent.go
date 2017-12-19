@@ -14,12 +14,11 @@ import (
 const DefaultOpentrackerFilename = "trackers.ini"
 
 // TODO: idk if these are the right names but the URL are correct
-var DefaultOpenTrackers = map[string]string{} /*
+var DefaultOpenTrackers = map[string]string{
 	"dg-opentracker":       "http://w7tpbzncbcocrqtwwm3nezhnnsw4ozadvi2hmvzdhrqzfxfum7wa.b32.i2p/a",
 	"thebland-opentracker": "http://s5ikrdyjwbcgxmqetxb3nyheizftms7euacuub2hic7defkh3xhq.b32.i2p/a",
 	"psi-chihaya":          "http://uajd4nctepxpac4c4bdyrdw7qvja2a5u3x25otfhkptcjgd53ioq.b32.i2p/announce",
 }
-*/
 
 type TrackerConfig struct {
 	Trackers map[string]string
@@ -57,7 +56,9 @@ func (c *TrackerConfig) Load() (err error) {
 			var sects []*configparser.Section
 			sects, err = cfg.AllSections()
 			if err == nil {
-				c.Trackers = make(map[string]string)
+				if c.Trackers == nil {
+					c.Trackers = make(map[string]string)
+				}
 				for idx := range sects {
 					if sects[idx].Exists("url") {
 						c.Trackers[sects[idx].Name()] = sects[idx].ValueOf("url")

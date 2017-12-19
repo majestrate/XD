@@ -2,10 +2,13 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"strings"
 	"xd/lib/bittorrent/swarm"
 )
 
@@ -26,7 +29,22 @@ func (cl *Client) doRPC(r interface{}, h func(r io.Reader) error) (err error) {
 	err = json.NewEncoder(&buf).Encode(r)
 	if err == nil {
 		var resp *http.Response
-		resp, err = http.Post(cl.url, RPCContentType, &buf)
+		var httpcl *http.Client
+		var reqURL string
+		if strings.HasPrefix(cl.url, "unix:") {
+			httpcl = &http.Client{
+				Transport: &http.Transport{
+					DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+						return net.Dial("unix", cl.url[5:])
+					},
+				},
+			}
+			reqURL = "http://unix" + RPCPath
+		} else {
+			httpcl = http.DefaultClient
+			reqURL = cl.url
+		}
+		resp, err = httpcl.Post(reqURL, RPCContentType, &buf)
 		if err == nil {
 			err = h(resp.Body)
 			resp.Body.Close()

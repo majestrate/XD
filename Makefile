@@ -21,8 +21,12 @@ GO ?= $(shell which go)
 
 ifeq ($(GOOS),windows)
 	XD := $(REPO)/XD.exe
+	CLI := $(REPO)/XD-cli.exe
+	PREFIX ?= /usr/local # FIXME
 else
 	XD := $(REPO)/XD
+	CLI := $(REPO)/XD-cli
+	PREFIX ?= /usr/local
 endif
 
 GOPATH := $(REPO)
@@ -38,10 +42,15 @@ assets: $(GO_ASSETS) webui
 $(XD): assets
 	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
 
+$(CLI): $(XD)
+	ln -s XD XD-cli
+	chmod 755 XD-cli
+
 test:
 	GOPATH=$(GOPATH) $(GO) test -v xd/...
 
 clean: webui-clean go-clean
+	rm -f $(CLI)
 
 webui-clean:
 	$(MAKE) -C $(WEBUI) clean
@@ -57,3 +66,8 @@ webui: $(WEBUI_LOGO)
 
 no-webui:
 	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+
+install: $(XD) $(CLI)
+	mkdir -p $(PREFIX)/bin
+	install XD $(PREFIX)/bin
+	cp -P $(CLI) $(PREFIX)/bin

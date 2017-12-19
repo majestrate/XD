@@ -9,15 +9,15 @@ Standalone I2P BitTorrent Client written in GO
 Current:
 
 * i2p only, no chances of cross network contamination, aka no way to leak IP.
-* no java required, works with [i2pd](https://github.com/purplei2p/i2pd)
+* no java required, works with [i2pd](https://github.com/purplei2p/i2pd) using the SAM api
 
 Soon:
 
 * DHT/Magnet Support
+* Maggot Support
 
 Eventually:
 
-* Maggot Support (?)
 * rtorrent compatible RPC (?)
 
 ## Dependencies
@@ -73,3 +73,12 @@ to list torrents run:
 to add a torrent from http server:
 
     $ ./XD-CLI add http://somehwere.i2p/some_torrent_that_is_not_fake.torrent
+
+Optionally on non windows systems you can install XD to `/usr/local/`
+
+    # make install
+
+Or your home directory, make sure `$HOME/bin` is in your $PATH
+
+    $ make install PREFIX=$HOME
+
