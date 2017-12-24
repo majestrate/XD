@@ -53,6 +53,11 @@ func (s *samSession) CompactToAddr(compact []byte, port int) (net.Addr, error) {
 	return s.Lookup(b32.String(), fmt.Sprintf("%d", port))
 }
 
+func (s *samSession) AddrToCompact(addr string) []byte {
+	host, _, _ := net.SplitHostPort(addr)
+	return I2PAddr(host).Base32Addr().Bytes()
+}
+
 func (s *samSession) B32Addr() string {
 	return s.keys.Addr().Base32Addr().String()
 }
