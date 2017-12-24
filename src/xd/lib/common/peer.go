@@ -37,7 +37,14 @@ type Peer struct {
 	Compact []byte `bencode:"-"`
 	IP      string `bencode:"ip"`
 	Port    int    `bencode:"port"`
-	ID      PeerID `bencode:"id"`
+	ID      string `bencode:"id"`
+}
+
+func (p *Peer) PeerID() (id PeerID) {
+	if len(p.ID) == 20 {
+		copy(id[:], p.ID[:])
+	}
+	return
 }
 
 // Resolve resolves network address of peer

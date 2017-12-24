@@ -26,8 +26,10 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			Port:       DefaultAnnouncePort,
 			Event:      ev,
 			NumWant:    DefaultAnnounceNumWant,
-			Left:       a.t.st.DownloadRemaining(),
 			GetNetwork: a.t.Network,
+		}
+		if !a.t.Done() {
+			req.Left = a.t.st.DownloadRemaining()
 		}
 		if ev == tracker.Stopped {
 			req.NumWant = 0

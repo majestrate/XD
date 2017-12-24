@@ -364,7 +364,7 @@ func (t *Torrent) addPeers(peers []common.Peer) {
 				continue
 			}
 			// no error resolving
-			go t.PersistPeer(a, p.ID)
+			go t.PersistPeer(a, p.PeerID())
 		} else {
 			log.Warnf("failed to resolve peer %s", e.Error())
 		}
