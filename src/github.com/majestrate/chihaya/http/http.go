@@ -50,7 +50,7 @@ func makeHandler(handler ResponseHandler) http.HandlerFunc {
 		}
 
 		if len(msg) > 0 {
-			http.Error(w, msg, httpCode)
+			http.Error(w, http.StatusText(httpCode), httpCode)
 			stats.RecordEvent(stats.ErroredRequest)
 		}
 

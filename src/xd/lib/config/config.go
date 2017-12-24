@@ -25,6 +25,7 @@ type Configurable interface {
 func (cfg *Config) Load(fname string) (err error) {
 	sects := map[string]Configurable{
 		"i2p":        &cfg.I2P,
+		"tor":        &cfg.Tor,
 		"storage":    &cfg.Storage,
 		"rpc":        &cfg.RPC,
 		"log":        &cfg.Log,
@@ -52,6 +53,7 @@ func (cfg *Config) Load(fname string) (err error) {
 func (cfg *Config) Save(fname string) (err error) {
 	sects := map[string]Configurable{
 		"i2p":        &cfg.I2P,
+		"tor":        &cfg.Tor,
 		"storage":    &cfg.Storage,
 		"rpc":        &cfg.RPC,
 		"log":        &cfg.Log,

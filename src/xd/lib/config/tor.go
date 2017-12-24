@@ -16,7 +16,7 @@ type TorConfig struct {
 	Enabled  bool
 }
 
-const DefaultTorAddr = "127.0.0.1:9050"
+const DefaultTorAddr = "127.0.0.1:9051"
 const DefaultTorNet = "tcp"
 const DefaultTorExtPort = 6889
 
