@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -18,9 +20,20 @@ type samSession struct {
 	name       string
 	keys       *Keyfile
 	opts       map[string]string
+	nameCache  map[string]I2PAddr
 	// control connection
 	c   net.Conn
 	mtx sync.RWMutex
+}
+
+func (s *samSession) SaveKey(fname string) (err error) {
+	var f io.WriteCloser
+	f, err = os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0600)
+	if err == nil {
+		err = s.keys.write(f)
+		f.Close()
+	}
+	return
 }
 
 func (s *samSession) Close() error {
@@ -28,6 +41,16 @@ func (s *samSession) Close() error {
 		return nil
 	}
 	return s.c.Close()
+}
+
+func (s *samSession) StringToAddr(addr string, port int) net.Addr {
+	return I2PAddr(addr)
+}
+
+func (s *samSession) CompactToAddr(compact []byte, port int) (net.Addr, error) {
+	var b32 Base32Addr
+	copy(b32[:], compact[:32])
+	return s.Lookup(b32.String(), fmt.Sprintf("%d", port))
 }
 
 func (s *samSession) B32Addr() string {
@@ -132,6 +155,11 @@ func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
 	return
 }
 
+func (s *samSession) lookupCache(name string) (a I2PAddr, ok bool) {
+	a, ok = s.nameCache[name]
+	return
+}
+
 func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	var n string
 	n, _, err = net.SplitHostPort(name)
@@ -145,6 +173,12 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 		err = errors.New("session not open")
 		return
 	}
+	var ok bool
+	a, ok = s.lookupCache(n)
+	if ok {
+		return
+	}
+
 	_, err = fmt.Fprintf(s.c, "NAMING LOOKUP NAME=%s\n", name)
 	r := bufio.NewReader(s.c)
 	var line string
@@ -171,6 +205,7 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 			if strings.HasPrefix(txt, "VALUE=") {
 				// we got it
 				a = I2PAddr(txt[6:])
+				s.nameCache[n] = a
 				return
 			}
 			err = errors.New(line)

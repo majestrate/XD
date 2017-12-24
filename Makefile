@@ -61,6 +61,9 @@ go-clean:
 $(WEBUI_LOGO):
 	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
 
+ortracker:
+	GOPATH=$(GOPATH) $(GO) build xd/cmd/ortracker
+
 webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
 

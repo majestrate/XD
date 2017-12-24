@@ -4,6 +4,7 @@ import (
 	"os"
 	"xd/lib/configparser"
 	"xd/lib/log"
+	"xd/lib/network"
 	"xd/lib/network/i2p"
 	"xd/lib/util"
 )
@@ -14,6 +15,7 @@ type I2PConfig struct {
 	Name            string
 	nameWasProvided bool
 	I2CPOptions     map[string]string
+	Enabled         bool
 }
 
 func (cfg *I2PConfig) Load(section *configparser.Section) error {
@@ -22,7 +24,9 @@ func (cfg *I2PConfig) Load(section *configparser.Section) error {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
 		cfg.Keyfile = ""
 		cfg.Name = util.RandStr(5)
+		cfg.Enabled = true
 	} else {
+		cfg.Enabled = section.Get("enable", "1") == "1"
 		cfg.Addr = section.Get("address", i2p.DEFAULT_ADDRESS)
 		cfg.Keyfile = section.Get("keyfile", "")
 		gen := util.RandStr(5)
@@ -30,7 +34,7 @@ func (cfg *I2PConfig) Load(section *configparser.Section) error {
 		cfg.nameWasProvided = cfg.Name != gen
 		opts := section.Options()
 		for k, v := range opts {
-			if k == "address" || k == "keyfile" || k == "session" {
+			if k == "address" || k == "keyfile" || k == "session" || k == "enabled" {
 				continue
 			}
 			cfg.I2CPOptions[k] = v
@@ -53,6 +57,9 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 	if cfg.nameWasProvided {
 		opts["session"] = cfg.Name
 	}
+	if !cfg.Enabled {
+		opts["enabled"] = "0"
+	}
 	for k := range opts {
 		s.Add(k, opts[k])
 	}
@@ -60,7 +67,7 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 }
 
 // create an i2p session from this config
-func (cfg *I2PConfig) CreateSession() i2p.Session {
+func (cfg *I2PConfig) CreateSession() network.Network {
 	log.Infof("create new i2p session with %s", cfg.Addr)
 	return i2p.NewSession(util.RandStr(5), cfg.Addr, cfg.Keyfile, cfg.I2CPOptions)
 }

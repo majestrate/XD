@@ -6,9 +6,7 @@ import (
 	"io"
 	"net"
 	"net/url"
-	"strings"
 	"xd/lib/network"
-	"xd/lib/network/i2p"
 	"xd/lib/version"
 )
 
@@ -36,21 +34,19 @@ func (id PeerID) String() string {
 
 // Peer provides info for a bittorrent swarm peer
 type Peer struct {
-	Compact i2p.Base32Addr `bencode:"-"`
-	IP      string         `bencode:"ip"`
-	Port    int            `bencode:"port"`
-	ID      PeerID         `bencode:"id"`
+	Compact []byte `bencode:"-"`
+	IP      string `bencode:"ip"`
+	Port    int    `bencode:"port"`
+	ID      PeerID `bencode:"id"`
 }
 
 // Resolve resolves network address of peer
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 	if len(p.IP) > 0 {
-		// prefer ip
-		parts := strings.Split(p.IP, ".i2p")
-		a = i2p.I2PAddr(parts[0])
+		a, err = n.Lookup(p.IP, fmt.Sprintf("%d", p.Port))
 	} else {
 		// try compact
-		a, err = n.Lookup(p.Compact.String(), fmt.Sprintf("%d", p.Port))
+		a, err = n.CompactToAddr(p.Compact[:], p.Port)
 	}
 	return
 }

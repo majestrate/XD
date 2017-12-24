@@ -12,4 +12,7 @@ type Network interface {
 	Close() error
 	Addr() net.Addr
 	Lookup(name, port string) (net.Addr, error)
+	CompactToAddr(compact []byte, port int) (net.Addr, error)
+	B32Addr() string
+	SaveKey(fname string) error
 }

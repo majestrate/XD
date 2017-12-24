@@ -6,6 +6,7 @@ import (
 
 type Config struct {
 	I2P        I2PConfig
+	Tor        TorConfig
 	Storage    StorageConfig
 	RPC        RPCConfig
 	Log        LogConfig
