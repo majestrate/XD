@@ -32,6 +32,7 @@ var ErrInternalFail = errors.New("internal failure")
 var ErrSocketClosed = errors.New("socket closed")
 var ErrBadDomain = errors.New("bad domain")
 var ErrBadCert = errors.New("bad cert")
+var ErrInvalidHost = errors.New("invalid host")
 
 type evSubscription struct {
 	chnl chan *bulb.Response
@@ -68,6 +69,25 @@ func (ev *eventSub) Inform(r *bulb.Response, name string) {
 	ev.subs = []evSubscription{}
 	for idx := range old {
 		if remove[idx] {
+			continue
+		} else {
+			ev.subs = append(ev.subs, old[idx])
+		}
+	}
+	ev.access.Unlock()
+}
+
+func (ev *eventSub) Cancel(name string) {
+	ev.access.Lock()
+	remove := make(map[int]bool)
+	for idx := range ev.subs {
+		remove[idx] = ev.subs[idx].name == name
+	}
+	old := ev.subs
+	ev.subs = []evSubscription{}
+	for idx, doit := range remove {
+		if doit {
+			old[idx].Inform(nil)
 			continue
 		} else {
 			ev.subs = append(ev.subs, old[idx])
@@ -117,31 +137,32 @@ func (s *Session) subscribe(ev, name string) chan *bulb.Response {
 	return chnl
 }
 
+func (s *Session) unsub(ev, name string) {
+	s.subs[ev].Cancel(name)
+}
+
 func (s *Session) doAcceptLoop() {
 	for s.l != nil {
-		c, err := s.l.Accept()
+		conn, err := s.l.Accept()
 		if err == nil {
-			err = c.(*tls.Conn).Handshake()
+			err = conn.(*tls.Conn).Handshake()
 			if err == nil {
-				state := c.(*tls.Conn).ConnectionState()
-				var a *OnionAddr
+				state := conn.(*tls.Conn).ConnectionState()
 				name := state.PeerCertificates[0].DNSNames[0]
 				log.Debugf("inbound from %s", name)
-				a, err = s.LookupOnion(name, "0")
+				a, err := s.LookupOnion(name, "0")
 				if err == nil {
 					log.Debugf("got %s", a)
-					c = &OnionConn{
+					s.inbound <- &OnionConn{
 						laddr: s.OnionAddr(),
 						raddr: a,
-						conn:  c,
+						conn:  conn,
 					}
 				}
 			}
-			if err == nil {
-				s.inbound <- c
-			} else {
+			if err != nil {
 				log.Errorf("failed to accept connection: %s", err.Error())
-				c.Close()
+				conn.Close()
 			}
 		}
 	}
@@ -152,6 +173,8 @@ func (s *Session) Accept() (c net.Conn, err error) {
 	c, ok := <-s.inbound
 	if !ok {
 		err = ErrSocketClosed
+	} else {
+		log.Debug("accepted new connection")
 	}
 	return
 }
@@ -210,8 +233,24 @@ func (s *Session) runEvents() {
 
 func (s *Session) lookupInform(name string, chnl chan *OnionAddr) {
 	ch := s.subscribe("HS_DESC_CONTENT", name)
-	r := <-ch
-	addr := new(OnionAddr)
+	cancel := time.After(time.Second * 10)
+	var r *bulb.Response
+	run := true
+	for run {
+		select {
+		case r = <-ch:
+			run = false
+		case <-cancel:
+			s.unsub("HS_DESC_CONTENT", name)
+			chnl <- nil
+			run = false
+		default:
+			time.Sleep(time.Millisecond * 100)
+		}
+	}
+	if r == nil {
+		return
+	}
 	foundKey := false
 	var buff bytes.Buffer
 	var lines []string
@@ -227,9 +266,10 @@ func (s *Session) lookupInform(name string, chnl chan *OnionAddr) {
 					log.Errorf("error decoding pem: %s", err)
 					chnl <- nil
 				} else {
+					addr := new(OnionAddr)
 					_, _ = asn1.Unmarshal(block.Bytes, &addr.k)
 					o := addr.Onion()
-					s.putNameCache(o[:len(o)-6], addr.k)
+					s.putNameCache(o, addr.k)
 					chnl <- addr
 				}
 			} else {
@@ -251,13 +291,11 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 		hs := name[:len(name)-6]
 		k, ok := s.getNameCache(hs)
 		if ok {
+			log.Debugf("cache hit for %s", hs)
 			a = &OnionAddr{
 				k: k,
 			}
-			a.p, err = net.LookupPort("tcp", port)
-			if err != nil {
-				a = nil
-			}
+			a.p, _ = net.LookupPort("tcp", port)
 			return
 		}
 		var conn *bulb.Conn
@@ -286,6 +324,8 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 			}
 			conn.Close()
 		}
+	} else {
+		err = ErrInvalidHost
 	}
 	return
 }
@@ -298,8 +338,10 @@ func (s *Session) CompactToAddr(compact []byte, port int) (a net.Addr, err error
 
 func (s *Session) AddrToCompact(addr string) []byte {
 	host, _, _ := net.SplitHostPort(addr)
-	hs := host[:len(host)-6]
-	b, _ := base32.HexEncoding.DecodeString(hs)
+	if strings.HasSuffix(addr, ".onion") {
+		host = host[:len(host)-6]
+	}
+	b, _ := base32.HexEncoding.DecodeString(host + "==")
 	return b
 }
 
@@ -310,7 +352,7 @@ func (s *Session) publicKey() rsa.PublicKey {
 func (s *Session) B32Addr() string {
 	addr := s.publicKey()
 	id, _ := pkcs1.OnionAddr(&addr)
-	return id
+	return id + ".onion"
 }
 
 func (s *Session) verifyPeerCert(certs [][]byte, _ [][]*x509.Certificate) (err error) {
@@ -344,9 +386,9 @@ func (s *Session) verifyPeerCert(certs [][]byte, _ [][]*x509.Certificate) (err e
 
 func (s *Session) HostExists(onion string) (err error) {
 	var addr *OnionAddr
-	addr, err = s.LookupOnion(onion+".onion", "0")
+	addr, err = s.LookupOnion(onion, "0")
 	if addr != nil {
-		if addr.Onion() != onion {
+		if addr.Onion() != onion[:len(onion)-6] {
 			err = ErrNotFound
 		}
 	}
@@ -458,9 +500,10 @@ func (s *Session) Dial(n, a string) (c net.Conn, err error) {
 	d, err = s.conn.Dialer(nil)
 	if err == nil {
 		log.Debugf("dial %s", a)
-		c, err = d.Dial(n, a)
+		var conn net.Conn
+		conn, err = d.Dial(n, a)
 		if err == nil {
-			tlsc := tls.Client(c, s.tlsConfig.Clone())
+			tlsc := tls.Client(conn, s.tlsConfig.Clone())
 			err = tlsc.Handshake()
 			if err == nil {
 				state := tlsc.ConnectionState()
@@ -470,13 +513,12 @@ func (s *Session) Dial(n, a string) (c net.Conn, err error) {
 					c = &OnionConn{
 						laddr: s.OnionAddr(),
 						raddr: a,
-						conn:  c,
+						conn:  tlsc,
 					}
 				}
 			}
 			if err != nil {
-				c.Close()
-				c = nil
+				conn.Close()
 			}
 		}
 	}
