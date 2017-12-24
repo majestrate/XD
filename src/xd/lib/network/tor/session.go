@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base32"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -145,25 +146,27 @@ func (s *Session) doAcceptLoop() {
 	for s.l != nil {
 		conn, err := s.l.Accept()
 		if err == nil {
-			err = conn.(*tls.Conn).Handshake()
-			if err == nil {
-				state := conn.(*tls.Conn).ConnectionState()
-				name := state.PeerCertificates[0].DNSNames[0]
-				log.Debugf("inbound from %s", name)
-				a, err := s.LookupOnion(name, "0")
+			go func() {
+				err = conn.(*tls.Conn).Handshake()
 				if err == nil {
-					log.Debugf("got %s", a)
-					s.inbound <- &OnionConn{
-						laddr: s.OnionAddr(),
-						raddr: a,
-						conn:  conn,
+					state := conn.(*tls.Conn).ConnectionState()
+					name := state.PeerCertificates[0].DNSNames[0]
+					log.Debugf("inbound from %s", name)
+					a, err := s.LookupOnion(name, "0")
+					if err == nil {
+						log.Debugf("got %s", a)
+						s.inbound <- &OnionConn{
+							laddr: s.OnionAddr(),
+							raddr: a,
+							conn:  conn,
+						}
 					}
 				}
-			}
-			if err != nil {
-				log.Errorf("failed to accept connection: %s", err.Error())
-				conn.Close()
-			}
+				if err != nil {
+					log.Errorf("failed to accept connection: %s", err.Error())
+					conn.Close()
+				}
+			}()
 		}
 	}
 	return
@@ -233,20 +236,15 @@ func (s *Session) runEvents() {
 
 func (s *Session) lookupInform(name string, chnl chan *OnionAddr) {
 	ch := s.subscribe("HS_DESC_CONTENT", name)
-	cancel := time.After(time.Second * 10)
 	var r *bulb.Response
-	run := true
-	for run {
-		select {
-		case r = <-ch:
-			run = false
-		case <-cancel:
-			s.unsub("HS_DESC_CONTENT", name)
-			chnl <- nil
-			run = false
-		default:
-			time.Sleep(time.Millisecond * 100)
-		}
+
+	select {
+	case r = <-ch:
+		break
+	case <-time.After(time.Second * 10):
+		chnl <- nil
+		s.unsub("HS_DESC_CONTENT", name)
+		return
 	}
 	if r == nil {
 		return
@@ -330,18 +328,27 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 	return
 }
 
-func (s *Session) CompactToAddr(compact []byte, port int) (a net.Addr, err error) {
-	hsaddr := strings.Trim(base32.HexEncoding.EncodeToString(compact), "=")
-	a, err = s.Lookup(hsaddr+".onion", fmt.Sprintf("%d", port))
+func (s *Session) CompactToAddr(compact []byte, _ int) (a net.Addr, err error) {
+	if len(compact) == 12 {
+		hsaddr := strings.Trim(strings.ToLower(base32.StdEncoding.EncodeToString(compact[:len(compact)-3])), "=")
+		port := binary.BigEndian.Uint16(compact[len(compact)-3:])
+		a, err = s.Lookup(hsaddr+".onion", fmt.Sprintf("%d", port))
+	}
 	return
 }
 
 func (s *Session) AddrToCompact(addr string) []byte {
-	host, _, _ := net.SplitHostPort(addr)
+	host, port, _ := net.SplitHostPort(addr)
 	if strings.HasSuffix(addr, ".onion") {
 		host = host[:len(host)-6]
 	}
-	b, _ := base32.HexEncoding.DecodeString(host + "==")
+	numPort, _ := net.LookupPort("tcp", port)
+	var portbytes [2]byte
+	binary.BigEndian.PutUint16(portbytes[:], uint16(numPort))
+	b, _ := base32.StdEncoding.DecodeString(strings.ToUpper(host))
+	if b != nil {
+		b = append(b, portbytes[:]...)
+	}
 	return b
 }
 
