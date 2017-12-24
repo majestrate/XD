@@ -41,7 +41,15 @@ func (w *Writer) WriteAnnounce(res *models.AnnounceResponse) error {
 		dict["peers"] = compactPeers(w.session, res.Peers)
 	} else {
 		dict["compact"] = 0
-		dict["peers"] = res.Peers
+		var peers []map[string]interface{}
+		for _, peer := range res.Peers {
+			peers = append(peers, map[string]interface{}{
+				"ip":   peer.Addr,
+				"port": peer.Port,
+				"id":   peer.ID,
+			})
+		}
+		dict["peers"] = peers
 	}
 
 	w.Header().Set("Content-Type", "text/plain")

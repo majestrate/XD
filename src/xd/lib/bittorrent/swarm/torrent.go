@@ -355,7 +355,7 @@ func (t *Torrent) addPeers(peers []common.Peer) {
 			return
 		}
 		a, e := p.Resolve(t.Network())
-		if e == nil {
+		if e == nil && a != nil {
 			if a.String() == t.Network().Addr().String() {
 				// don't connect to self or a duplicate
 				continue
@@ -366,7 +366,7 @@ func (t *Torrent) addPeers(peers []common.Peer) {
 			// no error resolving
 			go t.PersistPeer(a, p.PeerID())
 		} else {
-			log.Warnf("failed to resolve peer %s", e.Error())
+			log.Warnf("failed to resolve peer %s", e)
 		}
 	}
 }
