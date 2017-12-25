@@ -112,6 +112,12 @@ func Run() {
 				log.Errorf("error adding torrent: %s", err)
 			}
 		}
+		for _, sw := range oswarms {
+			err = sw.AddTorrent(t)
+			if err != nil {
+				log.Errorf("error adding torrent: %s", err)
+			}
+		}
 	}
 
 	// torrent auto adder
@@ -121,6 +127,9 @@ func Run() {
 			for _, t := range nt {
 				t.VerifyAll(true)
 				for _, sw := range swarms {
+					sw.AddTorrent(t)
+				}
+				for _, sw := range oswarms {
 					sw.AddTorrent(t)
 				}
 			}

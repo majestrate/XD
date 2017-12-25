@@ -21,5 +21,5 @@ func (a *OnionAddr) Onion() string {
 }
 
 func (a *OnionAddr) String() string {
-	return fmt.Sprintf("%s:%d", a.Onion(), a.p)
+	return fmt.Sprintf("%s.onion:%d", a.Onion(), a.p)
 }

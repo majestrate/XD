@@ -75,20 +75,20 @@ func (t *HttpTracker) Name() string {
 func (t *HttpTracker) Resolve(n network.Network) (a net.Addr, e error) {
 	t.resolving.Lock()
 	if t.shouldResolve() {
-		var h, p string
 		var uh string
 		uh = t.u.Host
 		// XXX: hack
 		if strings.Index(uh, ":") == -1 {
 			uh += fmt.Sprintf(":%d", t.DefaultPort())
+		} else if strings.HasSuffix(uh, ":") {
+			uh += fmt.Sprintf("%d", t.DefaultPort())
 		}
-		h, p, e = net.SplitHostPort(uh)
+		log.Debugf("resolve %s", uh)
+		parts := strings.Split(uh, ":")
+		a, e = n.Lookup(parts[0], parts[1])
 		if e == nil {
-			a, e = n.Lookup(h, p)
-			if e == nil {
-				t.addr = a
-				t.lastResolved = time.Now()
-			}
+			t.addr = a
+			t.lastResolved = time.Now()
 		}
 	} else {
 		a = t.addr

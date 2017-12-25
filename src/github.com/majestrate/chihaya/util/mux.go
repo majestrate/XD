@@ -2,6 +2,7 @@ package util
 
 import (
 	"net/http"
+	"xd/lib/log"
 )
 
 func GET(mux *http.ServeMux, path string, h http.HandlerFunc) {
@@ -21,6 +22,7 @@ func DELETE(mux *http.ServeMux, path string, h http.HandlerFunc) {
 }
 
 func methodOnly(mux *http.ServeMux, method, path string, h http.HandlerFunc) {
+	log.Debugf("register handler for %s %s", method, path)
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == method {
 			h(w, r)
