@@ -2,7 +2,6 @@ package tor
 
 import (
 	"crypto/rsa"
-	"net"
 )
 
 func CreateSession(n, a, k, p string, externalPort int) *Session {
@@ -17,6 +16,5 @@ func CreateSession(n, a, k, p string, externalPort int) *Session {
 		port:      externalPort,
 		subs:      make(map[string]*eventSub),
 		nameCache: make(map[string]rsa.PublicKey),
-		inbound:   make(chan net.Conn),
 	}
 }
