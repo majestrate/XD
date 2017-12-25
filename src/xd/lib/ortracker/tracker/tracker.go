@@ -1,8 +1,7 @@
 package tracker
 
 import (
-	"net"
-	"net/http"
+	"github.com/majestrate/chihaya"
 )
 
 type Tracker struct {

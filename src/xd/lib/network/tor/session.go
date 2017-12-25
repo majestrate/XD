@@ -25,8 +25,6 @@ import (
 	"xd/lib/log"
 )
 
-const DefaultPort = 6889
-
 var ErrNotFound = errors.New("host not found")
 var ErrAcceptFailed = errors.New("acccept failed")
 var ErrInternalFail = errors.New("internal failure")
@@ -90,6 +88,7 @@ type Session struct {
 	subs       map[string]*eventSub
 	nameCache  map[string]rsa.PublicKey
 	nameAccess sync.Mutex
+	port       int
 }
 
 func (s *Session) getNameCache(name string) (k rsa.PublicKey, ok bool) {
@@ -124,7 +123,7 @@ func (s *Session) Accept() (c net.Conn, err error) {
 func (s *Session) Addr() net.Addr {
 	return &OnionAddr{
 		k: s.publicKey(),
-		p: DefaultPort,
+		p: s.port,
 	}
 }
 
@@ -251,6 +250,13 @@ func (s *Session) CompactToAddr(compact []byte, port int) (a net.Addr, err error
 	return
 }
 
+func (s *Session) AddrToCompact(addr string) []byte {
+	host, _, _ := net.SplitHostPort(addr)
+	hs := host[:len(host)-6]
+	b, _ := base32.HexEncoding.DecodeString(hs)
+	return b
+}
+
 func (s *Session) publicKey() rsa.PublicKey {
 	return s.onionInfo.PrivateKey.(*rsa.PrivateKey).PublicKey
 }
@@ -351,7 +357,7 @@ func (s *Session) Open() (err error) {
 					s.l, s.onionInfo, err = s.conn.NewListener(&bulb.NewOnionConfig{
 						PrivateKey: k,
 						DiscardPK:  true,
-					}, DefaultPort)
+					}, uint16(s.port))
 					if err == nil {
 						s.onionInfo.PrivateKey = k
 						log.Debug("made onion")

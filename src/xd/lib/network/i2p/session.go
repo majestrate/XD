@@ -41,7 +41,7 @@ type Session interface {
 
 	StringToAddr(addr string, port int) net.Addr
 	CompactToAddr(compact []byte, port int) (net.Addr, error)
-
+	AddrToCompact(addr string) []byte
 	SaveKey(fname string) error
 }
 

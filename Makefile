@@ -51,6 +51,7 @@ test:
 
 clean: webui-clean go-clean
 	rm -f $(CLI)
+	rm -f chihaya
 
 webui-clean:
 	$(MAKE) -C $(WEBUI) clean
@@ -61,8 +62,8 @@ go-clean:
 $(WEBUI_LOGO):
 	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
 
-ortracker:
-	GOPATH=$(GOPATH) $(GO) build xd/cmd/ortracker
+chihaya:
+	GOPATH=$(GOPATH) $(GO) build github.com/majestrate/chihaya/cmd/chihaya
 
 webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean build
