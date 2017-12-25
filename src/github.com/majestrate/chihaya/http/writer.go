@@ -6,10 +6,10 @@ package http
 
 import (
 	"bytes"
-	"net/http"
-
+	"fmt"
 	"github.com/majestrate/chihaya/tracker/models"
 	"github.com/zeebo/bencode"
+	"net/http"
 	"xd/lib/network"
 )
 
@@ -63,7 +63,8 @@ func (w *Writer) WriteScrape(res *models.ScrapeResponse) error {
 func compactPeers(session network.Network, peers models.PeerList) []byte {
 	var compactPeers bytes.Buffer
 	for _, peer := range peers {
-		compactPeers.Write(session.AddrToCompact(peer.Addr))
+		addr := fmt.Sprintf("%s:%d", peer.Addr, peer.Port)
+		compactPeers.Write(session.AddrToCompact(addr))
 	}
 	return compactPeers.Bytes()
 }

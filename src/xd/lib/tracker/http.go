@@ -189,11 +189,16 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 					_, ok := cresp.Peers.(string)
 					if ok {
 						cpeers = cresp.Peers.(string)
-						l := len(cpeers) / 32
+						sz := 32
+						if t.IsOnion() {
+							sz = 12
+						}
+						l := len(cpeers) / sz
 						for l > 0 {
 							var p common.Peer
 							// TODO: bounds check
-							copy(p.Compact[:], cpeers[(l-1)*32:l*32])
+							p.Compact = make([]byte, sz)
+							copy(p.Compact[:], cpeers[(l-1)*sz:l*sz])
 							resp.Peers = append(resp.Peers, p)
 							l--
 						}
