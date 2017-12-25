@@ -237,7 +237,7 @@ func newAnnounceResponse(ann *models.Announce) *models.AnnounceResponse {
 		Incomplete:  leechCount,
 		Interval:    int64(ann.Config.Announce.Duration.Seconds()),
 		MinInterval: int64(ann.Config.MinAnnounce.Duration.Seconds()),
-		Compact:     true,
+		Compact:     ann.Compact,
 	}
 
 	if ann.NumWant > 0 && ann.Event != "stopped" && ann.Event != "paused" {
