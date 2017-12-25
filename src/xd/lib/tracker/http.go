@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -148,7 +149,9 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		if t.IsI2P() {
 			addr = a.String() + ".i2p"
 		} else if t.IsOnion() {
-			addr = a.String()
+			var p string
+			addr, p, _ = net.SplitHostPort(a.String())
+			req.Port, _ = strconv.Atoi(p)
 		} else {
 			// invalid
 		}
