@@ -8,10 +8,9 @@ package models
 
 import (
 	"fmt"
+	"github.com/majestrate/chihaya/config"
 	"strings"
 	"time"
-
-	"github.com/majestrate/chihaya/config"
 )
 
 var (

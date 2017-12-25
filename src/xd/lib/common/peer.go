@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"xd/lib/log"
 	"xd/lib/network"
 	"xd/lib/version"
 )
@@ -49,6 +50,7 @@ func (p *Peer) PeerID() (id PeerID) {
 
 // Resolve resolves network address of peer
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
+	log.Debugf("resolve %s", p)
 	if len(p.IP) > 0 {
 		a, err = n.Lookup(p.IP, fmt.Sprintf("%d", p.Port))
 	} else {
