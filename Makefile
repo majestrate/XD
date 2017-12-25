@@ -31,7 +31,7 @@ endif
 
 GOPATH := $(REPO)
 
-build: clean $(CLI) chihaya
+build: clean $(CLI)
 
 $(GO_ASSETS):
 	GOPATH=$(GOPATH) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
