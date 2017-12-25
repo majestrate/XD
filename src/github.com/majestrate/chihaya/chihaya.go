@@ -45,7 +45,6 @@ type server interface {
 // Boot starts Chihaya. By exporting this function, anyone can import their own
 // custom drivers into their own package main and then call chihaya.Boot.
 func Boot() {
-	log.SetLevel("debug")
 	flag.Parse()
 
 	runtime.GOMAXPROCS(maxProcs)
@@ -79,32 +78,16 @@ func Boot() {
 	}
 	if cfg.Tor.Enabled {
 		s := cfg.Tor.CreateSession()
-		log.Info("opening tor session")
 		err = s.Open()
 		if err == nil {
-			log.Info("opened tor session")
-			err = s.SaveKey(cfg.Tor.Privkey)
-			if err == nil {
-				servers = append(servers, http.NewServer(s, cfg, tkr))
-			}
-		}
-		if err != nil {
-			log.Fatalf("failed: %s", err)
+			servers = append(servers, http.NewServer(s, cfg, tkr))
 		}
 	}
 	if cfg.I2P.Enabled {
 		s := cfg.I2P.CreateSession()
-		log.Info("opening i2p session")
 		err = s.Open()
 		if err == nil {
-			log.Info("opened i2p session")
-			err = s.SaveKey(cfg.I2P.Keyfile)
-			if err == nil {
-				servers = append(servers, http.NewServer(s, cfg, tkr))
-			}
-		}
-		if err != nil {
-			log.Fatalf("failed: %s", err)
+			servers = append(servers, http.NewServer(s, cfg, tkr))
 		}
 	}
 

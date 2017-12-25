@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -118,34 +117,14 @@ func (s *Session) subscribe(ev, name string) chan *bulb.Response {
 
 func (s *Session) Accept() (c net.Conn, err error) {
 	c, err = s.l.Accept()
-	if err == nil {
-		err = c.(*tls.Conn).Handshake()
-		if err == nil {
-			state := c.(*tls.Conn).ConnectionState()
-			var a *OnionAddr
-			log.Debugf("tls %s", state)
-			a, err = s.LookupOnion(state.PeerCertificates[0].DNSNames[0], "0")
-			if err == nil {
-				c = &OnionConn{
-					laddr: s.OnionAddr(),
-					raddr: a,
-					conn:  c,
-				}
-			}
-		}
-	}
 	return
 }
 
-func (s *Session) OnionAddr() *OnionAddr {
+func (s *Session) Addr() net.Addr {
 	return &OnionAddr{
 		k: s.publicKey(),
 		p: s.port,
 	}
-}
-
-func (s *Session) Addr() net.Addr {
-	return s.OnionAddr()
 }
 
 func (s *Session) Lookup(name, port string) (net.Addr, error) {
@@ -255,10 +234,6 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 					if a == nil {
 						err = ErrInternalFail
 					}
-					a.p, err = net.LookupPort("tcp", port)
-					if err != nil {
-						a = nil
-					}
 				} else {
 					err = ErrInternalFail
 				}
@@ -323,8 +298,8 @@ func (s *Session) verifyPeerCert(certs [][]byte, _ [][]*x509.Certificate) (err e
 
 func (s *Session) HostExists(onion string) (err error) {
 	var addr *OnionAddr
-	addr, err = s.LookupOnion(onion+".onion", "0")
-	if addr != nil {
+	addr, err = s.LookupOnion(onion, "0")
+	if addr == nil {
 		if addr.Onion() != onion {
 			err = ErrNotFound
 		}
@@ -374,25 +349,8 @@ func (s *Session) Open() (err error) {
 		log.Debugf("Dial to %s %s", s.net, s.addr)
 		if err == nil {
 			var k *rsa.PrivateKey
-			if s.keys == "" {
-				k, err = rsa.GenerateKey(rand.Reader, 1024)
-				log.Debug("create rsa")
-			} else {
-				_, err = os.Stat(s.keys)
-				if os.IsNotExist(err) {
-					k, err = rsa.GenerateKey(rand.Reader, 1024)
-					if err == nil {
-						err = s.SaveKey(s.keys)
-					}
-				} else if err == nil {
-					var data []byte
-					data, err = ioutil.ReadFile(s.keys)
-					if err == nil {
-						k, err = x509.ParsePKCS1PrivateKey(data)
-					}
-				}
-			}
-
+			k, err = rsa.GenerateKey(rand.Reader, 1024)
+			log.Debug("create rsa")
 			if err == nil {
 				err = s.conn.Authenticate(s.passwd)
 				if err == nil {
@@ -435,7 +393,6 @@ func (s *Session) Dial(n, a string) (c net.Conn, err error) {
 	var d proxy.Dialer
 	d, err = s.conn.Dialer(nil)
 	if err == nil {
-		log.Debugf("dial %s", a)
 		c, err = d.Dial(n, a)
 		if err == nil {
 			c = tls.Client(c, s.tlsConfig.Clone())
