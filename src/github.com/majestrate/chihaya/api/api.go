@@ -74,9 +74,9 @@ func newMux(s *Server) http.Handler {
 
 	if s.config.PrivateEnabled {
 		// put a user with a passkey into the database
-		//util.PUT(mux, "/users/", makeHandler(s.putUser))
+		util.PUT(mux, "/users/", makeHandler(s.putUser))
 		// remove a user with a passkey from the database
-		//util.DELETE(mux, "/users/", makeHandler(s.delUser))
+		util.DELETE(mux, "/users/", makeHandler(s.delUser))
 
 		/*
 		   // get category list
@@ -90,8 +90,8 @@ func newMux(s *Server) http.Handler {
 
 	if s.config.ClientWhitelistEnabled {
 		util.GET(mux, "/clients/", makeHandler(s.getClient))
-		//util.PUT(mux, "/clients/", makeHandler(s.putClient))
-		//util.DELETE(mux, "/clients/", makeHandler(s.delClient))
+		util.PUT(mux, "/clients/", makeHandler(s.putClient))
+		util.DELETE(mux, "/clients/", makeHandler(s.delClient))
 	}
 
 	// get top torrent swarms
@@ -99,9 +99,9 @@ func newMux(s *Server) http.Handler {
 	// get torrent info
 	util.GET(mux, "/torrents/", makeHandler(s.getTorrent))
 	// add torrent to backend
-	//util.PUT(mux, "/torrents/", makeHandler(s.putTorrent))
+	util.PUT(mux, "/torrents/", makeHandler(s.putTorrent))
 	// delete torrent from backend
-	//util.DELETE(mux, "/torrents/", makeHandler(s.delTorrent))
+	util.DELETE(mux, "/torrents/", makeHandler(s.delTorrent))
 	// check if backend is alive
 	util.GET(mux, "/check", makeHandler(s.check))
 	// get stats
