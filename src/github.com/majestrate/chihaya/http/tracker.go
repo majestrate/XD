@@ -59,15 +59,9 @@ func (s *Server) newAnnounce(r *http.Request, userID string) (*models.Announce, 
 		return nil, models.ErrMalformedRequest
 	}
 
-	compact := false
-	c, exists := util.QueryParamUInt64(q, "compact")
-	if exists {
-		compact = c == 1
-	}
-
 	a := &models.Announce{
 		Config:     s.config,
-		Compact:    compact,
+		Compact:    true,
 		Downloaded: downloaded,
 		Event:      event,
 		Infohash:   infohash,
