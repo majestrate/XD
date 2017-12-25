@@ -54,8 +54,6 @@ func FromURL(str string) Announcer {
 	if err == nil {
 		if u.Scheme == "http" && strings.HasSuffix(u.Host, ".i2p") {
 			return NewHttpTracker(u)
-		} else if u.Scheme == "https" && strings.HasSuffix(u.Host, ".onion") {
-			return NewHttpsTracker(u)
 		}
 	}
 	return nil

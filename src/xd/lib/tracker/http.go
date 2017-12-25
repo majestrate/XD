@@ -12,10 +12,7 @@ import (
 	"time"
 	"xd/lib/common"
 	"xd/lib/log"
-	"xd/lib/network"
 )
-
-var ErrFailedToTLS = errors.New("failed to tls")
 
 // http tracker
 type HttpTracker struct {
@@ -41,24 +38,8 @@ func NewHttpTracker(u *url.URL) *HttpTracker {
 	return t
 }
 
-func NewHttpsTracker(u *url.URL) *HttpTracker {
-	return &HttpTracker{
-		u:               u,
-		resolveInterval: time.Hour,
-		lastResolved:    time.Unix(0, 0),
-	}
-}
-
 func (t *HttpTracker) shouldResolve() bool {
 	return t.lastResolved.Add(t.resolveInterval).Before(time.Now())
-}
-
-func (t *HttpTracker) IsOnion() bool {
-	return strings.HasSuffix(t.u.Host, ".onion")
-}
-
-func (t *HttpTracker) IsI2P() bool {
-	return strings.HasSuffix(t.u.Host, ".i2p")
 }
 
 // http compact response
@@ -72,38 +53,6 @@ func (t *HttpTracker) Name() string {
 	return t.u.String()
 }
 
-func (t *HttpTracker) Resolve(n network.Network) (a net.Addr, e error) {
-	t.resolving.Lock()
-	if t.shouldResolve() {
-		var h, p string
-		var uh string
-		uh = t.u.Host
-		// XXX: hack
-		if strings.Index(uh, ":") == -1 {
-			uh += fmt.Sprintf(":%d", t.DefaultPort())
-		}
-		h, p, e = net.SplitHostPort(uh)
-		if e == nil {
-			a, e = n.Lookup(h, p)
-			if e == nil {
-				t.addr = a
-				t.lastResolved = time.Now()
-			}
-		}
-	} else {
-		a = t.addr
-	}
-	t.resolving.Unlock()
-	return
-}
-
-func (t *HttpTracker) DefaultPort() int {
-	if t.IsI2P() {
-		return 80
-	}
-	return 443
-}
-
 // send announce via http request
 func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	//if req == nil {
@@ -115,21 +64,27 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 	client.Transport = &http.Transport{
 		Dial: func(_, _ string) (c net.Conn, e error) {
 			var a net.Addr
-			a, e = t.Resolve(req.GetNetwork())
-			if e == nil {
-				c, e = req.GetNetwork().Dial(a.Network(), a.String())
-			}
-			return
-		},
-		DialTLS: func(_, _ string) (c net.Conn, e error) {
-			if t.IsOnion() {
-				var a net.Addr
-				a, e = t.Resolve(req.GetNetwork())
+			t.resolving.Lock()
+			if t.shouldResolve() {
+				var h, p string
+				// XXX: hack
+				if strings.Index(t.u.Host, ":") == -1 {
+					t.u.Host += ":80"
+				}
+				h, p, e = net.SplitHostPort(t.u.Host)
 				if e == nil {
-					c, e = req.GetNetwork().Dial(a.Network(), a.String())
+					a, e = req.GetNetwork().Lookup(h, p)
+					if e == nil {
+						t.addr = a
+						t.lastResolved = time.Now()
+					}
 				}
 			} else {
-				e = ErrFailedToTLS
+				a = t.addr
+			}
+			t.resolving.Unlock()
+			if e == nil {
+				c, e = req.GetNetwork().Dial(a.Network(), a.String())
 			}
 			return
 		},
@@ -144,14 +99,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v := u.Query()
 		n := req.GetNetwork()
 		a := n.Addr()
-		var addr string
-		if t.IsI2P() {
-			addr = a.String() + ".i2p"
-		} else if t.IsOnion() {
-			addr = a.String()
-		} else {
-			// invalid
-		}
+		addr := a.String() + ".i2p"
 		v.Add("ip", addr)
 		v.Add("info_hash", string(req.Infohash.Bytes()))
 		v.Add("peer_id", string(req.PeerID.Bytes()))

@@ -38,11 +38,6 @@ type Session interface {
 	Open() error
 	// close the session
 	Close() error
-
-	StringToAddr(addr string, port int) net.Addr
-	CompactToAddr(compact []byte, port int) (net.Addr, error)
-
-	SaveKey(fname string) error
 }
 
 // create a new i2p session
@@ -54,6 +49,5 @@ func NewSession(name, addr, keyfile string, opts map[string]string) Session {
 		maxversion: "3.0",
 		keys:       NewKeyfile(keyfile),
 		opts:       opts,
-		nameCache:  make(map[string]I2PAddr),
 	}
 }

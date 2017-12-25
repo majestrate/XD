@@ -13,7 +13,7 @@ import (
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
-	"xd/lib/network"
+	"xd/lib/network/i2p"
 	"xd/lib/rpc"
 	"xd/lib/util"
 	"xd/lib/version"
@@ -74,29 +74,15 @@ func Run() {
 	}
 	closers = append(closers, st)
 	var swarms []*swarm.Swarm
-	var oswarms []*swarm.Swarm
 	count := 0
 	for count < conf.Bittorrent.Swarms {
-		// i2p
-		if conf.I2P.Enabled {
-			gnutella := conf.Gnutella.CreateSwarm()
-			sw := conf.Bittorrent.CreateSwarm(st, gnutella)
-			if gnutella != nil {
-				closers = append(closers, gnutella)
-			}
-			swarms = append(swarms, sw)
-			closers = append(closers, sw)
+		gnutella := conf.Gnutella.CreateSwarm()
+		sw := conf.Bittorrent.CreateSwarm(st, gnutella)
+		if gnutella != nil {
+			closers = append(closers, gnutella)
 		}
-		// onion
-		if conf.Tor.Enabled {
-			gnutella := conf.Gnutella.CreateSwarm()
-			sw := conf.Bittorrent.CreateSwarm(st, gnutella)
-			if gnutella != nil {
-				closers = append(closers, gnutella)
-			}
-			oswarms = append(oswarms, sw)
-			closers = append(closers, sw)
-		}
+		swarms = append(swarms, sw)
+		closers = append(closers, sw)
 		count++
 	}
 
@@ -164,18 +150,18 @@ func Run() {
 		}
 	}
 
-	runFunc := func(n network.Network, sw *swarm.Swarm) {
+	runFunc := func(n i2p.Session, sw *swarm.Swarm) {
 		for sw.Running() {
-			log.Info("opening network session")
+			log.Info("opening i2p session")
 			err := n.Open()
 			if err == nil {
-				log.Infof("network session made, we are %s", n.B32Addr())
+				log.Infof("i2p session made, we are %s", n.B32Addr())
 				err = sw.Run(n)
 				if err != nil {
-					log.Errorf("lost network session: %s", err)
+					log.Errorf("lost i2p session: %s", err)
 				}
 			} else {
-				log.Errorf("failed to create network session: %s", err)
+				log.Errorf("failed to create i2p session: %s", err)
 				time.Sleep(time.Second)
 			}
 		}
@@ -184,12 +170,6 @@ func Run() {
 	for idx := range swarms {
 		net := conf.I2P.CreateSession()
 		go runFunc(net, swarms[idx])
-		closers = append(closers, net)
-	}
-
-	for idx := range oswarms {
-		net := conf.Tor.CreateSession()
-		go runFunc(net, oswarms[idx])
 		closers = append(closers, net)
 	}
 	sigchnl := make(chan os.Signal)
