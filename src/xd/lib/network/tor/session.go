@@ -29,7 +29,6 @@ import (
 var ErrNotFound = errors.New("host not found")
 var ErrAcceptFailed = errors.New("acccept failed")
 var ErrInternalFail = errors.New("internal failure")
-var ErrSocketClosed = errors.New("socket closed")
 var ErrBadDomain = errors.New("bad domain")
 var ErrBadCert = errors.New("bad cert")
 
@@ -84,13 +83,13 @@ type Session struct {
 	conn       *bulb.Conn
 	l          net.Listener
 	tlsConfig  tls.Config
+	inbound    chan *OnionConn
 	onionInfo  *bulb.OnionInfo
 	ourCert    x509.Certificate
 	subs       map[string]*eventSub
 	nameCache  map[string]rsa.PublicKey
 	nameAccess sync.Mutex
 	port       int
-	inbound    chan net.Conn
 }
 
 func (s *Session) getNameCache(name string) (k rsa.PublicKey, ok bool) {
@@ -117,41 +116,23 @@ func (s *Session) subscribe(ev, name string) chan *bulb.Response {
 	return chnl
 }
 
-func (s *Session) doAcceptLoop() {
-	for s.l != nil {
-		c, err := s.l.Accept()
+func (s *Session) Accept() (c net.Conn, err error) {
+	c, err = s.l.Accept()
+	if err == nil {
+		err = c.(*tls.Conn).Handshake()
 		if err == nil {
-			err = c.(*tls.Conn).Handshake()
+			state := c.(*tls.Conn).ConnectionState()
+			var a *OnionAddr
+			log.Debugf("tls %s", state)
+			a, err = s.LookupOnion(state.PeerCertificates[0].DNSNames[0], "0")
 			if err == nil {
-				state := c.(*tls.Conn).ConnectionState()
-				var a *OnionAddr
-				name := state.PeerCertificates[0].DNSNames[0]
-				log.Debugf("inbound from %s", name)
-				a, err = s.LookupOnion(name, "0")
-				if err == nil {
-					log.Debugf("got %s", a)
-					c = &OnionConn{
-						laddr: s.OnionAddr(),
-						raddr: a,
-						conn:  c,
-					}
+				c = &OnionConn{
+					laddr: s.OnionAddr(),
+					raddr: a,
+					conn:  c,
 				}
 			}
-			if err == nil {
-				s.inbound <- c
-			} else {
-				log.Errorf("failed to accept connection: %s", err.Error())
-				c.Close()
-			}
 		}
-	}
-	return
-}
-
-func (s *Session) Accept() (c net.Conn, err error) {
-	c, ok := <-s.inbound
-	if !ok {
-		err = ErrSocketClosed
 	}
 	return
 }
@@ -274,11 +255,9 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 					if a == nil {
 						err = ErrInternalFail
 					}
-					if err == nil {
-						a.p, err = net.LookupPort("tcp", port)
-						if err != nil {
-							a = nil
-						}
+					a.p, err = net.LookupPort("tcp", port)
+					if err != nil {
+						a = nil
 					}
 				} else {
 					err = ErrInternalFail
@@ -429,7 +408,6 @@ func (s *Session) Open() (err error) {
 							go s.runEvents()
 							log.Debug("tls set up")
 							s.l = tls.NewListener(s.l, s.tlsConfig.Clone())
-							go s.doAcceptLoop()
 						} else {
 							s.Close()
 						}
@@ -460,24 +438,7 @@ func (s *Session) Dial(n, a string) (c net.Conn, err error) {
 		log.Debugf("dial %s", a)
 		c, err = d.Dial(n, a)
 		if err == nil {
-			tlsc := tls.Client(c, s.tlsConfig.Clone())
-			err = tlsc.Handshake()
-			if err == nil {
-				state := tlsc.ConnectionState()
-				var a *OnionAddr
-				a, err = s.LookupOnion(state.PeerCertificates[0].DNSNames[0], "0")
-				if err == nil {
-					c = &OnionConn{
-						laddr: s.OnionAddr(),
-						raddr: a,
-						conn:  c,
-					}
-				}
-			}
-			if err != nil {
-				c.Close()
-				c = nil
-			}
+			c = tls.Client(c, s.tlsConfig.Clone())
 		}
 	}
 	return
