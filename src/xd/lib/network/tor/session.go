@@ -243,7 +243,7 @@ func (s *Session) lookupInform(name string, chnl chan *OnionAddr) {
 		break
 	case <-time.After(time.Second * 10):
 		chnl <- nil
-		go s.unsub("HS_DESC_CONTENT", name)
+		s.unsub("HS_DESC_CONTENT", name)
 		return
 	}
 	if r == nil {
@@ -330,7 +330,7 @@ func (s *Session) LookupOnion(name, port string) (a *OnionAddr, err error) {
 
 func (s *Session) CompactToAddr(compact []byte, _ int) (a net.Addr, err error) {
 	if len(compact) == 12 {
-		hsaddr := strings.Trim(strings.ToLower(base32.HexEncoding.EncodeToString(compact[:len(compact)-3])), "=")
+		hsaddr := strings.Trim(strings.ToLower(base32.StdEncoding.EncodeToString(compact[:len(compact)-3])), "=")
 		port := binary.BigEndian.Uint16(compact[len(compact)-3:])
 		a, err = s.Lookup(hsaddr+".onion", fmt.Sprintf("%d", port))
 	}
@@ -345,7 +345,7 @@ func (s *Session) AddrToCompact(addr string) []byte {
 	numPort, _ := net.LookupPort("tcp", port)
 	var portbytes [2]byte
 	binary.BigEndian.PutUint16(portbytes[:], uint16(numPort))
-	b, _ := base32.HexEncoding.DecodeString(strings.ToUpper(host))
+	b, _ := base32.StdEncoding.DecodeString(strings.ToUpper(host))
 	if b != nil {
 		b = append(b, portbytes[:]...)
 	}

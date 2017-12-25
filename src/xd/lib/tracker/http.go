@@ -168,10 +168,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		v.Add("uploaded", fmt.Sprintf("%d", req.Uploaded))
 
 		// compact response
-		if t.IsOnion() {
-			req.Compact = false
-			v.Add("compact", "0")
-		} else if req.Compact || u.Path != "/a" {
+		if req.Compact || u.Path != "/a" {
 			req.Compact = true
 			v.Add("compact", "1")
 		}
