@@ -8,6 +8,7 @@ package models
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -61,7 +62,8 @@ type PeerKey string
 
 // new peer key for network address
 func NewPeerKey(peerID string, addr string) PeerKey {
-	return PeerKey(fmt.Sprintf("%s//%s", peerID, addr))
+	host, _, _ := net.SplitHostPort(addr)
+	return PeerKey(fmt.Sprintf("%s//%s", peerID, host))
 }
 
 // PeerID returns the PeerID section of a PeerKey.
