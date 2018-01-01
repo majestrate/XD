@@ -12,6 +12,7 @@ import (
 	"xd/lib/log"
 	"xd/lib/rpc"
 	"xd/lib/util"
+	"xd/lib/version"
 )
 
 func formatRate(r float64) string {
@@ -93,13 +94,15 @@ func Run() {
 			setPieceWindow(c, args[0])
 			count++
 		}
+	case "version":
+		fmt.Println(version.Version())
 	case "help":
 		printHelp(os.Args[0])
 	}
 }
 
 func printHelp(cmd string) {
-	fmt.Printf("usage: %s [help|list|add http://somesite.i2p/some.torrent|set-piece-window n|remove infohash|delete infohash|stop infohash|start infohash]", cmd)
+	fmt.Printf("usage: %s [help|version|list|add http://somesite.i2p/some.torrent|set-piece-window n|remove infohash|delete infohash|stop infohash|start infohash]", cmd)
 	fmt.Println()
 }
 

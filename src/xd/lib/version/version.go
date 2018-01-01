@@ -4,11 +4,11 @@ import "fmt"
 
 const Name = "XD"
 
-const Major = "0"
+var Major = "0"
 
-const Minor = "1"
+var Minor = "1"
 
-const Patch = "0"
+var Patch = "0"
 
 var Git string
 
