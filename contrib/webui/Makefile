@@ -5,14 +5,23 @@ DOC_ROOT = $(REPO)/docroot
 CSS = $(DOC_ROOT)/xd.css
 JS = $(DOC_ROOT)/xd.min.js
 
+CAT = cat
+RM = rm -f
+
+NODE = $(shell which node || true)
+
 all: build
 
-build:
-	cat $(CSS_ROOT)/*.css > $(CSS)
-	cat $(JS_ROOT)/*.js > $(JS)
+build: $(CSS) $(JS)
+
+$(CSS):
+	$(CAT) $(CSS_ROOT)/*.css > $(CSS)
+
+$(JS):
+	$(CAT) $(JS_ROOT)/*.js > $(JS)
 
 run:
-	node server.js
+	$(NODE) server.js
 
 clean:
-	rm -f $(CSS) $(JS)
+	$(RM) $(CSS) $(JS)

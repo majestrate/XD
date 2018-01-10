@@ -11,13 +11,21 @@ WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
 
+MKDIR = mkdir -p
+RM = rm -f
+CP = cp
+CPLINK = cp -P
+INSTALL = install
+LINK = ln -s
+CHMOD = chmod 
+
 GIT_VERSION ?= $(shell test -e .git && git rev-parse --short HEAD || true)
 
 ifdef GOROOT
 	GO = $(GOROOT)/bin/go
+else
+	GO = $(shell which go)
 endif
-
-GO ?= $(shell which go)
 
 ifeq ($(GOOS),windows)
 	XD := XD.exe
@@ -29,45 +37,44 @@ else
 	PREFIX ?= /usr/local
 endif
 
-GOPATH := $(REPO)
-
-build: clean $(CLI)
+build: $(CLI)
 
 $(GO_ASSETS):
-	GOPATH=$(GOPATH) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
+	GOPATH=$(REPO) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
 assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
 
 $(CLI): $(XD)
-	ln -s $(XD) $(CLI)
-	chmod 755 $(CLI)
+	$(RM) $(CLI)
+	$(LINK) $(XD) $(CLI)
+	$(CHMOD) 755 $(CLI)
 
 test:
-	GOPATH=$(GOPATH) $(GO) test xd/...
+	GOPATH=$(REPO) $(GO) test xd/...
 
 clean: webui-clean go-clean
-	rm -f $(CLI)
+	$(RM) $(CLI)
 
 webui-clean:
 	$(MAKE) -C $(WEBUI) clean
 
 go-clean:
-	GOPATH=$(GOPATH) $(GO) clean
+	GOPATH=$(REPO) $(GO) clean
 
 $(WEBUI_LOGO):
-	cp $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
+	$(CP) $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
 
 webui: $(WEBUI_LOGO)
-	$(MAKE) -C $(WEBUI) clean build
+	$(MAKE) -C $(WEBUI)	
 
 no-webui:
-	GOPATH=$(GOPATH) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
 
 install: $(XD) $(CLI)
-	mkdir -p $(PREFIX)/bin
-	install XD $(PREFIX)/bin
-	cp -P $(CLI) $(PREFIX)/bin
+	$(MKDIR) $(PREFIX)/bin
+	$(INSTALL) XD $(PREFIX)/bin
+	$(CPLINK) $(CLI) $(PREFIX)/bin
