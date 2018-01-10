@@ -47,7 +47,7 @@ $(CLI): $(XD)
 	chmod 755 $(CLI)
 
 test:
-	GOPATH=$(GOPATH) $(GO) test -v xd/...
+	GOPATH=$(GOPATH) $(GO) test xd/...
 
 clean: webui-clean go-clean
 	rm -f $(CLI)
