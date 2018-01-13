@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,7 +33,7 @@ func (cl *Client) doRPC(r interface{}, h func(r io.Reader) error) (err error) {
 		if strings.HasPrefix(cl.url, "unix:") {
 			httpcl = &http.Client{
 				Transport: &http.Transport{
-					DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					Dial: func(_, _ string) (net.Conn, error) {
 						return net.Dial("unix", cl.url[5:])
 					},
 				},
