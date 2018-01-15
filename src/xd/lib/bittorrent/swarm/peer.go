@@ -426,7 +426,7 @@ func (c *PeerConn) sendPEX(connected, disconnected []byte) {
 }
 
 func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
-	log.Debugf("got extended opts from %s: %s", c.id.String(), opts)
+	log.Debugf("got extended opts from %s: %q", c.id.String(), opts)
 	if opts.ID == 0 {
 		// handshake
 		if c.theirOpts == nil {
