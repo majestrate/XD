@@ -23,7 +23,7 @@ Eventually:
 ## Dependencies
 
 * GNU Make
-* GO 1.9
+* GO 1.6 or higher
 
 
 ## Building
