@@ -43,10 +43,10 @@ $(GO_ASSETS):
 	GOPATH=$(REPO) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
 assets: $(GO_ASSETS) webui
-	$(GO_ASSETS) -p assets $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
+	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
 $(CLI): $(XD)
 	$(RM) $(CLI)
@@ -72,7 +72,7 @@ webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI)	
 
 no-webui:
-	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION) -X xd/lib/rpc/assets.Prefix=$(WEBUI_PREFIX)" -o $(XD)
+	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -o $(XD)
 
 install: $(XD) $(CLI)
 	$(MKDIR) $(PREFIX)/bin
