@@ -18,12 +18,12 @@ var Torrent = function(data) {
     };
     this.RX = function() {
       var rx = 0;
-      if(data.Peers) data.peers.forEach(function(p) { rx += p.RX; });
+      if(data.Peers) data.Peers.forEach(function(p) { rx += p.RX; });
       return rx;
     }
     this.TX = function() {
       var tx = 0;
-      if(data.Peers) data.peers.forEach(function(p) { tx += p.TX; });
+      if(data.Peers) data.Peers.forEach(function(p) { tx += p.TX; });
       return tx;
     }
     this.TotalSize = function() {
@@ -71,18 +71,10 @@ var viewModel = {
     {
       var rx = 0;
       var tx = 0;
-      if(this.torrents)
-      {
-        for (var idx in this.torrents)
-        {
-          var t = this.torrents[idx];
-          if (t && t.RX && t.TX)
-          {
-            rx += t.RX();
-            tx += t.TX();
-          }
-        }
-      }
+      this.torrents().forEach(function(t) {
+        rx += t.RX();
+        tx += t.TX();
+      });
       return  "Global: ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
     }
 };
