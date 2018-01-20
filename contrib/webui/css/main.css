@@ -13,6 +13,15 @@ nav {
 
 .speed {
     color: #A517A5;
+    font-size: 0.8em;
+    border-radius: 4px;
+    padding: 10px 10px 10px 10px;
+    border: 1px #A517A5 solid;
+}
+
+.speed:hover {
+    color: #ccc;
+    background-color: #A517A5;
 }
 
 progress {

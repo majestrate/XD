@@ -69,14 +69,16 @@ var viewModel = {
     torrentStates: ['all', 'downloading', 'seeding'],
     globalSpeed: function()
     {
+      var peers = 0;
       var rx = 0;
       var tx = 0;
       this.torrents().forEach(function(t) {
         rx += t.RX();
         tx += t.TX();
+        peers += t.Peers();
       });
-      return  "Global: ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
-    }
+      return  peers + " peers connected. ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+    },
 };
 
 function main()
@@ -94,5 +96,5 @@ function main()
 window.onload = function()
 {
     ko.applyBindings(viewModel);
-    main(); setInterval(main, 5000);
+    main(); setInterval(main, 1000);
 }
