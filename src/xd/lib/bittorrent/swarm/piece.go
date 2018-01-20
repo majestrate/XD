@@ -133,7 +133,7 @@ func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracke
 		requests:   make(map[uint32]*cachedPiece),
 		st:         st,
 		nextPiece:  picker,
-		maxPending: 8,
+		maxPending: 32,
 	}
 	return
 }
