@@ -38,7 +38,7 @@ var Torrent = function(data) {
         });
     }.bind(this);
 }
- 
+
 var viewModel = {
     _url: window.location.protocol + "//" + window.location.host + "/ecksdee/api",
     _apicall: function(call, cb)
@@ -69,16 +69,16 @@ var viewModel = {
     torrentStates: ['all', 'downloading', 'seeding'],
     globalSpeed: function()
     {
-      var peers = 0;
-      var rx = 0;
-      var tx = 0;
-      this.torrents().forEach(function(t) {
-        rx += t.RX();
-        tx += t.TX();
-        peers += t.Peers();
-      });
-      return  peers + " peers connected. ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
-    },
+        var peers = 0;
+        var rx = 0;
+        var tx = 0;
+        this.torrents().forEach(function(t) {
+            rx += t.RX();
+            tx += t.TX();
+            peers += t.Peers();
+        });
+        return  peers + " peers connected. ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+    }
 };
 
 function main()

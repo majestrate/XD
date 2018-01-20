@@ -22,6 +22,7 @@ nav {
 .speed:hover {
     color: #ccc;
     background-color: #A517A5;
+    cursor: pointer;
 }
 
 progress {
