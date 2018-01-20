@@ -11,6 +11,10 @@ nav {
     padding-bottom: 20px;
 }
 
+.speed {
+    color: #A517A5;
+}
+
 progress {
     width: 100%;
 }

@@ -16,7 +16,8 @@
                 <div class="one columns logo">
                   <img src="favicon.png" />
                 </div>
-                <div class="four columns filter-panel">
+                <div class="two columns speed" data-bind="text: globalSpeed()"></div>
+                <div class="three columns filter-panel">
                   <ul data-bind="foreach: torrentStates" class="filter-buttons">
                       <li data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
                   </ul>
@@ -27,7 +28,7 @@
                       data-bind="value: torrentURL"
                       id="torrent-url-input">
                 </div>
-                <div class="two columns">
+                <div class="one columns">
                   <input class="u-full-width button-primary" type="submit"
                       data-bind="click: addTorrent"
                       value="Add">
