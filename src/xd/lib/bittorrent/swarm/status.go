@@ -73,10 +73,12 @@ type TorrentStatus struct {
 	State    TorrentState
 	Infohash string
 	Progress float64
+	TX       uint64
+	RX       uint64
 }
 
 func (t TorrentStatus) Ratio() (r float64) {
-	r = t.Peers.TX() / t.Peers.RX()
+	r = util.Ratio(float64(t.TX), float64(t.RX))
 	return
 }
 
@@ -90,12 +92,12 @@ func (l TorrentStatusList) TX() (tx float64) {
 }
 
 func (l TorrentStatusList) Ratio() (r float64) {
-	var tx, rx float64
+	var tx, rx uint64
 	for idx := range l {
-		tx += l[idx].Peers.TX()
-		rx += l[idx].Peers.RX()
+		tx += l[idx].TX
+		rx += l[idx].RX
 	}
-	r = tx / rx
+	r = util.Ratio(float64(tx), float64(rx))
 	return
 }
 
@@ -129,3 +131,21 @@ func (sb SwarmBandwidth) String() string {
 
 // infohash -> torrent status map
 type SwarmStatus map[string]TorrentStatus
+
+func (sw SwarmStatus) TotalSpeed() (tx, rx float64) {
+	for ih := range sw {
+		tx += sw[ih].Peers.TX()
+		rx += sw[ih].Peers.RX()
+	}
+	return
+}
+
+func (sw SwarmStatus) Ratio() (r float64) {
+	var tx, rx uint64
+	for ih := range sw {
+		tx += sw[ih].TX
+		rx += sw[ih].RX
+	}
+	r = util.Ratio(float64(tx), float64(rx))
+	return
+}

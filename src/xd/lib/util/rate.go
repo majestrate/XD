@@ -72,6 +72,11 @@ func (r *Rate) Max() (max uint64) {
 	return
 }
 
+func (r *Rate) Current() (cur uint64) {
+	cur = r.Samples[r.lastSampleIdx].Value()
+	return
+}
+
 func (r *Rate) Min() (min uint64) {
 	min = ^uint64(0)
 	for idx := range r.Samples {

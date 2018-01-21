@@ -182,7 +182,6 @@ func listTorrents(c *rpc.Client) {
 		log.Errorf("rpc error: %s", err)
 		return
 	}
-	var globalTx, globalRx float64
 
 	var torrents swarm.TorrentStatusList
 	for _, status := range st {
@@ -190,8 +189,7 @@ func listTorrents(c *rpc.Client) {
 	}
 	sort.Stable(&torrents)
 	for _, status := range torrents {
-		var tx, rx float64
-		fmt.Printf("%s [%s] %.2f\n", status.Name, status.Infohash, status.Progress)
+		fmt.Printf("%s [%s] %.2f done\n", status.Name, status.Infohash, status.Progress)
 		fmt.Println("peers:")
 		sort.Stable(&status.Peers)
 		for _, peer := range status.Peers {
@@ -201,20 +199,17 @@ func listTorrents(c *rpc.Client) {
 				pad += " "
 			}
 			fmt.Printf("\t%stx=%s rx=%s\n", pad, formatRate(peer.TX), formatRate(peer.RX))
-			tx += peer.TX
-			rx += peer.RX
 		}
-		fmt.Printf("%s tx=%s rx=%s (%.2f)\n", status.State, formatRate(tx), formatRate(rx), status.Ratio())
+		fmt.Printf("%s tx=%s rx=%s (%.2f ratio)\n", status.State, formatRate(status.Peers.TX()), formatRate(status.Peers.RX()), status.Ratio())
 		fmt.Println("files:")
 		for idx, f := range status.Files {
-			fmt.Printf("\t[%d] %s (%.2f)\n", idx, f.FileInfo.Path.FilePath(), f.Progress)
+			fmt.Printf("\t[%d] %s (%.2f done)\n", idx, f.FileInfo.Path.FilePath(), f.Progress)
 		}
 		fmt.Println()
-		globalRx += rx
-		globalTx += tx
 	}
 	fmt.Println()
-	fmt.Printf("%d torrents: tx=%s rx=%s (%.2f)\n", torrents.Len(), formatRate(globalTx), formatRate(globalRx), torrents.Ratio())
+	tx, rx := st.TotalSpeed()
+	fmt.Printf("%d torrents: tx=%s rx=%s (%.2f ratio)\n", torrents.Len(), formatRate(tx), formatRate(rx), st.Ratio())
 	fmt.Println()
 	fmt.Println()
 }

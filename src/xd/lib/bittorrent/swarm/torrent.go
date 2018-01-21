@@ -56,6 +56,8 @@ type Torrent struct {
 	pexState       *PEXSwarmState
 	xdht           *dht.XDHT
 	statsTracker   *stats.Tracker
+	tx             uint64
+	rx             uint64
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -270,6 +272,8 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		Infohash: t.MetaInfo().Infohash().Hex(),
 		Progress: b.Progress(),
 		Files:    files,
+		TX:       t.tx,
+		RX:       t.rx,
 	}
 }
 
@@ -596,6 +600,8 @@ var ErrAlreadyStarted = errors.New("torrent already started")
 func (t *Torrent) runRateTicker() {
 	for t.started {
 		time.Sleep(time.Second)
+		t.tx += t.statsTracker.Rate(RateUpload).Current()
+		t.rx += t.statsTracker.Rate(RateDownload).Current()
 		t.statsTracker.Tick()
 	}
 }
