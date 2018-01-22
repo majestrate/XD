@@ -65,9 +65,6 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 			}
 		}
 	}
-
-	// start annoucing
-	go t.StartAnnouncing()
 	// handle messages
 	t.Start()
 }
