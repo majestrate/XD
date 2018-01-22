@@ -566,12 +566,12 @@ func (t *Torrent) pexBroadcastLoop() {
 	}
 }
 
-func (t *Torrent) handlePieceRequest(c *PeerConn, r *common.PieceRequest) {
+func (t *Torrent) handlePieceRequest(c *PeerConn, r common.PieceRequest) {
 
-	if r != nil && r.Length > 0 {
+	if r.Length > 0 {
 		log.Debugf("%s asked for piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 		// TODO: cache common pieces (?)
-		t.st.VisitPiece(r, func(p *common.PieceData) error {
+		t.st.VisitPiece(&r, func(p *common.PieceData) error {
 			// have the piece, send it
 			c.Send(p.ToWireMessage())
 			log.Debugf("%s queued piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)

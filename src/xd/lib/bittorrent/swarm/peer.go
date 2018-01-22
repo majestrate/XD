@@ -31,7 +31,7 @@ type PeerConn struct {
 	tx                  *util.Rate
 	lastRecv            time.Time
 	rx                  *util.Rate
-	downloading         []*common.PieceRequest
+	downloading         []common.PieceRequest
 	ourOpts             *extensions.Message
 	theirOpts           *extensions.Message
 	MaxParalellRequests int
@@ -60,7 +60,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	p.usInterested = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
-	p.downloading = []*common.PieceRequest{}
+	p.downloading = []common.PieceRequest{}
 	return p
 }
 
@@ -85,7 +85,7 @@ func (c *PeerConn) tickStats() {
 	}
 }
 
-func (c *PeerConn) doSend(msg *common.WireMessage) {
+func (c *PeerConn) doSend(msg common.WireMessage) {
 	if !c.closing && msg != nil {
 		c.sendMtx.Lock()
 		now := time.Now()
@@ -114,11 +114,11 @@ func (c *PeerConn) doSend(msg *common.WireMessage) {
 }
 
 // queue a send of a bittorrent wire message to this peer
-func (c *PeerConn) Send(msg *common.WireMessage) {
+func (c *PeerConn) Send(msg common.WireMessage) {
 	go c.doSend(msg)
 }
 
-func (c *PeerConn) recv(msg *common.WireMessage) (err error) {
+func (c *PeerConn) recv(msg common.WireMessage) (err error) {
 	c.lastRecv = time.Now()
 	if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
 		n := uint64(msg.Len())
@@ -152,24 +152,24 @@ func (c *PeerConn) Unchoke() {
 
 func (c *PeerConn) gotDownload(p *common.PieceData) {
 	c.access.Lock()
-	var downloading []*common.PieceRequest
-	for _, r := range c.downloading {
-		if r.Matches(p) {
+	var downloading []common.PieceRequest
+	for idx := range c.downloading {
+		if c.downloading[idx].Matches(p) {
 			c.t.pt.handlePieceData(p)
 		} else {
-			downloading = append(downloading, r)
+			downloading = append(downloading, c.downloading[idx])
 		}
 	}
 	c.downloading = downloading
 	c.access.Unlock()
 }
 
-func (c *PeerConn) cancelDownload(req *common.PieceRequest) {
+func (c *PeerConn) cancelDownload(req common.PieceRequest) {
 	c.access.Lock()
-	var downloading []*common.PieceRequest
+	var downloading []common.PieceRequest
 	for _, r := range c.downloading {
-		if r.Equals(req) {
-			c.t.pt.canceledRequest(r)
+		if r.Equals(&req) {
+			c.t.pt.canceledRequest(&r)
 		} else {
 			downloading = append(downloading, r)
 		}
@@ -185,24 +185,24 @@ func (c *PeerConn) numDownloading() int {
 	return i
 }
 
-func (c *PeerConn) queueDownload(req *common.PieceRequest) {
+func (c *PeerConn) queueDownload(req common.PieceRequest) {
 	if c.closing {
 		c.clearDownloading()
 		return
 	}
 	c.access.Lock()
 	c.downloading = append(c.downloading, req)
+	c.access.Unlock()
 	log.Debugf("ask %s for %d %d %d", c.id.String(), req.Index, req.Begin, req.Length)
 	c.Send(req.ToWireMessage())
-	c.access.Unlock()
 }
 
 func (c *PeerConn) clearDownloading() {
 	c.access.Lock()
 	for _, r := range c.downloading {
-		c.t.pt.canceledRequest(r)
+		c.t.pt.canceledRequest(&r)
 	}
-	c.downloading = []*common.PieceRequest{}
+	c.downloading = []common.PieceRequest{}
 	c.access.Unlock()
 }
 
@@ -258,7 +258,7 @@ func (c *PeerConn) Close() {
 	}
 	c.closing = true
 	for _, r := range c.downloading {
-		c.t.pt.canceledRequest(r)
+		c.t.pt.canceledRequest(&r)
 	}
 	c.downloading = nil
 	log.Debugf("%s closing connection", c.id.String())
@@ -292,7 +292,7 @@ func (c *PeerConn) checkInterested() {
 	}
 }
 
-func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
+func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 
 	if msg.KeepAlive() {
 		log.Debugf("keepalive from %s", c.id)
@@ -319,9 +319,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	}
 	if msgid == common.Choke {
 		c.remoteChoke()
-		for _, r := range c.downloading {
-			c.t.pt.canceledRequest(r)
-		}
+		c.clearDownloading()
 	}
 	if msgid == common.UnChoke {
 		c.remoteUnchoke()
@@ -338,12 +336,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	}
 	if msgid == common.Piece {
 		d := msg.GetPieceData()
-		if d == nil {
-			log.Warnf("invalid piece data message from %s", c.id.String())
-			c.Close()
-		} else {
-			c.gotDownload(d)
-		}
+		c.gotDownload(&d)
 	}
 
 	if msgid == common.Have {
@@ -360,7 +353,7 @@ func (c *PeerConn) inboundMessage(msg *common.WireMessage) (err error) {
 	if msgid == common.Cancel {
 		// TODO: check validity
 		r := msg.GetPieceRequest()
-		c.t.pt.canceledRequest(r)
+		c.t.pt.canceledRequest(&r)
 	}
 	if msgid == common.Extended {
 		// handle extended options
@@ -463,7 +456,7 @@ func (c *PeerConn) sendKeepAlive() {
 	tm := time.Now().Add(0 - (time.Minute * 2))
 	if c.lastSend.Before(tm) {
 		log.Debugf("send keepalive to %s", c.id.String())
-		c.doSend(common.KeepAlive())
+		c.doSend(common.KeepAlive)
 	}
 }
 
@@ -486,7 +479,7 @@ func (c *PeerConn) runDownload() {
 			log.Debugf("no next piece to download for %s", c.id.String())
 			time.Sleep(time.Second)
 		} else {
-			c.queueDownload(r)
+			c.queueDownload(*r)
 		}
 	}
 	if c.closing {

@@ -18,7 +18,7 @@ const Obtained = 2
 
 // cached downloading piece
 type cachedPiece struct {
-	piece      *common.PieceData
+	piece      common.PieceData
 	progress   []byte
 	lastActive time.Time
 	mtx        sync.Mutex
@@ -133,7 +133,7 @@ func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracke
 		requests:   make(map[uint32]*cachedPiece),
 		st:         st,
 		nextPiece:  picker,
-		maxPending: 32,
+		maxPending: 16,
 	}
 	return
 }
@@ -158,7 +158,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	log.Debugf("new piece idx=%d len=%d", piece, sz)
 	cp = &cachedPiece{
 		progress: make([]byte, sz),
-		piece: &common.PieceData{
+		piece: common.PieceData{
 			Data:  make([]byte, sz),
 			Index: piece,
 		},
@@ -170,6 +170,9 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 
 func (pt *pieceTracker) removePiece(piece uint32) {
 	pt.mtx.Lock()
+	p := pt.requests[piece]
+	p.piece.Data = nil
+	p.progress = nil
 	delete(pt.requests, piece)
 	pt.mtx.Unlock()
 }
@@ -179,7 +182,7 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 		if remote.Has(k) {
 			idx = k
 			old = true
-			return
+			break
 		}
 	}
 	return
@@ -190,6 +193,8 @@ func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
 	now := time.Now()
 	for idx := range pt.requests {
 		if now.Sub(pt.requests[idx].lastActive) > dlt {
+			pt.requests[idx].progress = nil
+			pt.requests[idx].piece.Data = nil
 			delete(pt.requests, idx)
 		}
 	}
@@ -216,8 +221,10 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 		var has bool
 		idx, has = pt.nextPiece(remote, exclude)
 		if has {
-			_, has = pt.requests[idx]
-			if !has {
+			cp, has = pt.requests[idx]
+			if has {
+				r = cp.nextRequest()
+			} else {
 				cp = pt.newPiece(idx)
 				if cp != nil {
 					r = cp.nextRequest()
@@ -246,7 +253,7 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 	if pc != nil {
 		pc.put(d.Begin, d.Data)
 		if pc.done() {
-			err := pt.st.PutPiece(pc.piece)
+			err := pt.st.PutPiece(&pc.piece)
 			if err == nil {
 				pt.st.Flush()
 				if pt.have != nil {
