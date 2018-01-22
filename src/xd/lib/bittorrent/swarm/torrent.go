@@ -641,6 +641,7 @@ func (t *Torrent) Start() error {
 		return ErrAlreadyStarted
 	}
 	t.closing = false
+	t.StartAnnouncing()
 	go t.run()
 	return nil
 }
