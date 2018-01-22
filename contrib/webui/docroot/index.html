@@ -16,19 +16,21 @@
                 <div class="one columns logo">
                   <img src="favicon.png" />
                 </div>
-                <div class="two columns speed" data-bind="text: globalSpeed()"></div>
-                <div class="three columns filter-panel">
+                <div class="three columns speed" data-bind="text: globalInfo()"></div>
+                <div class="five columns filter-panel">
                   <ul data-bind="foreach: torrentStates" class="filter-buttons">
-                      <li data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
+                      <li class="four columns" data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
                   </ul>
                 </div>
-                <div class="five columns">
+            </div>
+            <div class="row">
+                <div class="seven columns">
                   <input class="u-full-width" type="text"
                       placeholder="Torrent location (URL or local file)"
                       data-bind="value: torrentURL"
                       id="torrent-url-input">
                 </div>
-                <div class="one columns">
+                <div class="two columns">
                   <input class="u-full-width button-primary" type="submit"
                       data-bind="click: addTorrent"
                       value="Add">
@@ -44,10 +46,15 @@
                       </div>
                       <div><span data-bind="text: $data.TotalSize()"></span> <span data-bind="text: $data.State"></span></div>
                       <div><progress data-bind="value: $data.Progress" max="100"></progress></div>
-                      <div><span data-bind="text: $data.Peers()"></span> peers connected. <span data-bind="text: $data.Speed()"></span></div>
+                      <div><span data-bind="text: $data.Peers()"></span> peers connected. <span data-bind="text: $data.Ratio()"></span><span data-bind="text: $data.Speed()"></span></div>
                   </div>
-                  <div class="two columns torrent-buttons">
-                      <span class="button-remove" data-bind="click: remove" title="Remove torrent and delete files">&mdash;</span></div>
+                  
+                  <div class="two columns torrent-button">
+                    <span class="button-remove" data-bind="click: $data.toggle, text: $data.StatusButton()" title="Resume torrent">[▶]</span>
+                  </div>
+                  <div class="two columns torrent-button">
+                    <span class="button-remove" data-bind="click: remove" title="Remove torrent and delete files">[X]</span>
+                  </div>
               </div>
           </div>
       </div>

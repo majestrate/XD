@@ -5,6 +5,24 @@ function bytesToSize(bytes) {
    return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
 }
 
+function formatFloat(f, eps) {
+  if (!eps) eps = 2;
+  eps = Math.pow(10, eps);
+  return parseInt(f * eps) / eps;
+}
+
+function makeRatio(tx, rx) {
+  var r = "0.0";
+  if ( rx > 0 ) {
+    if ( tx > 0 ) {
+      r = "" + formatFloat(tx / rx);
+    }
+	} else if ( tx > 0 ) {
+		r = "∞";
+	}
+  return r;
+}
+
 var Torrent = function(data) {
     this.Name = data.Name;
     this.State = data.State;
@@ -20,23 +38,71 @@ var Torrent = function(data) {
       var rx = 0;
       if(data.Peers) data.Peers.forEach(function(p) { rx += p.RX; });
       return rx;
-    }
+    };
     this.TX = function() {
       var tx = 0;
       if(data.Peers) data.Peers.forEach(function(p) { tx += p.TX; });
       return tx;
-    }
+    };
+    this.Data = function() {
+      return data;
+    };
     this.TotalSize = function() {
         var total_size = 0;
         data.Files.forEach(function(f){ total_size += f.FileInfo.Length });
         return bytesToSize(total_size);
     };
     this.Progress = data.Progress * 100;
-    this.remove = function() {
-        viewModel._apicall({method: "XD.ChangeTorrent", action: "delete", infohash: this.Infohash, swarm: "0"}, function(data){
-            console.log(data);
-        });
-    }.bind(this);
+    this.Ratio = function() {
+      return "("+makeRatio(data.TX, data.RX) + " ratio)";
+    };
+
+  this.changeTorrent = function(action)
+  {
+    viewModel._apicall({method: "XD.ChangeTorrent", action: action, infohash: this.Infohash, swarm: "0"}, function(data){
+      console.log(data);
+    });    
+  }.bind(this);
+
+  this.remove = function()
+  {
+    this.changeTorrent("remove");
+  }.bind(this);
+
+  this.start = function()
+  {
+    this.changeTorrent("start");
+  }.bind(this);
+
+  this.stop = function()
+  {
+    this.changeTorrent("stop");
+  }.bind(this);
+
+  this.toggle = function()
+  {
+    if(this.Stopped())
+      this.start();
+    else
+      this.stop();
+  }.bind(this);
+
+  this.Stopped = function()
+  {
+    return data.State == "stopped";
+  };
+  
+  this.StatusButton = function()
+  {
+    if (this.Stopped())
+    {
+      return "▶";
+    }
+    else
+    {
+      return "⏸";
+    }
+  };
 }
 
 var viewModel = {
@@ -67,17 +133,21 @@ var viewModel = {
         });
     },
     torrentStates: ['all', 'downloading', 'seeding'],
-    globalSpeed: function()
+    globalInfo: function()
     {
-        var peers = 0;
         var rx = 0;
         var tx = 0;
+      var peers = 0;
+      var rtx = 0;
+      var rrx = 0;
         this.torrents().forEach(function(t) {
             rx += t.RX();
             tx += t.TX();
+            rrx += t.Data().RX;
+            rtx += t.Data().TX;
             peers += t.Peers();
         });
-        return  peers + " peers connected. ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+        return peers+" peers connected (" + makeRatio(rtx, rrx) + " ratio) ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
     }
 };
 

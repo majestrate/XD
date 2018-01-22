@@ -36,7 +36,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 		resp, err = a.announce.Announce(req)
 		backoff := a.fails * time.Minute
 		a.next = resp.NextAnnounce.Add(backoff)
-		if err == nil {
+		if err == nil && ev != tracker.Stopped {
 			a.t.addPeers(resp.Peers)
 		}
 	}

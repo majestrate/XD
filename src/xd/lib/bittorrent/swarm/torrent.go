@@ -220,6 +220,8 @@ func (t *Torrent) GetStatus() TorrentStatus {
 	state := Downloading
 	if t.Done() {
 		state = Seeding
+	} else if t.closing || !t.started {
+		state = Stopped
 	}
 	bf := t.Bitfield()
 	var files []TorrentFileInfo

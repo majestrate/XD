@@ -44,7 +44,11 @@ func (r *ChangeTorrentRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter
 			}
 		})
 	}
-	w.Return(map[string]interface{}{"error": err})
+	if err == nil {
+		w.Return(map[string]interface{}{"error": nil})
+	} else {
+		w.Return(map[string]interface{}{"error": err.Error()})
+	}
 }
 
 func (r *ChangeTorrentRequest) MarshalJSON() (data []byte, err error) {
