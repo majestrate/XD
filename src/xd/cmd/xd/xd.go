@@ -24,6 +24,10 @@ type httpRPC struct {
 	r *http.Request
 }
 
+func printHelp(cmd string) {
+	fmt.Fprintf(os.Stdout, "usage: %s [config.ini] | --genconf config.ini\n", cmd)
+}
+
 // Run runs XD main function
 func Run() {
 	running := true
@@ -35,12 +39,24 @@ func Run() {
 		fname = os.Args[1]
 	}
 	if fname == "-h" || fname == "--help" {
-		fmt.Fprintf(os.Stdout, "usage: %s [config.ini]\n", os.Args[0])
+		printHelp(os.Args[0])
+		return
+	}
+	var err error
+	if fname == "--genconf" {
+		if len(os.Args) == 3 {
+			conf.Load("")
+			err = conf.Save(os.Args[2])
+			if err != nil {
+				log.Errorf("failed to save config: %s", err)
+			}
+		} else {
+			printHelp(os.Args[0])
+		}
 		return
 	}
 
 	log.Infof("starting %s", v)
-	var err error
 	if !util.CheckFile(fname) {
 		conf.Load(fname)
 		err = conf.Save(fname)
