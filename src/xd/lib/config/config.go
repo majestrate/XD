@@ -33,13 +33,13 @@ func (cfg *Config) Load(fname string) (err error) {
 	var c *configparser.Configuration
 	c, err = configparser.Read(fname)
 	for sect, conf := range sects {
-		conf.LoadEnv()
 		if c == nil {
 			err = conf.Load(nil)
 		} else {
 			s, _ := c.Section(sect)
 			err = conf.Load(s)
 		}
+		conf.LoadEnv()
 		if err != nil {
 			return
 		}
