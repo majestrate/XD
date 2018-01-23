@@ -134,6 +134,17 @@ func (bf *Bitfield) ToWireMessage() common.WireMessage {
 	return common.NewWireMessage(common.BitField, bf.Data[:])
 }
 
+// Unset unsets a big at index
+func (bf *Bitfield) Unset(index uint32) {
+	dl := uint32(len(bf.Data))
+	if index < bf.Length {
+		idx := index >> 3
+		if idx < dl {
+			bf.Data[idx] &= ^(1 << (7 - uint(index)&7))
+		}
+	}
+}
+
 // Set sets a big at index
 func (bf *Bitfield) Set(index uint32) {
 	dl := uint32(len(bf.Data))
