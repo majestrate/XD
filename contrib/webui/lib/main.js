@@ -137,17 +137,19 @@ var viewModel = {
     {
         var rx = 0;
         var tx = 0;
-      var peers = 0;
-      var rtx = 0;
-      var rrx = 0;
+        var peers = 0;
+        var rtx = 0;
+        var rrx = 0;
+        var count = 0;
         this.torrents().forEach(function(t) {
             rx += t.RX();
             tx += t.TX();
             rrx += t.Data().RX;
             rtx += t.Data().TX;
             peers += t.Peers();
+            count ++;
         });
-        return peers+" peers connected (" + makeRatio(rtx, rrx) + " ratio) ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+        return peers+" peers connected on "+ count+ " torrents (" + makeRatio(rtx, rrx) + " ratio) ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
     }
 };
 
