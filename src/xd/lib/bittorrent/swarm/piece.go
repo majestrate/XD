@@ -12,10 +12,6 @@ import (
 // how big should we download pieces at a time (bytes)?
 const BlockSize = 1024 * 16
 
-const Missing = 0
-const Pending = 1
-const Obtained = 2
-
 // cached downloading piece
 type cachedPiece struct {
 	piece      common.PieceData
@@ -60,27 +56,10 @@ func (p *cachedPiece) cancel(offset, length uint32) {
 	p.mtx.Unlock()
 }
 
-func (p *cachedPiece) hasNextRequest() (has bool) {
-	p.mtx.Lock()
-	idx := uint32(0)
-	l := p.obtained.Length
-	for idx < l {
-		if !p.obtained.Has(idx) {
-			if !p.pending.Has(idx) {
-				has = true
-				break
-			}
-		}
-		idx++
-	}
-	p.mtx.Unlock()
-	return
-}
-
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	l := p.obtained.Length * BlockSize
+	l := uint32(len(p.piece.Data))
 	r = new(common.PieceRequest)
 	r.Index = p.piece.Index
 	r.Length = BlockSize
@@ -95,11 +74,14 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	}
 
 	if r.Begin+r.Length > l {
-		if (r.Begin+r.Length)-l >= BlockSize {
+		// is this probably the last piece ?
+		if len(p.piece.Data)%BlockSize == 0 {
+			// no, let's just say there are no more blocks left
 			log.Debugf("no next piece request for idx=%d", r.Index)
 			r = nil
 			return
 		} else {
+			// yes so let's correct the size
 			r.Length = l - r.Begin
 		}
 	}
