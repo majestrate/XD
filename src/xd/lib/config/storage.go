@@ -61,13 +61,7 @@ func (cfg *StorageConfig) Load(s *configparser.Section) error {
 		}
 	}
 
-	cfg.Meta = filepath.Join(cfg.Root, "metadata")
-
-	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
-
-	if s != nil {
-		cfg.Downloads = s.Get("downloads", cfg.Downloads)
-	}
+	cfg.setSubpaths(s)
 
 	if s != nil {
 		cfg.SFTP.Enabled = s.Get("sftp", "0") == "1"
@@ -76,6 +70,17 @@ func (cfg *StorageConfig) Load(s *configparser.Section) error {
 		return cfg.SFTP.Load(s)
 	}
 	return nil
+
+}
+
+func (cfg *StorageConfig) setSubpaths(s *configparser.Section) {
+	cfg.Meta = filepath.Join(cfg.Root, "metadata")
+
+	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
+
+	if s != nil {
+		cfg.Downloads = s.Get("downloads", cfg.Downloads)
+	}
 }
 
 func (cfg *StorageConfig) Save(s *configparser.Section) error {
@@ -90,6 +95,7 @@ func (cfg *StorageConfig) LoadEnv() {
 	dir := os.Getenv(EnvRootDir)
 	if dir != "" {
 		cfg.Root = dir
+		cfg.setSubpaths(nil)
 	}
 }
 
