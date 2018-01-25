@@ -75,7 +75,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 
 	if r.Begin+r.Length > l {
 		// is this probably the last piece ?
-		if len(p.piece.Data)%BlockSize == 0 {
+		if (r.Begin+r.Length)-l >= BlockSize {
 			// no, let's just say there are no more blocks left
 			log.Debugf("no next piece request for idx=%d", r.Index)
 			r = nil
