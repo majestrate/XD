@@ -32,7 +32,7 @@ func (p *cachedPiece) done() bool {
 func (p *cachedPiece) put(offset uint32, data []byte) {
 	p.mtx.Lock()
 	l := uint32(len(data))
-	if offset+l <= (p.obtained.Length * BlockSize) {
+	if offset+l <= uint32(len(p.piece.Data)) {
 		// put data
 		copy(p.piece.Data[offset:offset+l], data)
 		// set obtained
