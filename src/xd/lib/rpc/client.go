@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"xd/lib/bittorrent/swarm"
+	t "xd/lib/translate"
 )
 
 type Client struct {
@@ -60,7 +61,7 @@ func (cl *Client) torrentAction(ih, action string) (err error) {
 			emsg, has := response["error"]
 			if has {
 				if emsg != nil {
-					return fmt.Errorf("%s", emsg)
+					return fmt.Errorf("%s", t.T(fmt.Sprintf("%s", emsg)))
 				}
 			}
 		}

@@ -4,8 +4,8 @@ Description=Standalone I2P BitTorrent Client
 [Service]
 User=xd
 Group=xd
-WorkingDirectory=~
-ExecStart=/usr/bin/XD ~/xd.ini
+WorkingDirectory=/var/lib/XD
+ExecStart=/usr/bin/XD /var/lib/XD/xd.ini
 Restart=on-failure
 
 [Install]

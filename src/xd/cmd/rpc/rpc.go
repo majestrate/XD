@@ -11,6 +11,7 @@ import (
 	"xd/lib/config"
 	"xd/lib/log"
 	"xd/lib/rpc"
+	t "xd/lib/translate"
 	"xd/lib/util"
 	"xd/lib/version"
 )
@@ -102,8 +103,7 @@ func Run() {
 }
 
 func printHelp(cmd string) {
-	fmt.Printf("usage: %s [help|version|list|add http://somesite.i2p/some.torrent|set-piece-window n|remove infohash|delete infohash|stop infohash|start infohash]", cmd)
-	fmt.Println()
+	fmt.Println(t.T("usage: %s [help|version|list|add http://somesite.i2p/some.torrent|set-piece-window n|remove infohash|delete infohash|stop infohash|start infohash]", cmd))
 }
 
 func setPieceWindow(c *rpc.Client, str string) {
@@ -116,60 +116,60 @@ func setPieceWindow(c *rpc.Client, str string) {
 
 func addTorrents(c *rpc.Client, urls ...string) {
 	for idx := range urls {
-		fmt.Printf("fetch %s ... ", urls[idx])
+		fmt.Println(t.T("fetch %s ... ", urls[idx]))
 		err := c.AddTorrent(urls[idx])
 		if err == nil {
-			fmt.Println("OK")
+			fmt.Println(t.T("OK"))
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(t.E(err))
 		}
 	}
 }
 
 func startTorrents(c *rpc.Client, ih ...string) {
 	for idx := range ih {
-		fmt.Printf("start %s ... ", ih[idx])
+		fmt.Println(t.T("start %s ... ", ih[idx]))
 		err := c.AddTorrent(ih[idx])
 		if err == nil {
-			fmt.Println("OK")
+			fmt.Println(t.T("OK"))
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(t.E(err))
 		}
 	}
 }
 
 func stopTorrents(c *rpc.Client, ih ...string) {
 	for idx := range ih {
-		fmt.Printf("stop %s ... ", ih[idx])
+		fmt.Println(t.T("stop %s ... ", ih[idx]))
 		err := c.StopTorrent(ih[idx])
 		if err == nil {
-			fmt.Println("OK")
+			fmt.Println(t.T("OK"))
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(t.E(err))
 		}
 	}
 }
 
 func removeTorrents(c *rpc.Client, ih ...string) {
 	for idx := range ih {
-		fmt.Printf("remove %s ... ", ih[idx])
+		fmt.Println(t.T("remove %s ... ", ih[idx]))
 		err := c.RemoveTorrent(ih[idx])
 		if err == nil {
-			fmt.Println("OK")
+			fmt.Println(t.T("OK"))
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(t.E(err))
 		}
 	}
 }
 
 func deleteTorrents(c *rpc.Client, ih ...string) {
 	for idx := range ih {
-		fmt.Printf("delete %s ... ", ih[idx])
+		fmt.Println(t.T("delete %s ... ", ih[idx]))
 		err := c.DeleteTorrent(ih[idx])
 		if err == nil {
-			fmt.Println("OK")
+			fmt.Println(t.T("OK"))
 		} else {
-			fmt.Println(err.Error())
+			fmt.Println(t.E(err))
 		}
 	}
 }
@@ -189,8 +189,8 @@ func listTorrents(c *rpc.Client) {
 	}
 	sort.Stable(&torrents)
 	for _, status := range torrents {
-		fmt.Printf("%s [%s] %.2f done\n", status.Name, status.Infohash, status.Progress)
-		fmt.Println("peers:")
+		fmt.Printf("%s [%s] %s %.2f\n", status.Name, status.Infohash, t.T("progress:"), status.Progress*100)
+		fmt.Println(t.T("peers:"))
 		sort.Stable(&status.Peers)
 		for _, peer := range status.Peers {
 			pad := peer.ID
@@ -200,16 +200,16 @@ func listTorrents(c *rpc.Client) {
 			}
 			fmt.Printf("\t%stx=%s rx=%s\n", pad, formatRate(peer.TX), formatRate(peer.RX))
 		}
-		fmt.Printf("%s tx=%s rx=%s (%.2f ratio)\n", status.State, formatRate(status.Peers.TX()), formatRate(status.Peers.RX()), status.Ratio())
-		fmt.Println("files:")
+		fmt.Printf("%s tx=%s rx=%s (%s: %.2f)\n", status.State, formatRate(status.Peers.TX()), formatRate(status.Peers.RX()), t.T("ratio"), status.Ratio())
+		fmt.Println(t.T("files:"))
 		for idx, f := range status.Files {
-			fmt.Printf("\t[%d] %s (%.2f done)\n", idx, f.FileInfo.Path.FilePath(), f.Progress)
+			fmt.Printf("\t[%d] %s (%s: %.2f)\n", idx, f.FileInfo.Path.FilePath(), t.T("progress:"), f.Progress)
 		}
 		fmt.Println()
 	}
 	fmt.Println()
 	tx, rx := st.TotalSpeed()
-	fmt.Printf("%d torrents: tx=%s rx=%s (%.2f ratio)\n", torrents.Len(), formatRate(tx), formatRate(rx), st.Ratio())
+	fmt.Printf("%s: tx=%s rx=%s (%.2f ratio)\n", t.TN("%d torrent", "%d torrents", torrents.Len()), formatRate(tx), formatRate(rx), st.Ratio())
 	fmt.Println()
 	fmt.Println()
 }

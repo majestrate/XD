@@ -1,7 +1,6 @@
 package xd
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"xd/lib/log"
 	"xd/lib/network/i2p"
 	"xd/lib/rpc"
+	t "xd/lib/translate"
 	"xd/lib/util"
 	"xd/lib/version"
 )
@@ -25,11 +25,12 @@ type httpRPC struct {
 }
 
 func printHelp(cmd string) {
-	fmt.Fprintf(os.Stdout, "usage: %s [config.ini] | --genconf config.ini\n", cmd)
+	log.Infof("usage: %s [config.ini] | --genconf config.ini\n", cmd)
 }
 
 // Run runs XD main function
 func Run() {
+
 	running := true
 	var closers []io.Closer
 	v := version.Version()
@@ -56,7 +57,7 @@ func Run() {
 		return
 	}
 
-	log.Infof("starting %s", v)
+	log.Info(t.T("starting %s", v))
 	if !util.CheckFile(fname) {
 		conf.Load(fname)
 		err = conf.Save(fname)
@@ -64,14 +65,14 @@ func Run() {
 			log.Errorf("failed to save initial config: %s", err)
 			return
 		}
-		log.Infof("auto-generated new config at %s", fname)
+		log.Info(t.T("auto-generated new config at %s", fname))
 	}
 	err = conf.Load(fname)
 	if err != nil {
 		log.Errorf("failed to config %s", err)
 		return
 	}
-	log.Infof("loaded config %s", fname)
+	log.Info(t.T("loaded config %s", fname))
 	log.SetLevel(conf.Log.Level)
 
 	if conf.Log.Pprof {

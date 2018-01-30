@@ -2,11 +2,12 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
 	"time"
-	"io"
+	t "xd/lib/translate"
 )
 
 var mtx sync.Mutex
@@ -17,7 +18,7 @@ const (
 	debug = logLevel(0)
 	info  = logLevel(1)
 	warn  = logLevel(2)
-	error = logLevel(3)
+	err   = logLevel(3)
 	fatal = logLevel(4)
 )
 
@@ -34,7 +35,7 @@ func (l logLevel) Name() string {
 		return "NFO"
 	case warn:
 		return "WRN"
-	case error:
+	case err:
 		return "ERR"
 	case fatal:
 		return "FTL"
@@ -69,12 +70,12 @@ func accept(lvl logLevel) bool {
 
 func log(lvl logLevel, f string, args ...interface{}) {
 	if accept(lvl) {
-		m := fmt.Sprintf(f, args...)
+		m := t.T(f, args...)
 		t := time.Now()
 		mtx.Lock()
 		fmt.Fprintf(out, "%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)
 		fmt.Fprintln(out)
-		mtx.Unlock()	
+		mtx.Unlock()
 		if lvl == fatal {
 			panic(m)
 		}
@@ -113,12 +114,12 @@ func Warnf(f string, args ...interface{}) {
 
 // Error prints error log message
 func Error(msg string) {
-	log(error, msg)
+	log(err, msg)
 }
 
 // Errorf prints formatted error log message
 func Errorf(f string, args ...interface{}) {
-	log(error, f, args...)
+	log(err, f, args...)
 }
 
 // Fatal print fatal error and panic
