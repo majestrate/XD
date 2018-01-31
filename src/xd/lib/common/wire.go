@@ -113,7 +113,7 @@ func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
 		_, err = io.ReadFull(r, data)
 		l := binary.BigEndian.Uint32(data)
 		if l > 0 {
-			if l < MaxWireMessageSize {
+			if l > MaxWireMessageSize {
 				log.Warnf("message too big, discarding %d bytes", l)
 				_, err = io.CopyN(util.Discard, r, int64(l))
 			} else {
