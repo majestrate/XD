@@ -102,22 +102,27 @@ func NewWireMessage(id WireMessageType, body []byte) (msg WireMessage) {
 	return
 }
 
+const MaxWireMessageSize = 32 * 1024
+
 // read wire messages from reader and call a function on each it gets
 // reads until reader is done
 func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
+	var msg [MaxWireMessageSize + 4]byte
 	for err == nil {
-		data := make([]byte, 4)
-		_, err = io.ReadFull(r, data[:])
-		l := binary.BigEndian.Uint32(data[:])
+		data := msg[:4]
+		_, err = io.ReadFull(r, data)
+		l := binary.BigEndian.Uint32(data)
 		if l > 0 {
-			body := make([]byte, l)
-			log.Debugf("read message of size %d bytes", l)
-			_, err = io.ReadFull(r, body[:])
-			if err == nil {
-				msg := make([]byte, 4+l)
-				copy(msg[:], data[:])
-				copy(msg[4:], body[:])
-				err = f(WireMessage(msg))
+			if l < MaxWireMessageSize {
+				log.Warnf("message too big, discarding %d bytes", l)
+				_, err = io.CopyN(util.Discard, r, int64(l))
+			} else {
+				body := msg[4 : 4+l]
+				log.Debugf("read message of size %d bytes", l)
+				_, err = io.ReadFull(r, body)
+				if err == nil {
+					err = f(WireMessage(msg[:4+l]))
+				}
 			}
 		}
 	}
