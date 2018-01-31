@@ -37,6 +37,10 @@ func (p *cachedPiece) put(offset uint32, data []byte) {
 		copy(p.piece.Data[offset:offset+l], data)
 		// set obtained
 		idx := offset / BlockSize
+		if l != BlockSize {
+			// last block of last piece
+			idx++
+		}
 		p.obtained.Set(idx)
 		p.pending.Unset(idx)
 	} else {
