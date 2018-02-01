@@ -206,14 +206,14 @@ func (t *fsTorrent) FilePath() string {
 
 func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData) error) (err error) {
 	sz := t.meta.Info.PieceLength
-	p := &common.PieceData{
+	p := common.PieceData{
 		Index: r.Index,
 		Begin: r.Begin,
 		Data:  make([]byte, r.Length, r.Length),
 	}
 	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err == nil {
-		err = v(p)
+		err = v(&p)
 	}
 	return
 }
