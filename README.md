@@ -8,6 +8,8 @@ Standalone I2P BitTorrent Client written in GO
 
 ![Downloads](https://img.shields.io/github/downloads/majestrate/XD/total.svg)
 
+![Logo is ebin](https://img.shields.io/badge/logo-ebin-brightgreen.svg)
+
 ## Features
 
 Current:
