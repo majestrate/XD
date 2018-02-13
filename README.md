@@ -4,6 +4,8 @@ Standalone I2P BitTorrent Client written in GO
 
 ![XD](contrib/logos/xd_logo_256x256.png)
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/xd-torrent.svg)](https://repology.org/metapackage/xd-torrent)
+
 ## Features
 
 Current:
