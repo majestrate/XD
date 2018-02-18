@@ -20,7 +20,7 @@ type PeerConn struct {
 	c                   net.Conn
 	id                  common.PeerID
 	t                   *Torrent
-	sendMtx             sync.Mutex
+	send                chan common.WireMessage
 	bf                  *bittorrent.Bitfield
 	peerChoke           bool
 	peerInterested      bool
@@ -61,11 +61,13 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
 	p.downloading = []common.PieceRequest{}
+	p.send = make(chan common.WireMessage, 128)
 	return p
 }
 
 func (c *PeerConn) start() {
 	go c.runReader()
+	go c.runWriter()
 	go c.runKeepAlive()
 	go c.tickStats()
 }
@@ -87,7 +89,6 @@ func (c *PeerConn) tickStats() {
 
 func (c *PeerConn) doSend(msg common.WireMessage) {
 	if !c.closing && msg != nil {
-		c.sendMtx.Lock()
 		now := time.Now()
 		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {
@@ -109,13 +110,14 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 				log.Debugf("write error: %s", err.Error())
 			}
 		}
-		c.sendMtx.Unlock()
 	}
 }
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg common.WireMessage) {
-	go c.doSend(msg)
+	go func(m common.WireMessage) {
+		c.send <- m
+	}(msg)
 }
 
 func (c *PeerConn) recv(msg common.WireMessage) (err error) {
@@ -279,6 +281,12 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
+func (c *PeerConn) runWriter() {
+	for !c.closing {
+		c.doSend(<-c.send)
+	}
+}
+
 func (c *PeerConn) checkInterested() {
 	bf := c.t.Bitfield()
 	if c.bf.XOR(bf).CountSet() > 0 {
@@ -335,7 +343,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		c.t.handlePieceRequest(c, ev)
 	}
 	if msgid == common.Piece {
-		c.gotDownload(msg.GetPieceData())
+		msg.VisitPieceData(c.gotDownload)
 	}
 
 	if msgid == common.Have {
@@ -454,7 +462,7 @@ func (c *PeerConn) sendKeepAlive() {
 	tm := time.Now().Add(0 - (time.Minute * 2))
 	if c.lastSend.Before(tm) {
 		log.Debugf("send keepalive to %s", c.id.String())
-		c.doSend(common.KeepAlive)
+		c.Send(common.KeepAlive)
 	}
 }
 

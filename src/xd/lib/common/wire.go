@@ -182,15 +182,17 @@ func (req *PieceRequest) ToWireMessage() WireMessage {
 	return NewWireMessage(Request, body)
 }
 
-// GetPieceData gets this wire message as a PieceData if applicable
-func (msg WireMessage) GetPieceData() (p PieceData) {
+// VisitPieceData gets this wire message as a PieceData if applicable
+func (msg WireMessage) VisitPieceData(v func(PieceData)) {
 
 	if msg.MessageID() == Piece {
 		data := msg.Payload()
 		if len(data) > 8 {
+			var p PieceData
 			p.Index = binary.BigEndian.Uint32(data[:])
 			p.Begin = binary.BigEndian.Uint32(data[4:])
 			p.Data = data[8:]
+			v(p)
 		}
 	}
 	return
