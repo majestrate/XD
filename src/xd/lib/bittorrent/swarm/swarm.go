@@ -27,10 +27,15 @@ type Swarm struct {
 	trackers map[string]tracker.Announcer
 	xdht     dht.XDHT
 	gnutella *gnutella.Swarm
+	active   int
 }
 
 func (sw *Swarm) Running() bool {
 	return !sw.closing
+}
+
+func (sw *Swarm) onStopped(t *Torrent) {
+	sw.active--
 }
 
 // wait until we get a network context
@@ -40,9 +45,20 @@ func (sw *Swarm) WaitForNetwork() {
 	}
 }
 
+func (sw *Swarm) waitForQueue() {
+	if sw.Torrents.QueueSize > 0 {
+		for sw.active >= sw.Torrents.QueueSize {
+			time.Sleep(time.Second)
+		}
+	}
+}
+
 func (sw *Swarm) startTorrent(t *Torrent) {
 	t.RemoveSelf = func() {
 		sw.Torrents.removeTorrent(t.st.Infohash())
+	}
+	t.Stopped = func() {
+		sw.onStopped(t)
 	}
 	sw.WaitForNetwork()
 	t.ObtainedNetwork(sw.net)
@@ -66,6 +82,8 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 		}
 	}
 	// handle messages
+	sw.waitForQueue()
+	sw.active++
 	t.Start()
 }
 

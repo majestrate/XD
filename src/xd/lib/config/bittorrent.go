@@ -11,6 +11,7 @@ import (
 	"xd/lib/util"
 )
 
+const DefaultTorrentQueueSize = 0
 const DefaultOpentrackerFilename = "trackers.ini"
 
 // TODO: idk if these are the right names but the URL are correct
@@ -71,16 +72,18 @@ func (c *TrackerConfig) Load() (err error) {
 }
 
 type BittorrentConfig struct {
-	DHT             bool
-	PEX             bool
-	OpenTrackers    TrackerConfig
-	PieceWindowSize int
-	Swarms          int
+	DHT              bool
+	PEX              bool
+	OpenTrackers     TrackerConfig
+	PieceWindowSize  int
+	Swarms           int
+	TorrentQueueSize int
 }
 
 func (c *BittorrentConfig) Load(s *configparser.Section) error {
 	c.OpenTrackers.FileName = DefaultOpentrackerFilename
 	c.PieceWindowSize = swarm.DefaultMaxParallelRequests
+	c.TorrentQueueSize = DefaultTorrentQueueSize
 	c.PEX = true
 	c.Swarms = 1
 	if s != nil {
@@ -93,6 +96,10 @@ func (c *BittorrentConfig) Load(s *configparser.Section) error {
 			c.PieceWindowSize = swarm.DefaultMaxParallelRequests
 		}
 		c.Swarms, e = strconv.Atoi(s.Get("swarms", "1"))
+		if e != nil {
+			return e
+		}
+		c.TorrentQueueSize, e = strconv.Atoi(s.Get("max-running-torrents", "0"))
 		if e != nil {
 			return e
 		}
@@ -137,5 +144,6 @@ func (c *BittorrentConfig) CreateSwarm(st storage.Storage, gnutella *gnutella.Sw
 		sw.AddOpenTracker(c.OpenTrackers.Trackers[name])
 	}
 	sw.Torrents.MaxReq = c.PieceWindowSize
+	sw.Torrents.QueueSize = c.TorrentQueueSize
 	return sw
 }

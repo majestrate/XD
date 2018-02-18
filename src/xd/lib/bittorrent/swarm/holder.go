@@ -8,11 +8,12 @@ import (
 
 // torrent swarm container
 type Holder struct {
-	closing  bool
-	st       storage.Storage
-	access   sync.Mutex
-	torrents map[string]*Torrent
-	MaxReq   int
+	closing   bool
+	st        storage.Storage
+	access    sync.Mutex
+	torrents  map[string]*Torrent
+	MaxReq    int
+	QueueSize int
 }
 
 func (h *Holder) addTorrent(t storage.Torrent) {

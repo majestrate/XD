@@ -252,12 +252,12 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 	check := t.st.FindBitfield(t.ih)
 	if check == nil {
 		// no stored bitfield
-		log.Infof("no bitfield for %s", t.Name())
 		check = bittorrent.NewBitfield(t.meta.Info.NumPieces(), nil).Inverted()
 		if fresh {
 			var has *bittorrent.Bitfield
-			has, err = t.verifyBitfield(check, false)
-			t.st.flushBitfield(t.ih, has)
+			log.Infof("checking local data for %s", t.Name())
+			has, _ = t.verifyBitfield(check, false)
+			err = t.st.flushBitfield(t.ih, has)
 			t.bfmtx.Unlock()
 			return
 		}

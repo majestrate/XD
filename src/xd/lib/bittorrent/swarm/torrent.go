@@ -614,6 +614,9 @@ func (t *Torrent) Stop() error {
 	}
 	err := t.Close()
 	t.StopAnnouncing()
+	if t.Stopped != nil {
+		t.Stopped()
+	}
 	return err
 }
 
