@@ -151,6 +151,10 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 	return
 }
 
+func (pt *pieceTracker) Expire() {
+	pt.cancelTimedOut(time.Second * 30)
+}
+
 // cancel entire pieces that have not been fetched within a duration
 func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
 	pt.mtx.Lock()

@@ -470,6 +470,7 @@ func (c *PeerConn) sendKeepAlive() {
 func (c *PeerConn) runDownload() {
 	for !c.t.Done() && !c.closing && (c.usInterested || c.peerInterested) {
 		if c.RemoteChoking() {
+			c.t.pt.Expire()
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
 			continue
