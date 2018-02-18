@@ -474,12 +474,12 @@ func (c *PeerConn) runDownload() {
 			time.Sleep(time.Second)
 			continue
 		}
-		r := c.t.pt.nextRequestForDownload(c.bf)
-		if r == nil {
+		var r common.PieceRequest
+		if c.t.pt.nextRequestForDownload(c.bf, &r) {
+			c.queueDownload(r)
+		} else {
 			log.Debugf("no next piece to download for %s", c.id.String())
 			time.Sleep(time.Second)
-		} else {
-			c.queueDownload(*r)
 		}
 	}
 	if c.closing {

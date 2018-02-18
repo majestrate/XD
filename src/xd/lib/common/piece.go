@@ -23,6 +23,12 @@ type PieceRequest struct {
 	Length uint32
 }
 
+func (pc *PieceRequest) Copy(r *PieceRequest) {
+	pc.Index = r.Index
+	pc.Begin = r.Begin
+	pc.Length = r.Length
+}
+
 // ErrInvalidPiece is an error for when a piece has invalid sha1sum
 var ErrInvalidPiece = errors.New("invalid piece")
 

@@ -100,6 +100,7 @@ type PiecePicker func(*bittorrent.Bitfield, []uint32) (uint32, bool)
 type pieceTracker struct {
 	mtx        sync.Mutex
 	requests   map[uint32]*cachedPiece
+	pending    int
 	st         storage.Torrent
 	have       func(uint32)
 	nextPiece  PiecePicker
@@ -111,7 +112,7 @@ func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracke
 		requests:   make(map[uint32]*cachedPiece),
 		st:         st,
 		nextPiece:  picker,
-		maxPending: 16,
+		maxPending: 8,
 	}
 	return
 }
@@ -125,7 +126,7 @@ func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
 
 func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 
-	if len(pt.requests) >= pt.maxPending {
+	if pt.pending >= pt.maxPending {
 		return
 	}
 
@@ -144,6 +145,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 		lastActive: time.Now(),
 	}
 	pt.requests[piece] = cp
+	pt.pending++
 	return
 }
 
@@ -152,6 +154,7 @@ func (pt *pieceTracker) removePiece(piece uint32) {
 	p := pt.requests[piece]
 	p.piece.Data = nil
 	delete(pt.requests, piece)
+	pt.pending--
 	pt.mtx.Unlock()
 }
 
@@ -177,8 +180,8 @@ func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
 	}
 }
 
-func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *common.PieceRequest) {
-
+func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest) bool {
+	var r *common.PieceRequest
 	pt.mtx.Lock()
 	defer pt.mtx.Unlock()
 	pt.cancelTimedOut(time.Second * 30)
@@ -209,7 +212,12 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield) (r *
 			}
 		}
 	}
-	return
+	cp = nil
+	if r == nil {
+		return false
+	}
+	req.Copy(r)
+	return true
 }
 
 // cancel previously requested piece request
