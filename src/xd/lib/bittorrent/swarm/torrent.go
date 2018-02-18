@@ -547,6 +547,7 @@ func (t *Torrent) run() {
 	t.started = true
 	go t.runRateTicker()
 	for !t.Done() {
+		t.pt.Expire()
 		time.Sleep(time.Second * 5)
 	}
 	if t.Completed != nil {
