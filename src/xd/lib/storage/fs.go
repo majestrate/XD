@@ -234,19 +234,6 @@ func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	return
 }
 
-func (t *fsTorrent) PutPiece(pc common.PieceData) (err error) {
-
-	err = t.checkPiece(pc)
-	if err == nil {
-		sz := int64(t.meta.Info.PieceLength)
-		_, err = t.WriteAt(pc.Data, sz*int64(pc.Index))
-		if err == nil {
-			t.bf.Set(pc.Index)
-		}
-	}
-	return
-}
-
 func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 	t.bfmtx.Lock()
 	check := t.st.FindBitfield(t.ih)
@@ -277,6 +264,12 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 	}
 	t.bfmtx.Unlock()
 	err = t.Flush()
+	return
+}
+
+func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
+	sz := int64(t.meta.Info.PieceLength)
+	_, err = t.WriteAt(data, (sz*int64(idx))+int64(offset))
 	return
 }
 

@@ -15,9 +15,8 @@ type Torrent interface {
 
 	// verify all piece data
 	VerifyAll(fresh bool) error
-
-	// put a downloaded piece into the storage
-	PutPiece(p common.PieceData) error
+	// put a chunk of data at index and offset
+	PutChunk(idx, offset uint32, data []byte) error
 
 	// visit a piece from storage
 	VisitPiece(r common.PieceRequest, f func(common.PieceData) error) error

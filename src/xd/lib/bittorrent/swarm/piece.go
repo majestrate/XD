@@ -15,11 +15,12 @@ const BlockSize = 1024 * 16
 
 // cached downloading piece
 type cachedPiece struct {
-	piece      common.PieceData
 	pending    *bittorrent.Bitfield
 	obtained   *bittorrent.Bitfield
 	lastActive time.Time
 	mtx        sync.Mutex
+	index      uint32
+	length     uint32
 }
 
 // is this piece done downloading ?
@@ -29,24 +30,18 @@ func (p *cachedPiece) done() bool {
 	return p.obtained.Completed()
 }
 
-// put a slice of data at offset
-func (p *cachedPiece) put(offset uint32, data []byte) {
+// mark slice of data at offset as obtained
+func (p *cachedPiece) put(offset uint32, l uint32) {
 	p.mtx.Lock()
-	l := uint32(len(data))
-	if offset+l <= uint32(len(p.piece.Data)) {
-		// put data
-		copy(p.piece.Data[offset:offset+l], data)
-		// set obtained
-		idx := offset / BlockSize
-		if l != BlockSize {
-			// last block of last piece
-			idx++
-		}
-		p.obtained.Set(idx)
-		p.pending.Unset(idx)
-	} else {
-		log.Warnf("block out of range %d, %d", offset, len(data))
+	// set obtained
+	idx := offset / BlockSize
+	if l != BlockSize {
+		// last block of last piece
+		idx++
 	}
+	p.obtained.Set(idx)
+	p.pending.Unset(idx)
+
 	p.lastActive = time.Now()
 	p.mtx.Unlock()
 }
@@ -55,7 +50,6 @@ func (p *cachedPiece) put(offset uint32, data []byte) {
 func (p *cachedPiece) cancel(offset, length uint32) {
 	p.mtx.Lock()
 	idx := offset / BlockSize
-	log.Debugf("cancel piece idx=%d offset=%d bit=%d", p.piece.Index, offset, idx)
 	p.pending.Unset(idx)
 	p.lastActive = time.Now()
 	p.mtx.Unlock()
@@ -64,9 +58,9 @@ func (p *cachedPiece) cancel(offset, length uint32) {
 func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
-	l := uint32(len(p.piece.Data))
+	l := p.length
 	r = new(common.PieceRequest)
-	r.Index = p.piece.Index
+	r.Index = p.index
 	r.Length = BlockSize
 	idx := uint32(0)
 	for r.Begin < l {
@@ -144,12 +138,10 @@ func (pt *pieceTracker) newPiece(piece uint32) bool {
 	bits := sz / BlockSize
 	log.Debugf("new piece idx=%d len=%d bits=%d", piece, sz, bits)
 	pt.requests[piece] = &cachedPiece{
-		pending:  bittorrent.NewBitfield(bits, nil),
-		obtained: bittorrent.NewBitfield(bits, nil),
-		piece: common.PieceData{
-			Data:  make([]byte, sz),
-			Index: piece,
-		},
+		pending:    bittorrent.NewBitfield(bits, nil),
+		obtained:   bittorrent.NewBitfield(bits, nil),
+		length:     sz,
+		index:      piece,
 		lastActive: time.Now(),
 	}
 	pt.pending++
@@ -233,17 +225,22 @@ func (pt *pieceTracker) handlePieceData(d common.PieceData) {
 	idx := d.Index
 	pt.visitCached(idx, func(pc *cachedPiece) {
 		begin := d.Begin
-		data := d.Data
-		pc.put(begin, data)
+		l := uint32(len(d.Data))
+		err := pt.st.PutChunk(idx, begin, d.Data)
+		if err == nil {
+			pc.put(begin, l)
+		} else {
+			log.Errorf("failed to put chunk %d: %s", idx, err.Error())
+		}
 		if pc.done() {
-			err := pt.st.PutPiece(pc.piece)
+			err = pt.st.VerifyPiece(idx)
 			if err == nil {
 				pt.st.Flush()
 				if pt.have != nil {
 					pt.have(d.Index)
 				}
 			} else {
-				log.Warnf("put piece %d failed: %s", pc.piece.Index, err)
+				log.Warnf("put piece %d failed: %s", idx, err.Error())
 			}
 			pt.removePiece(d.Index)
 		}
