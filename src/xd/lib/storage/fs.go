@@ -204,7 +204,7 @@ func (t *fsTorrent) FilePath() string {
 	return t.st.FS.Join(t.st.DataDir, t.meta.Info.Path)
 }
 
-func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData) error) (err error) {
+func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
 	sz := t.meta.Info.PieceLength
 	p := common.PieceData{
 		Index: r.Index,
@@ -213,12 +213,12 @@ func (t *fsTorrent) VisitPiece(r *common.PieceRequest, v func(*common.PieceData)
 	}
 	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
 	if err == nil {
-		err = v(&p)
+		err = v(p)
 	}
 	return
 }
 
-func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
+func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 	if !t.meta.Info.CheckPiece(pc) {
 		err = common.ErrInvalidPiece
 	}
@@ -227,14 +227,14 @@ func (t *fsTorrent) checkPiece(pc *common.PieceData) (err error) {
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	l := t.meta.LengthOfPiece(idx)
-	err = t.VisitPiece(&common.PieceRequest{
+	err = t.VisitPiece(common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}, t.checkPiece)
 	return
 }
 
-func (t *fsTorrent) PutPiece(pc *common.PieceData) (err error) {
+func (t *fsTorrent) PutPiece(pc common.PieceData) (err error) {
 
 	err = t.checkPiece(pc)
 	if err == nil {
@@ -288,10 +288,10 @@ func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bit
 	for idx < np {
 		l := t.meta.LengthOfPiece(idx)
 		if bf.Has(idx) {
-			err = t.VisitPiece(&common.PieceRequest{
+			err = t.VisitPiece(common.PieceRequest{
 				Index:  idx,
 				Length: l,
-			}, func(pc *common.PieceData) (e error) {
+			}, func(pc common.PieceData) (e error) {
 				e = t.checkPiece(pc)
 				if e == nil {
 					has.Set(idx)

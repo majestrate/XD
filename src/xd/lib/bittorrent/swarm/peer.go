@@ -150,11 +150,11 @@ func (c *PeerConn) Unchoke() {
 	}
 }
 
-func (c *PeerConn) gotDownload(p *common.PieceData) {
+func (c *PeerConn) gotDownload(p common.PieceData) {
 	c.access.Lock()
 	var downloading []common.PieceRequest
 	for idx := range c.downloading {
-		if c.downloading[idx].Matches(p) {
+		if c.downloading[idx].Matches(&p) {
 			c.t.pt.handlePieceData(p)
 		} else {
 			downloading = append(downloading, c.downloading[idx])
@@ -169,7 +169,7 @@ func (c *PeerConn) cancelDownload(req common.PieceRequest) {
 	var downloading []common.PieceRequest
 	for _, r := range c.downloading {
 		if r.Equals(&req) {
-			c.t.pt.canceledRequest(&r)
+			c.t.pt.canceledRequest(r)
 		} else {
 			downloading = append(downloading, r)
 		}
@@ -200,7 +200,7 @@ func (c *PeerConn) queueDownload(req common.PieceRequest) {
 func (c *PeerConn) clearDownloading() {
 	c.access.Lock()
 	for _, r := range c.downloading {
-		c.t.pt.canceledRequest(&r)
+		c.t.pt.canceledRequest(r)
 	}
 	c.downloading = []common.PieceRequest{}
 	c.access.Unlock()
@@ -258,7 +258,7 @@ func (c *PeerConn) Close() {
 	}
 	c.closing = true
 	for _, r := range c.downloading {
-		c.t.pt.canceledRequest(&r)
+		c.t.pt.canceledRequest(r)
 	}
 	c.downloading = nil
 	log.Debugf("%s closing connection", c.id.String())
@@ -335,8 +335,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		c.t.handlePieceRequest(c, ev)
 	}
 	if msgid == common.Piece {
-		d := msg.GetPieceData()
-		c.gotDownload(&d)
+		c.gotDownload(msg.GetPieceData())
 	}
 
 	if msgid == common.Have {
@@ -352,8 +351,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Cancel {
 		// TODO: check validity
-		r := msg.GetPieceRequest()
-		c.t.pt.canceledRequest(&r)
+		c.t.pt.canceledRequest(msg.GetPieceRequest())
 	}
 	if msgid == common.Extended {
 		// handle extended options

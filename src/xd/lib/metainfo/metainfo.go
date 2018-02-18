@@ -65,7 +65,7 @@ func (i Info) GetFiles() (infos []FileInfo) {
 }
 
 // check if a piece is valid against the pieces in this info section
-func (i Info) CheckPiece(p *common.PieceData) bool {
+func (i Info) CheckPiece(p common.PieceData) bool {
 	idx := p.Index * 20
 	if i.NumPieces() > p.Index {
 		log.Debugf("sum len=%d idx=%d ih=%d", len(p.Data), idx, len(i.Pieces))

@@ -107,6 +107,18 @@ type pieceTracker struct {
 	maxPending int
 }
 
+func (pt *pieceTracker) visitCached(idx uint32, v func(*cachedPiece)) {
+	pt.mtx.Lock()
+	defer pt.mtx.Unlock()
+	_, has := pt.requests[idx]
+	if !has {
+		if !pt.newPiece(idx) {
+			return
+		}
+	}
+	v(pt.requests[idx])
+}
+
 func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracker) {
 	pt = &pieceTracker{
 		requests:   make(map[uint32]*cachedPiece),
@@ -117,17 +129,10 @@ func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracke
 	return
 }
 
-func (pt *pieceTracker) getPiece(piece uint32) (cp *cachedPiece) {
-	pt.mtx.Lock()
-	cp, _ = pt.requests[piece]
-	pt.mtx.Unlock()
-	return
-}
-
-func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
+func (pt *pieceTracker) newPiece(piece uint32) bool {
 
 	if pt.pending >= pt.maxPending {
-		return
+		return false
 	}
 
 	info := pt.st.MetaInfo()
@@ -135,7 +140,7 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 	sz := info.LengthOfPiece(piece)
 	bits := sz / BlockSize
 	log.Debugf("new piece idx=%d len=%d bits=%d", piece, sz, bits)
-	cp = &cachedPiece{
+	pt.requests[piece] = &cachedPiece{
 		pending:  bittorrent.NewBitfield(bits, nil),
 		obtained: bittorrent.NewBitfield(bits, nil),
 		piece: common.PieceData{
@@ -144,15 +149,12 @@ func (pt *pieceTracker) newPiece(piece uint32) (cp *cachedPiece) {
 		},
 		lastActive: time.Now(),
 	}
-	pt.requests[piece] = cp
 	pt.pending++
-	return
+	return true
 }
 
 func (pt *pieceTracker) removePiece(piece uint32) {
 	pt.mtx.Lock()
-	p := pt.requests[piece]
-	p.piece.Data = nil
 	delete(pt.requests, piece)
 	pt.pending--
 	pt.mtx.Unlock()
@@ -171,27 +173,26 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 
 // cancel entire pieces that have not been fetched within a duration
 func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
+	pt.mtx.Lock()
+
 	now := time.Now()
 	for idx := range pt.requests {
 		if now.Sub(pt.requests[idx].lastActive) > dlt {
-			pt.requests[idx].piece.Data = nil
 			delete(pt.requests, idx)
 			pt.pending--
 		}
 	}
+	pt.mtx.Unlock()
 }
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest) bool {
 	var r *common.PieceRequest
-	pt.mtx.Lock()
-	defer pt.mtx.Unlock()
 	pt.cancelTimedOut(time.Second * 30)
-
 	idx, old := pt.pendingPiece(remote)
-	var cp *cachedPiece
 	if old {
-		cp = pt.requests[idx]
-		r = cp.nextRequest()
+		pt.visitCached(idx, func(cp *cachedPiece) {
+			r = cp.nextRequest()
+		})
 	}
 	if r == nil {
 		var exclude []uint32
@@ -202,44 +203,34 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req 
 		var has bool
 		idx, has = pt.nextPiece(remote, exclude)
 		if has {
-			cp, has = pt.requests[idx]
-			if has {
+			pt.visitCached(idx, func(cp *cachedPiece) {
 				r = cp.nextRequest()
-			} else {
-				cp = pt.newPiece(idx)
-				if cp != nil {
-					r = cp.nextRequest()
-				}
-			}
+			})
 		}
 	}
-	cp = nil
-	if r == nil {
+	if r != nil && r.Length > 0 {
+		req.Copy(r)
+	} else {
 		return false
 	}
-	req.Copy(r)
 	return true
 }
 
 // cancel previously requested piece request
-func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
-	if r == nil {
+func (pt *pieceTracker) canceledRequest(r common.PieceRequest) {
+	if r.Length == 0 {
 		return
 	}
-	pc := pt.getPiece(r.Index)
-	if pc == nil {
-
-	} else {
+	pt.visitCached(r.Index, func(pc *cachedPiece) {
 		pc.cancel(r.Begin, r.Length)
-	}
+	})
 }
 
-func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
-	pc := pt.getPiece(d.Index)
-	if pc != nil {
+func (pt *pieceTracker) handlePieceData(d common.PieceData) {
+	pt.visitCached(d.Index, func(pc *cachedPiece) {
 		pc.put(d.Begin, d.Data)
 		if pc.done() {
-			err := pt.st.PutPiece(&pc.piece)
+			err := pt.st.PutPiece(pc.piece)
 			if err == nil {
 				pt.st.Flush()
 				if pt.have != nil {
@@ -250,5 +241,5 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 			}
 			pt.removePiece(d.Index)
 		}
-	}
+	})
 }
