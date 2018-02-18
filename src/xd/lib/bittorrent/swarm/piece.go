@@ -227,8 +227,11 @@ func (pt *pieceTracker) canceledRequest(r common.PieceRequest) {
 }
 
 func (pt *pieceTracker) handlePieceData(d common.PieceData) {
-	pt.visitCached(d.Index, func(pc *cachedPiece) {
-		pc.put(d.Begin, d.Data)
+	idx := d.Index
+	pt.visitCached(idx, func(pc *cachedPiece) {
+		begin := d.Begin
+		data := d.Data
+		pc.put(begin, data)
 		if pc.done() {
 			err := pt.st.PutPiece(pc.piece)
 			if err == nil {
