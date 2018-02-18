@@ -176,6 +176,7 @@ func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
 		if now.Sub(pt.requests[idx].lastActive) > dlt {
 			pt.requests[idx].piece.Data = nil
 			delete(pt.requests, idx)
+			pt.pending--
 		}
 	}
 }
