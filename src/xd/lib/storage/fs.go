@@ -219,7 +219,9 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 }
 
 func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
-	if !t.meta.Info.CheckPiece(pc) {
+	if t.meta.Info.CheckPiece(pc) {
+		t.Bitfield().Set(pc.Index)
+	} else {
 		err = common.ErrInvalidPiece
 	}
 	return
