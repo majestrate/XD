@@ -1,7 +1,6 @@
 package swarm
 
 import (
-	"math"
 	"sync"
 	"time"
 	"xd/lib/bittorrent"
@@ -115,13 +114,11 @@ func (pt *pieceTracker) visitCached(idx uint32, v func(*cachedPiece)) {
 }
 
 func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracker) {
-	l := st.MetaInfo().Info.PieceLength
-	mx := int(21-uint32(math.Log2(float64(l)))) + 1
 	pt = &pieceTracker{
 		requests:   make(map[uint32]*cachedPiece),
 		st:         st,
 		nextPiece:  picker,
-		maxPending: mx,
+		maxPending: 64,
 	}
 	return
 }
