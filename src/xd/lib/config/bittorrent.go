@@ -99,7 +99,7 @@ func (c *BittorrentConfig) Load(s *configparser.Section) error {
 		if e != nil {
 			return e
 		}
-		c.TorrentQueueSize, e = strconv.Atoi(s.Get("max-running-torrents", "0"))
+		c.TorrentQueueSize, e = strconv.Atoi(s.Get("max-torrents", "0"))
 		if e != nil {
 			return e
 		}
@@ -123,6 +123,8 @@ func (c *BittorrentConfig) Save(s *configparser.Section) error {
 	s.Add("swarms", fmt.Sprintf("%d", c.Swarms))
 
 	s.Add("tracker-config", c.OpenTrackers.FileName)
+
+	s.Add("max-torrents", fmt.Sprintf("%d", c.TorrentQueueSize))
 
 	return c.OpenTrackers.Save()
 }
