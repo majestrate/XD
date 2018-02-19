@@ -257,13 +257,11 @@ func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 }
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
-	t.access.Lock()
 	l := t.meta.LengthOfPiece(idx)
 	err = t.VisitPiece(common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}, t.checkPiece)
-	t.access.Unlock()
 	return
 }
 

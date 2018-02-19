@@ -39,6 +39,7 @@ func (p *cachedPiece) put(offset uint32, l uint32) {
 	p.pending.Unset(idx)
 
 	p.lastActive = time.Now()
+	log.Debugf("put idx=%d offset=%d bit=%d", p.index, offset, idx)
 }
 
 // cancel a slice
