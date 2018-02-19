@@ -342,7 +342,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Choke {
 		c.remoteChoke()
-		c.clearDownloading()
+		c.cancelPendingDownloads()
 	}
 	if msgid == common.UnChoke {
 		c.remoteUnchoke()
