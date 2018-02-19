@@ -96,14 +96,16 @@ type pieceTracker struct {
 
 func (pt *pieceTracker) visitCached(idx uint32, v func(*cachedPiece)) {
 	pt.mtx.Lock()
-	defer pt.mtx.Unlock()
 	_, has := pt.requests[idx]
 	if !has {
 		if !pt.newPiece(idx) {
+			pt.mtx.Unlock()
 			return
 		}
 	}
-	v(pt.requests[idx])
+	pc := pt.requests[idx]
+	pt.mtx.Unlock()
+	v(pc)
 }
 
 func createPieceTracker(st storage.Torrent, picker PiecePicker) (pt *pieceTracker) {
