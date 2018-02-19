@@ -296,7 +296,9 @@ func (c *PeerConn) runReader() {
 
 func (c *PeerConn) cancelPiece(idx uint32) {
 	c.access.Lock()
-	for _, r := range c.downloading {
+	downloading := c.downloading
+	c.downloading = []common.PieceRequest{}
+	for _, r := range downloading {
 		if r.Index == idx {
 			c.Send(r.Cancel())
 		} else {
