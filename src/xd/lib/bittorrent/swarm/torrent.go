@@ -564,7 +564,15 @@ func (t *Torrent) run() {
 			}
 			time.Sleep(time.Second)
 		} else {
-			t.pt.Expire()
+			// expire and cancel all timed out pieces
+			t.pt.iterCached(func(cp *cachedPiece) {
+				if cp.isExpired() {
+					t.VisitPeers(func(conn *PeerConn) {
+						conn.cancelPiece(cp.index)
+					})
+					t.pt.removePiece(cp.index)
+				}
+			})
 			time.Sleep(time.Second * 5)
 		}
 	}

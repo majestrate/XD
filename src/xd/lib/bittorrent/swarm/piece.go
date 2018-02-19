@@ -153,26 +153,26 @@ func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, o
 	return
 }
 
-func (pt *pieceTracker) Expire() {
-	pt.cancelTimedOut(time.Second * 30)
-}
-
-// cancel entire pieces that have not been fetched within a duration
-func (pt *pieceTracker) cancelTimedOut(dlt time.Duration) {
+func (pt *pieceTracker) iterCached(v func(*cachedPiece)) {
+	pieces := []uint32{}
 	pt.mtx.Lock()
-
-	now := time.Now()
 	for idx := range pt.requests {
-		if now.Sub(pt.requests[idx].lastActive) > dlt {
-			delete(pt.requests, idx)
-		}
+		pieces = append(pieces, idx)
 	}
 	pt.mtx.Unlock()
+	for _, idx := range pieces {
+		pt.visitCached(idx, v)
+	}
+}
+
+func (cp *cachedPiece) isExpired() (expired bool) {
+	now := time.Now()
+	expired = now.Sub(cp.lastActive) > time.Second*30
+	return
 }
 
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest) bool {
 	var r *common.PieceRequest
-	pt.cancelTimedOut(time.Second * 30)
 	idx, old := pt.pendingPiece(remote)
 	if old {
 		pt.visitCached(idx, func(cp *cachedPiece) {

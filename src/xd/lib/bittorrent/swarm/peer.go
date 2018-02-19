@@ -294,6 +294,18 @@ func (c *PeerConn) runReader() {
 	c.Close()
 }
 
+func (c *PeerConn) cancelPiece(idx uint32) {
+	c.access.Lock()
+	for _, r := range c.downloading {
+		if r.Index == idx {
+			c.Send(r.Cancel())
+		} else {
+			c.downloading = append(c.downloading, r)
+		}
+	}
+	c.access.Unlock()
+}
+
 func (c *PeerConn) runWriter() {
 	for !c.closing {
 		c.doSend(<-c.send)
@@ -490,6 +502,7 @@ func (c *PeerConn) runDownload() {
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
+			log.Debugf("max parallel reached for %s", c.id.String())
 			time.Sleep(time.Second)
 			continue
 		}
