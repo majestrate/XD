@@ -272,11 +272,9 @@ func (c *PeerConn) Close() {
 		return
 	}
 	c.closing = true
-	c.access.Lock()
 	for _, r := range c.downloading {
 		c.t.pt.canceledRequest(r)
 	}
-	c.access.Unlock()
 	c.downloading = nil
 	log.Debugf("%s closing connection", c.id.String())
 	c.c.Close()
