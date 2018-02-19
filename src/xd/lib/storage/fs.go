@@ -251,6 +251,7 @@ func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 	if t.meta.Info.CheckPiece(pc) {
 		t.bf.Set(pc.Index)
 	} else {
+		t.bf.Unset(pc.Index)
 		err = common.ErrInvalidPiece
 	}
 	return
