@@ -230,7 +230,7 @@ func (pt *pieceTracker) handlePieceData(d common.PieceData) {
 			} else {
 				log.Warnf("put piece %d failed: %s", idx, err.Error())
 			}
-			pt.removePiece(d.Index)
+			pt.removePiece(idx)
 		}
 	})
 }

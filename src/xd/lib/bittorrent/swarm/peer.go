@@ -93,28 +93,30 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {
 			// drop
-			log.Debugf("drop request because choke")
-			r := msg.GetPieceRequest()
-			c.cancelDownload(r)
-		} else {
-			log.Debugf("writing %d bytes", msg.Len())
-			err := msg.Send(c.c)
-			if err == nil {
-				if msg.MessageID() == common.Piece {
-					n := uint64(msg.Len())
-					c.tx.AddSample(n)
-					c.t.statsTracker.AddSample(RateUpload, n)
-				}
-				log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
-			} else {
-				log.Debugf("write error: %s", err.Error())
+			log.Debugf("cancel request because choke")
+			c.cancelDownload(msg.GetPieceRequest())
+			return
+		}
+		log.Debugf("writing %d bytes", msg.Len())
+		err := msg.Send(c.c)
+		if err == nil {
+			if msg.MessageID() == common.Piece {
+				n := uint64(msg.Len())
+				c.tx.AddSample(n)
+				c.t.statsTracker.AddSample(RateUpload, n)
 			}
+			log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
+		} else {
+			log.Debugf("write error: %s", err.Error())
 		}
 	}
 }
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg common.WireMessage) {
+	if c.closing {
+		return
+	}
 	go func(m common.WireMessage) {
 		c.send <- m
 	}(msg)
@@ -202,6 +204,7 @@ func (c *PeerConn) queueDownload(req common.PieceRequest) {
 func (c *PeerConn) clearDownloading() {
 	c.access.Lock()
 	for _, r := range c.downloading {
+		c.Send(r.Cancel())
 		c.t.pt.canceledRequest(r)
 	}
 	c.downloading = []common.PieceRequest{}
@@ -243,6 +246,16 @@ func (c *PeerConn) remoteChoke() {
 	log.Debugf("%s choked us", c.id.String())
 }
 
+func (c *PeerConn) cancelPendingDownloads() {
+	c.access.Lock()
+	for _, r := range c.downloading {
+		c.t.pt.canceledRequest(r)
+		c.Send(r.Cancel())
+	}
+	c.downloading = []common.PieceRequest{}
+	c.access.Unlock()
+}
+
 func (c *PeerConn) markInterested() {
 	c.peerInterested = true
 	log.Debugf("%s is interested", c.id.String())
@@ -259,9 +272,11 @@ func (c *PeerConn) Close() {
 		return
 	}
 	c.closing = true
+	c.access.Lock()
 	for _, r := range c.downloading {
 		c.t.pt.canceledRequest(r)
 	}
+	c.access.Unlock()
 	c.downloading = nil
 	log.Debugf("%s closing connection", c.id.String())
 	c.c.Close()

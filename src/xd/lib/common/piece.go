@@ -29,6 +29,10 @@ func (pc *PieceRequest) Copy(r *PieceRequest) {
 	pc.Length = r.Length
 }
 
+func (pc PieceRequest) Cancel() WireMessage {
+	return NewCancel(pc.Index, pc.Begin, pc.Length)
+}
+
 // ErrInvalidPiece is an error for when a piece has invalid sha1sum
 var ErrInvalidPiece = errors.New("invalid piece")
 

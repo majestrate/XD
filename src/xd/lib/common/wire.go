@@ -238,3 +238,11 @@ func NewNotInterested() WireMessage {
 func NewInterested() WireMessage {
 	return NewWireMessage(Interested, nil)
 }
+
+func NewCancel(idx, offset, length uint32) WireMessage {
+	body := make([]byte, 12)
+	binary.BigEndian.PutUint32(body[:], idx)
+	binary.BigEndian.PutUint32(body[4:], offset)
+	binary.BigEndian.PutUint32(body[8:], length)
+	return NewWireMessage(Cancel, body)
+}
