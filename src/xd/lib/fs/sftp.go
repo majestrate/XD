@@ -281,6 +281,22 @@ func (fs *sftpFS) Join(paths ...string) string {
 	return p
 }
 
+func (fs *sftpFS) Move(oldpath, newpath string) (err error) {
+	dir, _ := fs.Split(newpath)
+	err = fs.EnsureDir(dir)
+	if err == nil {
+		err = fs.ensureConn(func(c *sftp.Client) error {
+			return c.Rename(oldpath, newpath)
+		})
+	}
+	return
+}
+
+func (fs *sftpFS) Split(path string) (base, file string) {
+	base, file = sftp.Split(path)
+	return
+}
+
 func (fs *sftpFS) Remove(fpath string) error {
 	return fs.ensureConn(func(c *sftp.Client) error {
 		return c.Remove(fpath)

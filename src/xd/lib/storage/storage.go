@@ -47,6 +47,16 @@ type Torrent interface {
 
 	// save torrent stats
 	SaveStats(s *stats.Tracker) error
+
+	// get a list of files for this torrent
+	// returns absolute path of all downloaded files
+	FileList() []string
+
+	// move data files to other directory, blocks for a LONG time
+	MoveTo(other string) error
+
+	// verify data and move to seeding directory
+	Seed() (bool, error)
 }
 
 // torrent storage driver

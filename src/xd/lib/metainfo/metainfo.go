@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"github.com/zeebo/bencode"
 	"io"
-	"os"
 	"path/filepath"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -14,13 +13,13 @@ import (
 type FilePath []string
 
 // get filepath
-func (f FilePath) FilePath() string {
+func (f FilePath) FilePath(base string) string {
+	if len(base) > 0 {
+		path := []string{base}
+		path = append(path, f...)
+		return filepath.Join(path...)
+	}
 	return filepath.Join(f...)
-}
-
-/** open file using base path */
-func (f FilePath) Open(base string) (*os.File, error) {
-	return os.OpenFile(filepath.Join(base, f.FilePath()), os.O_RDWR|os.O_CREATE, 0600)
 }
 
 type FileInfo struct {

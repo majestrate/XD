@@ -200,9 +200,11 @@ func Run() {
 		if sig == os.Interrupt {
 			running = false
 			log.Info("Interrupted")
-			for idx := range closers {
-				closers[idx].Close()
+			for idx, cl := range closers {
+				log.Debugf("closing %d %q", idx, cl)
+				cl.Close()
 			}
+			closers = []io.Closer{}
 			return
 		} else {
 			log.Warnf("got wierd signal wtf: %s", sig)

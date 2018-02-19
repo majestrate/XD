@@ -24,6 +24,10 @@ type fsTorrent struct {
 	bf *bittorrent.Bitfield
 	// mutex for bitfield access
 	bfmtx sync.RWMutex
+	// base directory
+	dir string
+	// storage access mutex
+	access sync.Mutex
 }
 
 func (t *fsTorrent) Delete() (err error) {
@@ -37,8 +41,31 @@ func (t *fsTorrent) Delete() (err error) {
 	return
 }
 
+func (t *fsTorrent) MoveTo(other string) (err error) {
+	t.access.Lock()
+	err = t.st.FS.EnsureDir(other)
+	if err == nil {
+		files := t.MetaInfo().Info.GetFiles()
+		for _, file := range files {
+			oldpath := file.Path.FilePath(t.dir)
+			newpath := file.Path.FilePath(other)
+			log.Debugf("move %s -> %s", oldpath, newpath)
+			err = t.st.FS.Move(oldpath, newpath)
+			if err != nil {
+				break
+			}
+		}
+	}
+	s := t.st.getSettings(t.ih)
+	s.Put("dir", other)
+	t.st.putSettings(t.ih, s)
+	t.dir = other
+	t.access.Unlock()
+	return
+}
+
 func (t *fsTorrent) AllocateFile(f metainfo.FileInfo) (err error) {
-	fname := t.st.FS.Join(t.FilePath(), f.Path.FilePath())
+	fname := t.st.FS.Join(t.FilePath(), f.Path.FilePath(""))
 	err = t.st.FS.EnsureFile(fname, f.Length)
 	return
 }
@@ -61,9 +88,9 @@ func (t *fsTorrent) Allocate() (err error) {
 func (t *fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
-		fname = t.st.FS.Join(t.st.DataDir, i.Path.FilePath())
+		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
 	} else {
-		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath())
+		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath(""))
 	}
 	f, err = t.st.FS.OpenFileReadOnly(fname)
 	return
@@ -72,9 +99,9 @@ func (t *fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error)
 func (t *fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
-		fname = t.st.FS.Join(t.st.DataDir, i.Path.FilePath())
+		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
 	} else {
-		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath())
+		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath(""))
 	}
 	f, err = t.st.FS.OpenFileWriteOnly(fname)
 	return
@@ -201,10 +228,11 @@ func (t *fsTorrent) Infohash() (ih common.Infohash) {
 }
 
 func (t *fsTorrent) FilePath() string {
-	return t.st.FS.Join(t.st.DataDir, t.meta.Info.Path)
+	return t.st.FS.Join(t.dir, t.meta.Info.Path)
 }
 
 func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
+	t.access.Lock()
 	sz := t.meta.Info.PieceLength
 	p := common.PieceData{
 		Index: r.Index,
@@ -212,6 +240,7 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 		Data:  make([]byte, r.Length, r.Length),
 	}
 	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
+	t.access.Unlock()
 	if err == nil {
 		err = v(p)
 	}
@@ -220,7 +249,7 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 
 func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 	if t.meta.Info.CheckPiece(pc) {
-		t.Bitfield().Set(pc.Index)
+		t.bf.Set(pc.Index)
 	} else {
 		err = common.ErrInvalidPiece
 	}
@@ -228,11 +257,13 @@ func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 }
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
+	t.access.Lock()
 	l := t.meta.LengthOfPiece(idx)
 	err = t.VisitPiece(common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}, t.checkPiece)
+	t.access.Unlock()
 	return
 }
 
@@ -260,9 +291,6 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 		} else {
 			log.Warnf("%s has miss matched data", t.Name())
 		}
-	} else {
-		t.bfmtx.Unlock()
-		return
 	}
 	t.bfmtx.Unlock()
 	err = t.Flush()
@@ -270,8 +298,10 @@ func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
 }
 
 func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
+	t.access.Lock()
 	sz := int64(t.meta.Info.PieceLength)
 	_, err = t.WriteAt(data, (sz*int64(idx))+int64(offset))
+	t.access.Unlock()
 	return
 }
 
@@ -317,8 +347,34 @@ func (t *fsTorrent) SaveStats(s *stats.Tracker) (err error) {
 	return
 }
 
+func (t *fsTorrent) FileList() (flist []string) {
+	for _, f := range t.MetaInfo().Info.GetFiles() {
+		flist = append(flist, f.Path.FilePath(t.dir))
+	}
+	return
+}
+
+func (t *fsTorrent) Seed() (seeding bool, err error) {
+	log.Infof("Checking all data for %s", t.Name())
+	err = t.VerifyAll(false)
+	if err == nil {
+		log.Infof("All pieces okay for %s", t.Name())
+		if t.dir != t.st.SeedingDir {
+			log.Infof("Moving downloaded data to %s", t.st.SeedingDir)
+			err = t.MoveTo(t.st.SeedingDir)
+			seeding = err == nil
+		}
+	} else if err == common.ErrInvalidPiece {
+		log.Error("invalid pieces will redownload")
+		err = nil
+	}
+	return
+}
+
 // filesystem based torrent storage
 type FsStorage struct {
+	// directory for seeding data
+	SeedingDir string
 	// directory for downloaded data
 	DataDir string
 	// directory for torrent seed data
@@ -356,6 +412,9 @@ func (st *FsStorage) Init() (err error) {
 	err = st.FS.EnsureDir(st.DataDir)
 	if err == nil {
 		err = st.FS.EnsureDir(st.MetaDir)
+	}
+	if err == nil {
+		err = st.FS.EnsureDir(st.SeedingDir)
 	}
 	return
 }
@@ -400,6 +459,10 @@ func (st *FsStorage) statsFilename(ih common.Infohash) string {
 	return st.FS.Join(st.MetaDir, ih.Hex()+".stats")
 }
 
+func (st *FsStorage) settingsFilename(ih common.Infohash) string {
+	return st.FS.Join(st.MetaDir, ih.Hex()+".settings")
+}
+
 func (st *FsStorage) saveStatsForTorrent(ih common.Infohash, s *stats.Tracker) (err error) {
 	var f fs.WriteFile
 	f, err = st.FS.OpenFileWriteOnly(st.statsFilename(ih))
@@ -411,7 +474,12 @@ func (st *FsStorage) saveStatsForTorrent(ih common.Infohash, s *stats.Tracker) (
 }
 
 func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err error) {
-	basepath := st.FS.Join(st.DataDir, info.TorrentName())
+	t, err = st.openTorrent(info, st.DataDir)
+	return
+}
+
+func (st *FsStorage) openTorrent(info *metainfo.TorrentFile, rootpath string) (t Torrent, err error) {
+	basepath := st.FS.Join(rootpath, info.TorrentName())
 	if !info.IsSingleFile() {
 		// create directory
 		st.FS.EnsureDir(basepath)
@@ -431,6 +499,7 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 
 	if err == nil {
 		ft := &fsTorrent{
+			dir:  rootpath,
 			st:   st,
 			meta: info,
 			ih:   ih,
@@ -447,6 +516,33 @@ func (st *FsStorage) OpenTorrent(info *metainfo.TorrentFile) (t Torrent, err err
 	return
 }
 
+func (st *FsStorage) initSettings(i common.Infohash) {
+	s := createSettings()
+	s.Put("dir", st.DataDir)
+	st.putSettings(i, s)
+}
+
+func (st *FsStorage) putSettings(i common.Infohash, s fsSettings) {
+	f, _ := st.FS.OpenFileWriteOnly(st.settingsFilename(i))
+	if f != nil {
+		s.BEncode(f)
+		f.Close()
+	}
+}
+
+func (st *FsStorage) getSettings(i common.Infohash) (s fsSettings) {
+	s = createSettings()
+	if !st.FS.FileExists(st.settingsFilename(i)) {
+		st.initSettings(i)
+	}
+	f, _ := st.FS.OpenFileReadOnly(st.settingsFilename(i))
+	if f != nil {
+		s.BDecode(f)
+		f.Close()
+	}
+	return
+}
+
 func (st *FsStorage) OpenAllTorrents() (torrents []Torrent, err error) {
 	var matches []string
 	matches, err = st.FS.Glob(st.FS.Join(st.MetaDir, "*.torrent"))
@@ -460,7 +556,9 @@ func (st *FsStorage) OpenAllTorrents() (torrents []Torrent, err error) {
 			f.Close()
 		}
 		if err == nil {
-			t, err = st.OpenTorrent(tf)
+			s := st.getSettings(tf.Infohash())
+			path := s.Get("dir", st.DataDir)
+			t, err = st.openTorrent(tf, path)
 		}
 		if t != nil {
 			torrents = append(torrents, t)

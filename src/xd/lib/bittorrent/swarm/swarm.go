@@ -60,6 +60,7 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	t.Stopped = func() {
 		sw.onStopped(t)
 	}
+
 	sw.WaitForNetwork()
 	t.ObtainedNetwork(sw.net)
 	t.xdht = &sw.xdht

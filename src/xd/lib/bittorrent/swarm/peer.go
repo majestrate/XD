@@ -11,7 +11,7 @@ import (
 	"xd/lib/util"
 )
 
-const DefaultMaxParallelRequests = 12
+const DefaultMaxParallelRequests = 4
 
 // a peer connection
 type PeerConn struct {
@@ -88,7 +88,7 @@ func (c *PeerConn) tickStats() {
 }
 
 func (c *PeerConn) doSend(msg common.WireMessage) {
-	if !c.closing && msg != nil {
+	if (!c.closing) && msg != nil {
 		now := time.Now()
 		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {

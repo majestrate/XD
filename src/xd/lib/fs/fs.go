@@ -36,4 +36,8 @@ type Driver interface {
 	RemoveAll(fpath string) error
 	// Join path
 	Join(parts ...string) string
+	// move file
+	Move(oldPath, newPath string) error
+	// split path into dirname, basename
+	Split(path string) (string, string)
 }

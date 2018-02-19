@@ -58,6 +58,7 @@ type Torrent struct {
 	statsTracker   *stats.Tracker
 	tx             uint64
 	rx             uint64
+	seeding        bool
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -546,12 +547,26 @@ func (t *Torrent) run() {
 	}
 	t.started = true
 	go t.runRateTicker()
-	for !t.Done() {
-		t.pt.Expire()
-		time.Sleep(time.Second * 5)
-	}
-	if t.Completed != nil {
-		go t.Completed()
+	for !t.closing {
+		if t.Done() {
+			if t.seeding {
+				break
+			} else {
+				var err error
+				t.seeding, err = t.st.Seed()
+				if t.seeding {
+					log.Infof("%s is seeding", t.Name())
+				} else if err != nil {
+					log.Errorf("failed to begin seeding: %s", err.Error())
+				} else {
+					log.Infof("will need to redownload pieces for %s", t.Name())
+				}
+			}
+			time.Sleep(time.Second)
+		} else {
+			t.pt.Expire()
+			time.Sleep(time.Second * 5)
+		}
 	}
 }
 
@@ -571,7 +586,6 @@ func (t *Torrent) handlePieceRequest(c *PeerConn, r common.PieceRequest) {
 
 	if r.Length > 0 {
 		log.Debugf("%s asked for piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
-		// TODO: cache common pieces (?)
 		t.st.VisitPiece(r, func(p common.PieceData) error {
 			// have the piece, send it
 			c.Send(p.ToWireMessage())

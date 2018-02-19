@@ -53,3 +53,17 @@ func (f stdFs) Remove(fname string) error {
 func (f stdFs) Join(parts ...string) string {
 	return filepath.Join(parts...)
 }
+
+func (f stdFs) Move(oldpath, newpath string) (err error) {
+	dir, _ := f.Split(newpath)
+	err = f.EnsureDir(dir)
+	if err == nil {
+		err = os.Rename(oldpath, newpath)
+	}
+	return
+}
+
+func (f stdFs) Split(path string) (base, file string) {
+	base, file = filepath.Split(path)
+	return
+}

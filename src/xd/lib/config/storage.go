@@ -44,6 +44,8 @@ func (cfg *SFTPConfig) ToFS() fs.Driver {
 type StorageConfig struct {
 	// downloads directory
 	Downloads string
+	// completed directory
+	Completed string
 	// metadata directory
 	Meta string
 	// root directory
@@ -77,10 +79,12 @@ func (cfg *StorageConfig) setSubpaths(s *configparser.Section) {
 	cfg.Meta = filepath.Join(cfg.Root, "metadata")
 
 	cfg.Downloads = filepath.Join(cfg.Root, "downloads")
-
+	cfg.Completed = filepath.Join(cfg.Root, "seeding")
 	if s != nil {
 		cfg.Downloads = s.Get("downloads", cfg.Downloads)
+		cfg.Completed = s.Get("completed", cfg.Completed)
 	}
+
 }
 
 func (cfg *StorageConfig) Save(s *configparser.Section) error {
@@ -88,6 +92,7 @@ func (cfg *StorageConfig) Save(s *configparser.Section) error {
 	s.Add("rootdir", cfg.Root)
 	s.Add("metadata", cfg.Meta)
 	s.Add("downloads", cfg.Downloads)
+	s.Add("completed", cfg.Completed)
 	return nil
 }
 
@@ -102,9 +107,10 @@ func (cfg *StorageConfig) LoadEnv() {
 func (cfg *StorageConfig) CreateStorage() storage.Storage {
 
 	st := &storage.FsStorage{
-		DataDir: cfg.Downloads,
-		MetaDir: cfg.Meta,
-		FS:      fs.STD,
+		SeedingDir: cfg.Completed,
+		DataDir:    cfg.Downloads,
+		MetaDir:    cfg.Meta,
+		FS:         fs.STD,
 	}
 	if cfg.SFTP.Enabled {
 		st.FS = cfg.SFTP.ToFS()
