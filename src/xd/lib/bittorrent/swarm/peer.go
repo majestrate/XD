@@ -386,7 +386,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Cancel {
 		// TODO: check validity
-		c.t.pt.canceledRequest(msg.GetPieceRequest())
+		//c.t.pt.canceledRequest(msg.GetPieceRequest())
 	}
 	if msgid == common.Extended {
 		// handle extended options
