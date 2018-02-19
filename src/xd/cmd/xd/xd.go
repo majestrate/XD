@@ -89,7 +89,6 @@ func Run() {
 		log.Errorf("error initializing storage: %s", err)
 		return
 	}
-	closers = append(closers, st)
 	var swarms []*swarm.Swarm
 	count := 0
 	for count < conf.Bittorrent.Swarms {
@@ -193,6 +192,7 @@ func Run() {
 		go runFunc(net, swarms[idx])
 		closers = append(closers, net)
 	}
+	closers = append(closers, st)
 	sigchnl := make(chan os.Signal)
 	signal.Notify(sigchnl, os.Interrupt)
 	for {
