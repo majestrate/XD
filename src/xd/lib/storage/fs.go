@@ -357,11 +357,12 @@ func (t *fsTorrent) Seed() (seeding bool, err error) {
 	log.Infof("Checking all data for %s", t.Name())
 	err = t.VerifyAll(false)
 	if err == nil {
+		err = t.Flush()
 		log.Infof("All pieces okay for %s", t.Name())
+		seeding = err == nil
 		if t.dir != t.st.SeedingDir {
 			log.Infof("Moving downloaded data to %s", t.st.SeedingDir)
 			err = t.MoveTo(t.st.SeedingDir)
-			seeding = err == nil
 		}
 	} else if err == common.ErrInvalidPiece {
 		log.Error("invalid pieces will redownload")

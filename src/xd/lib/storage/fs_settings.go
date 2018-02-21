@@ -6,22 +6,22 @@ import (
 )
 
 type fsSettings struct {
-	opts map[string]string `bencode:"settings"`
+	Opts map[string]string `bencode:"settings"`
 }
 
 func createSettings() fsSettings {
 	return fsSettings{
-		opts: make(map[string]string),
+		Opts: make(map[string]string),
 	}
 }
 
 func (s *fsSettings) Put(key, val string) {
-	s.opts[key] = val
+	s.Opts[key] = val
 }
 
 func (s *fsSettings) Get(key, fallback string) (val string) {
 	var ok bool
-	val, ok = s.opts[key]
+	val, ok = s.Opts[key]
 	if !ok {
 		val = fallback
 	}
