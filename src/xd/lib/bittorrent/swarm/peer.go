@@ -117,9 +117,7 @@ func (c *PeerConn) Send(msg common.WireMessage) {
 	if c.closing {
 		return
 	}
-	go func(m common.WireMessage) {
-		c.send <- m
-	}(msg)
+	c.send <- msg
 }
 
 func (c *PeerConn) recv(msg common.WireMessage) (err error) {
