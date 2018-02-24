@@ -367,6 +367,10 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 			log.Debugf("got bitfield from %s", c.id.String())
 			c.checkInterested()
+		} else {
+			// empty bitfield
+			bits := make([]byte, len(msg.Payload()))
+			c.Send(common.NewWireMessage(common.BitField, bits))
 		}
 		if isnew {
 			c.Unchoke()
