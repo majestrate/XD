@@ -139,6 +139,8 @@ func FromWireMessage(msg common.WireMessage) (opts *Message) {
 			if opts.ID == 0 {
 				// handshake
 				bencode.DecodeBytes(opts.PayloadRaw, opts)
+			} else {
+				bencode.DecodeBytes(opts.PayloadRaw, &opts.Payload)
 			}
 		}
 	}
