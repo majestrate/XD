@@ -121,7 +121,7 @@ func Run() {
 		for running {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
-				e := t.VerifyAll(true)
+				e := t.VerifyAll()
 				if e != nil {
 					log.Errorf("failed to add %s: %s", t.Name(), e.Error())
 					continue

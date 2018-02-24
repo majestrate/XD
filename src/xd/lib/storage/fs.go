@@ -271,30 +271,20 @@ func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	return
 }
 
-func (t *fsTorrent) VerifyAll(fresh bool) (err error) {
+func (t *fsTorrent) VerifyAll() (err error) {
 	t.bfmtx.Lock()
-	check := t.st.FindBitfield(t.ih)
-	if check == nil {
-		// no stored bitfield
-		check = bittorrent.NewBitfield(t.meta.Info.NumPieces(), nil).Inverted()
-		if fresh {
-			var has *bittorrent.Bitfield
-			log.Infof("checking local data for %s", t.Name())
-			has, _ = t.verifyBitfield(check, false)
-			err = t.st.flushBitfield(t.ih, has)
-			t.bfmtx.Unlock()
-			return
-		}
-	}
-	// verify
-	log.Infof("verify local data for %s", t.Name())
-	t.bf, err = t.verifyBitfield(check, true)
-	if err == nil {
-		if t.bf.Equals(check) {
-			log.Infof("%s check okay", t.Name())
+	log.Infof("checking local data for %s", t.Name())
+	t.ensureBitfield()
+	sz := t.MetaInfo().Info.NumPieces()
+	idx := uint32(0)
+	for idx < sz {
+		err = t.VerifyPiece(uint32(idx))
+		if err == common.ErrInvalidPiece {
+			err = nil
 		} else {
-			log.Warnf("%s has miss matched data", t.Name())
+			log.Errorf("failed to check piece %d: %s", idx, err.Error())
 		}
+		idx++
 	}
 	t.bfmtx.Unlock()
 	err = t.Flush()
@@ -306,33 +296,6 @@ func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
 	sz := int64(t.meta.Info.PieceLength)
 	_, err = t.WriteAt(data, (sz*int64(idx))+int64(offset))
 	t.access.Unlock()
-	return
-}
-
-// verifyBitfield verifies a all pieces given by a bitfield
-func (t *fsTorrent) verifyBitfield(bf *bittorrent.Bitfield, warn bool) (has *bittorrent.Bitfield, err error) {
-	np := t.meta.Info.NumPieces()
-	has = bittorrent.NewBitfield(np, nil)
-	idx := uint32(0)
-	for idx < np {
-		l := t.meta.LengthOfPiece(idx)
-		if bf.Has(idx) {
-			err = t.VisitPiece(common.PieceRequest{
-				Index:  idx,
-				Length: l,
-			}, func(pc common.PieceData) (e error) {
-				e = t.checkPiece(pc)
-				if e == nil {
-					has.Set(idx)
-				} else if warn {
-					log.Warnf("piece %d failed check for %s: %s", idx, t.Name(), e)
-				}
-				return
-			})
-		}
-		idx++
-		log.Debugf("piece %d of %d", idx, np)
-	}
 	return
 }
 
@@ -360,9 +323,8 @@ func (t *fsTorrent) FileList() (flist []string) {
 
 func (t *fsTorrent) Seed() (seeding bool, err error) {
 	log.Infof("Checking all data for %s", t.Name())
-	err = t.VerifyAll(false)
+	err = t.VerifyAll()
 	if err == nil {
-		err = t.Flush()
 		log.Infof("All pieces okay for %s", t.Name())
 		seeding = err == nil
 		if t.dir != t.st.SeedingDir {

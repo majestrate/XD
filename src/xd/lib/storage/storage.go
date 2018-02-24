@@ -14,7 +14,7 @@ type Torrent interface {
 	Allocate() error
 
 	// verify all piece data
-	VerifyAll(fresh bool) error
+	VerifyAll() error
 	// put a chunk of data at index and offset
 	PutChunk(idx, offset uint32, data []byte) error
 

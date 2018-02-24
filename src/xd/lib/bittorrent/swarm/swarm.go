@@ -280,7 +280,7 @@ func (sw *Swarm) addFileTorrent(path string) (err error) {
 			var t storage.Torrent
 			t, err = sw.Torrents.st.OpenTorrent(&info)
 			if err == nil {
-				err = t.VerifyAll(true)
+				err = t.VerifyAll()
 				if err == nil {
 					sw.AddTorrent(t)
 				}
@@ -312,7 +312,7 @@ func (sw *Swarm) addHTTPTorrent(remote string) (err error) {
 				var t storage.Torrent
 				t, err = sw.Torrents.st.OpenTorrent(&info)
 				if err == nil {
-					err = t.VerifyAll(true)
+					err = t.VerifyAll()
 					if err == nil {
 						sw.AddTorrent(t)
 					}
