@@ -32,36 +32,36 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	Completed       func()
-	Started         func()
-	Stopped         func()
-	RemoveSelf      func()
-	netacces        sync.Mutex
-	suspended       bool
-	netContext      network.Network
-	Trackers        map[string]tracker.Announcer
-	announcers      map[string]*torrentAnnounce
-	announceMtx     sync.Mutex
-	announceTicker  *time.Ticker
-	id              common.PeerID
-	st              storage.Torrent
-	obconns         map[string]*PeerConn
-	ibconns         map[string]*PeerConn
-	connMtx         sync.Mutex
-	pt              *pieceTracker
-	defaultOpts     *extensions.Message
-	closing         bool
-	started         bool
-	MaxRequests     int
-	MaxPeers        uint
-	pexState        *PEXSwarmState
-	xdht            *dht.XDHT
-	statsTracker    *stats.Tracker
-	tx              uint64
-	rx              uint64
-	seeding         bool
-	pendingMetaInfo []byte
-	pendingInfoBF   *bittorrent.Bitfield
+	Completed      func()
+	Started        func()
+	Stopped        func()
+	RemoveSelf     func()
+	netacces       sync.Mutex
+	suspended      bool
+	netContext     network.Network
+	Trackers       map[string]tracker.Announcer
+	announcers     map[string]*torrentAnnounce
+	announceMtx    sync.Mutex
+	announceTicker *time.Ticker
+	id             common.PeerID
+	st             storage.Torrent
+	obconns        map[string]*PeerConn
+	ibconns        map[string]*PeerConn
+	connMtx        sync.Mutex
+	pt             *pieceTracker
+	defaultOpts    *extensions.Message
+	closing        bool
+	started        bool
+	MaxRequests    int
+	MaxPeers       uint
+	pexState       *PEXSwarmState
+	xdht           *dht.XDHT
+	statsTracker   *stats.Tracker
+	tx             uint64
+	rx             uint64
+	seeding        bool
+	metaInfo       []byte
+	pendingInfoBF  *bittorrent.Bitfield
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -158,7 +158,6 @@ func newTorrent(st storage.Torrent) *Torrent {
 		st:           st,
 		ibconns:      make(map[string]*PeerConn),
 		obconns:      make(map[string]*PeerConn),
-		defaultOpts:  extensions.NewOur(),
 		MaxRequests:  DefaultMaxParallelRequests,
 		pexState:     NewPEXSwarmState(),
 		MaxPeers:     DefaultMaxSwarmPeers,
@@ -166,6 +165,15 @@ func newTorrent(st storage.Torrent) *Torrent {
 	}
 	for _, rate := range defaultRates {
 		t.statsTracker.NewRate(rate)
+	}
+	if t.Ready() {
+		buff := new(bytes.Buffer)
+		info := t.st.MetaInfo().Info
+		bencode.NewEncoder(buff).Encode(&info)
+		t.defaultOpts = extensions.NewOur(uint32(buff.Len()))
+		t.metaInfo = buff.Bytes()
+	} else {
+		t.defaultOpts = extensions.NewOur(0)
 	}
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
@@ -472,15 +480,15 @@ func (t *Torrent) hasAllPendingInfo() bool {
 
 func (t *Torrent) resetPendingInfo() {
 	t.pendingInfoBF = bittorrent.NewBitfield(t.pendingInfoBF.Length, nil)
-	t.pendingMetaInfo = make([]byte, len(t.pendingMetaInfo))
+	t.metaInfo = make([]byte, len(t.metaInfo))
 }
 
 func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
-	if t.pendingMetaInfo != nil {
+	if t.metaInfo != nil {
 		t.pendingInfoBF.Set(idx)
-		copy(t.pendingMetaInfo[idx*(16*1024):], data)
+		copy(t.metaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
-			r := bytes.NewReader(t.pendingMetaInfo)
+			r := bytes.NewReader(t.metaInfo)
 			var info metainfo.Info
 			err := bencode.NewDecoder(r).Decode(&info)
 			if err == nil {
@@ -491,6 +499,8 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 				t.VisitPeers(func(p *PeerConn) {
 					p.Close()
 				})
+				sz := uint32(len(t.metaInfo))
+				t.defaultOpts.MetainfoSize = &sz
 			} else {
 				t.resetPendingInfo()
 			}
@@ -502,11 +512,11 @@ func (t *Torrent) nextMetaInfoReq() *uint32 {
 	if t.Ready() {
 		return nil
 	}
-	if t.pendingMetaInfo == nil || t.pendingInfoBF == nil {
+	if t.metaInfo == nil || t.pendingInfoBF == nil {
 		return nil
 	}
 	var i uint32
-	for i < uint32(len(t.pendingMetaInfo)/(1024*16)) {
+	for i < uint32(len(t.metaInfo)/(1024*16)) {
 		if t.pendingInfoBF.Has(i) {
 			i++
 		} else {

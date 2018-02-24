@@ -24,11 +24,12 @@ func (ex Extension) String() string {
 
 // ExtendedOptions is a serializable BitTorrent extended options message
 type Message struct {
-	ID         uint8             `bencode:"-"`
-	Version    string            `bencode:"v"` // handshake data
-	Extensions map[string]uint32 `bencode:"m"` // handshake data
-	Payload    interface{}       `bencode:"-"`
-	PayloadRaw []byte            `bencode:"-"`
+	ID           uint8             `bencode:"-"`
+	Version      string            `bencode:"v"` // handshake data
+	Extensions   map[string]uint32 `bencode:"m"` // handshake data
+	Payload      interface{}       `bencode:"-"`
+	PayloadRaw   []byte            `bencode:"-"`
+	MetainfoSize *uint32           `bencode:"metadata_size",omitempty`
 }
 
 // supports PEX?
@@ -44,15 +45,6 @@ func (opts *Message) XDHT() bool {
 // supports ut_metadata
 func (opts *Message) MetaData() bool {
 	return opts.IsSupported(UTMetaData.String())
-}
-
-// return metadata length from handshake
-func (opts *Message) MetadataLen() (l uint32) {
-	sz, ok := opts.Extensions["metadata_size"]
-	if ok {
-		l = sz
-	}
-	return
 }
 
 // set a bittorrent extension as supported
@@ -114,14 +106,18 @@ func New() *Message {
 	}
 }
 
-func NewOur() *Message {
-	return &Message{
+func NewOur(sz uint32) *Message {
+	m := &Message{
 		Version: version.Version(),
 		Extensions: map[string]uint32{
 			UTMetaData.String():   3,
 			PeerExchange.String(): 4,
 		},
 	}
+	if sz > 0 {
+		m.MetainfoSize = &sz
+	}
+	return m
 }
 
 // NewPEX creates a new PEX message for i2p peers
