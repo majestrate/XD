@@ -2,10 +2,10 @@ package extensions
 
 import (
 	"bytes"
-	"xd/lib/common"
-	"xd/lib/version"
-
 	"github.com/zeebo/bencode"
+	"xd/lib/common"
+	"xd/lib/log"
+	"xd/lib/version"
 )
 
 // Extension is a bittorrent extenension string
@@ -102,6 +102,7 @@ func (opts *Message) ToWireMessage() common.WireMessage {
 	} else if opts.PayloadRaw != nil {
 		b.Write(opts.PayloadRaw)
 	}
+	log.Debugf("extended bytes %q", b.Bytes())
 	return common.NewWireMessage(common.Extended, b.Bytes())
 }
 

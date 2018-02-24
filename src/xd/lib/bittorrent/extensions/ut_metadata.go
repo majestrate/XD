@@ -24,7 +24,11 @@ func ParseMetadata(buff []byte) (md MetaData, err error) {
 	err = bencode.NewDecoder(r).Decode(&md)
 	if err == nil && md.Size > 0 {
 		md.Data = make([]byte, md.Size)
-		_, err = io.ReadFull(r, md.Data)
+		var n int
+		n, err = io.ReadFull(r, md.Data)
+		if err == io.EOF && uint32(n) == md.Size {
+			err = nil
+		}
 	}
 	return
 }

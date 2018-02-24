@@ -367,16 +367,22 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
 			log.Debugf("got bitfield from %s", c.id.String())
 			c.checkInterested()
+			if isnew {
+				c.Unchoke()
+				if c.ourOpts != nil {
+					c.Send(c.ourOpts.ToWireMessage())
+				}
+			}
 		} else {
 			// empty bitfield
 			bits := make([]byte, len(msg.Payload()))
 			c.Send(common.NewWireMessage(common.BitField, bits))
-		}
-		if isnew {
-			c.Unchoke()
 			if c.ourOpts != nil {
 				c.Send(c.ourOpts.ToWireMessage())
 			}
+			c.metaInfoDownload()
+		}
+		if isnew {
 			if c.t.Ready() {
 				go c.runDownload()
 			}
@@ -488,17 +494,16 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 		// handshake
 		if c.theirOpts == nil {
 			c.theirOpts = opts.Copy()
-			c.metaInfoDownload()
 		} else {
 			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
 		}
 	} else {
 		// extended data
-		if c.theirOpts == nil {
+		if c.ourOpts == nil {
 			log.Warnf("%s gave unexpected extended message %d", c.id.String(), opts.ID)
 		} else {
 			// lookup the extension number
-			ext, ok := c.theirOpts.Lookup(opts.ID)
+			ext, ok := c.ourOpts.Lookup(opts.ID)
 			if ok {
 				if ext == extensions.PeerExchange.String() {
 					// this is PEX message
