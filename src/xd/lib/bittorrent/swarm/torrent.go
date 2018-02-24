@@ -484,7 +484,7 @@ func (t *Torrent) resetPendingInfo() {
 }
 
 func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
-	if t.metaInfo != nil {
+	if t.metaInfo != nil && !t.Ready() {
 		t.pendingInfoBF.Set(idx)
 		copy(t.metaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
@@ -502,6 +502,7 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 				sz := uint32(len(t.metaInfo))
 				t.defaultOpts.MetainfoSize = &sz
 			} else {
+				log.Errorf("failed to get meta info %s", err.Error())
 				t.resetPendingInfo()
 			}
 		}

@@ -329,7 +329,6 @@ func (c *PeerConn) metaInfoDownload() {
 	if !c.t.Ready() && c.theirOpts.MetaData() {
 		if c.theirOpts.MetainfoSize != nil {
 			l := *c.theirOpts.MetainfoSize
-			log.Infof("want %d bytes of meta info", l)
 			if c.t.metaInfo == nil || len(c.t.metaInfo) == 0 {
 				// set meta info
 				c.t.metaInfo = make([]byte, l)
