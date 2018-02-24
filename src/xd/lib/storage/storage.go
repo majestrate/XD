@@ -1,11 +1,15 @@
 package storage
 
 import (
+	"errors"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/metainfo"
 	"xd/lib/stats"
 )
+
+var ErrNoMetaInfo = errors.New("no torrent file")
+var ErrMetaInfoMissmatch = errors.New("torrent infohash does not match")
 
 // storage session for 1 torrent
 type Torrent interface {
@@ -15,6 +19,7 @@ type Torrent interface {
 
 	// verify all piece data
 	VerifyAll() error
+
 	// put a chunk of data at index and offset
 	PutChunk(idx, offset uint32, data []byte) error
 
@@ -57,6 +62,9 @@ type Torrent interface {
 
 	// verify data and move to seeding directory
 	Seed() (bool, error)
+
+	// set metainfo for empty torrent
+	PutInfo(info metainfo.Info) error
 }
 
 // torrent storage driver
@@ -64,6 +72,10 @@ type Storage interface {
 
 	// Close and flush storage backend
 	Close() error
+
+	// create a torrent with no meta info
+	EmptyTorrent(ih common.Infohash) Torrent
+
 	// open a storage session for a torrent
 	// does not verify any piece data
 	OpenTorrent(info *metainfo.TorrentFile) (Torrent, error)

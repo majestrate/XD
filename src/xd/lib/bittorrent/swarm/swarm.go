@@ -75,13 +75,15 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	}
 
 	info := t.MetaInfo()
-	for _, u := range info.GetAllAnnounceURLS() {
-		tr := tracker.FromURL(u)
-		if tr != nil {
-			name := tr.Name()
-			_, ok := t.Trackers[name]
-			if !ok {
-				t.Trackers[name] = tr
+	if info != nil {
+		for _, u := range info.GetAllAnnounceURLS() {
+			tr := tracker.FromURL(u)
+			if tr != nil {
+				name := tr.Name()
+				_, ok := t.Trackers[name]
+				if !ok {
+					t.Trackers[name] = tr
+				}
 			}
 		}
 	}
@@ -260,12 +262,43 @@ func (sw *Swarm) AddRemoteTorrent(remote string) (err error) {
 	u, err = url.Parse(remote)
 	if err == nil {
 		scheme := strings.ToLower(u.Scheme)
-		if scheme == "file" || scheme == "" {
+		if scheme == "magnet" {
+			err = sw.AddMagnet(remote)
+		} else if scheme == "file" || scheme == "" {
 			err = sw.addFileTorrent(u.Path)
 		} else {
 			err = sw.addHTTPTorrent(u.String())
 		}
 	}
+	return
+}
+
+func (sw *Swarm) AddMagnet(uri string) (err error) {
+	var u *url.URL
+	u, err = url.Parse(uri)
+	if err == nil {
+		q := u.Query()
+		xt := q.Get("xt")
+		if len(xt) > 0 {
+			xt = strings.ToLower(xt)
+			if strings.HasPrefix(xt, "urn:btih:") && len(xt) == 49 {
+				var ih common.Infohash
+				ih, err = common.DecodeInfohash(xt[9:])
+				if err == nil {
+					err = sw.addMagnet(ih)
+				}
+			} else {
+				err = common.ErrBadMagnetURI
+			}
+		} else {
+			err = common.ErrBadMagnetURI
+		}
+	}
+	return
+}
+
+func (sw *Swarm) addMagnet(ih common.Infohash) (err error) {
+	sw.AddTorrent(sw.Torrents.st.EmptyTorrent(ih))
 	return
 }
 

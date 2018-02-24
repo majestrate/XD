@@ -207,6 +207,9 @@ func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 }
 
 func (t *fsTorrent) ensureBitfield() {
+	if t.meta == nil {
+		return
+	}
 	if t.bf == nil {
 		if !t.st.HasBitfield(t.ih) {
 			// we have no pieces
@@ -217,6 +220,9 @@ func (t *fsTorrent) ensureBitfield() {
 }
 
 func (t *fsTorrent) DownloadRemaining() (r uint64) {
+	if t.meta == nil {
+		return
+	}
 	bf := t.Bitfield()
 	have := uint64(bf.CountSet()) * uint64(t.meta.Info.PieceLength)
 	r = t.meta.TotalSize() - have
@@ -228,6 +234,9 @@ func (t *fsTorrent) MetaInfo() *metainfo.TorrentFile {
 }
 
 func (t *fsTorrent) Name() string {
+	if t.meta == nil {
+		return t.Infohash().Hex()
+	}
 	return t.meta.TorrentName()
 }
 
@@ -237,7 +246,33 @@ func (t *fsTorrent) Infohash() (ih common.Infohash) {
 }
 
 func (t *fsTorrent) FilePath() string {
+	if t.meta == nil {
+		return ""
+	}
 	return t.st.FS.Join(t.dir, t.meta.Info.Path)
+
+}
+
+func (t *fsTorrent) PutInfo(info metainfo.Info) (err error) {
+	if t.meta == nil {
+		meta := &metainfo.TorrentFile{
+			Info: info,
+		}
+		ih := meta.Infohash()
+		if !t.ih.Equal(ih) {
+			err = ErrMetaInfoMissmatch
+			return
+		}
+		t.meta = meta
+		metapath := t.st.metainfoFilename(ih)
+		var f fs.WriteFile
+		f, err = t.st.FS.OpenFileWriteOnly(metapath)
+		if err == nil {
+			err = t.meta.BEncode(f)
+			f.Close()
+		}
+	}
+	return
 }
 
 func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
@@ -276,6 +311,10 @@ func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 }
 
 func (t *fsTorrent) VerifyAll() (err error) {
+	if t.meta == nil {
+		err = ErrNoMetaInfo
+		return
+	}
 	t.bfmtx.Lock()
 	log.Infof("checking local data for %s", t.Name())
 	t.ensureBitfield()
@@ -297,6 +336,10 @@ func (t *fsTorrent) VerifyAll() (err error) {
 }
 
 func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
+	if t.meta == nil {
+		err = ErrNoMetaInfo
+		return
+	}
 	t.access.Lock()
 	sz := int64(t.meta.Info.PieceLength)
 	_, err = t.WriteAt(data, (sz*int64(idx))+int64(offset))
@@ -305,6 +348,9 @@ func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
 }
 
 func (t *fsTorrent) Flush() error {
+	if t.meta == nil {
+		return ErrNoMetaInfo
+	}
 	log.Debugf("flush bitfield for %s", t.ih.Hex())
 	bf := t.Bitfield()
 	return t.st.flushBitfield(t.ih, bf)
@@ -320,8 +366,10 @@ func (t *fsTorrent) SaveStats(s *stats.Tracker) (err error) {
 }
 
 func (t *fsTorrent) FileList() (flist []string) {
-	for _, f := range t.MetaInfo().Info.GetFiles() {
-		flist = append(flist, f.Path.FilePath(t.dir))
+	if t.meta != nil {
+		for _, f := range t.meta.Info.GetFiles() {
+			flist = append(flist, f.Path.FilePath(t.dir))
+		}
 	}
 	return
 }
@@ -439,6 +487,15 @@ func (st *FsStorage) saveStatsForTorrent(ih common.Infohash, s *stats.Tracker) (
 	if err == nil {
 		err = s.BEncode(f)
 		f.Close()
+	}
+	return
+}
+
+func (st *FsStorage) EmptyTorrent(ih common.Infohash) (t Torrent) {
+	t = &fsTorrent{
+		dir: st.DataDir,
+		st:  st,
+		ih:  ih,
 	}
 	return
 }

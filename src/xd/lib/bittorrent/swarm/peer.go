@@ -325,6 +325,10 @@ func (c *PeerConn) checkInterested() {
 	}
 }
 
+func (c *PeerConn) metaInfoDownload() {
+
+}
+
 func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 
 	if msg.KeepAlive() {
@@ -445,7 +449,7 @@ func (c *PeerConn) SupportsPEX() bool {
 
 func (c *PeerConn) sendPEX(connected, disconnected []byte) {
 	id := c.theirOpts.Extensions[extensions.PeerExchange.String()]
-	msg := extensions.NewPEX(id, connected, disconnected)
+	msg := extensions.NewPEX(uint8(id), connected, disconnected)
 	c.Send(msg.ToWireMessage())
 }
 
@@ -455,6 +459,14 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 		// handshake
 		if c.theirOpts == nil {
 			c.theirOpts = opts.Copy()
+			if !c.t.Ready() && c.theirOpts.MetaData() {
+				l := c.theirOpts.MetadataLen()
+				if c.t.pendingMetaInfo == nil && l > 0 {
+					// set meta info
+					c.t.pendingMetaInfo = make([]byte, l)
+					c.t.pendingInfoBF = bittorrent.NewBitfield(1+(l/(16*1024)), nil)
+				}
+			}
 		} else {
 			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
 		}
@@ -475,11 +487,56 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 					if err != nil {
 						log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
 					}
+				} else if ext == extensions.UTMetaData.String() {
+					c.handleMetadata(opts)
 				}
 			} else {
 				log.Warnf("peer %s gave us extension for message we do not have id=%d", c.id.String(), opts.ID)
 			}
 		}
+	}
+}
+
+func (c *PeerConn) handleMetadata(m *extensions.Message) {
+	msg, err := extensions.ParseMetadata(m.PayloadRaw)
+	if err == nil {
+		if msg.Type == extensions.UTData {
+			if !c.t.Ready() && msg.Size > 0 {
+				c.t.putInfoSlice(msg.Piece, msg.Data)
+				r := c.t.nextMetaInfoReq()
+				if r != nil {
+					msg.Type = extensions.UTRequest
+					msg.Data = nil
+					msg.Size = 0
+					msg.Piece = *r
+					m = &extensions.Message{ID: m.ID, PayloadRaw: msg.Bytes()}
+					c.Send(m.ToWireMessage())
+				}
+			}
+		} else if msg.Type == extensions.UTReject {
+		} else if msg.Type == extensions.UTRequest {
+			if c.t.Ready() {
+				idx := msg.Piece * (16 * 1024)
+				pieces := c.t.MetaInfo().Info.Pieces
+				if uint32(len(pieces)) >= idx+(32*1024) {
+					msg.Type = extensions.UTReject
+				} else if uint32(len(pieces)) >= idx+(16*1024) {
+					msg.Type = extensions.UTData
+					msg.Data = pieces[idx:]
+					msg.Size = uint32(len(msg.Data))
+				} else {
+					msg.Type = extensions.UTData
+					msg.Data = pieces[idx : idx+(16*1024)]
+					msg.Size = uint32(len(msg.Data))
+				}
+			} else {
+				msg.Type = extensions.UTReject
+			}
+			m = &extensions.Message{ID: m.ID, PayloadRaw: msg.Bytes()}
+			c.Send(m.ToWireMessage())
+		}
+	} else {
+		log.Errorf("failed to parse ut_metainfo message: %s", err.Error())
 	}
 }
 
@@ -493,6 +550,7 @@ func (c *PeerConn) sendKeepAlive() {
 
 // run download loop
 func (c *PeerConn) runDownload() {
+
 	for !c.t.Done() && !c.closing && (c.usInterested || c.peerInterested) {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())

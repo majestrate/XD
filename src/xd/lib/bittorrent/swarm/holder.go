@@ -27,6 +27,17 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	h.access.Unlock()
 }
 
+func (h *Holder) addMagnet(ih common.Infohash) {
+	if h.closing {
+		return
+	}
+	tr := newTorrent(h.st.EmptyTorrent(ih))
+	tr.MaxRequests = h.MaxReq
+	h.access.Lock()
+	h.torrents[ih.Hex()] = tr
+	h.access.Unlock()
+}
+
 func (h *Holder) removeTorrent(ih common.Infohash) {
 	if h.closing {
 		return

@@ -3,6 +3,7 @@ package swarm
 import (
 	"bytes"
 	"errors"
+	"github.com/zeebo/bencode"
 	"net"
 	"sync"
 	"time"
@@ -31,34 +32,36 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	Completed      func()
-	Started        func()
-	Stopped        func()
-	RemoveSelf     func()
-	netacces       sync.Mutex
-	suspended      bool
-	netContext     network.Network
-	Trackers       map[string]tracker.Announcer
-	announcers     map[string]*torrentAnnounce
-	announceMtx    sync.Mutex
-	announceTicker *time.Ticker
-	id             common.PeerID
-	st             storage.Torrent
-	obconns        map[string]*PeerConn
-	ibconns        map[string]*PeerConn
-	connMtx        sync.Mutex
-	pt             *pieceTracker
-	defaultOpts    *extensions.Message
-	closing        bool
-	started        bool
-	MaxRequests    int
-	MaxPeers       uint
-	pexState       *PEXSwarmState
-	xdht           *dht.XDHT
-	statsTracker   *stats.Tracker
-	tx             uint64
-	rx             uint64
-	seeding        bool
+	Completed       func()
+	Started         func()
+	Stopped         func()
+	RemoveSelf      func()
+	netacces        sync.Mutex
+	suspended       bool
+	netContext      network.Network
+	Trackers        map[string]tracker.Announcer
+	announcers      map[string]*torrentAnnounce
+	announceMtx     sync.Mutex
+	announceTicker  *time.Ticker
+	id              common.PeerID
+	st              storage.Torrent
+	obconns         map[string]*PeerConn
+	ibconns         map[string]*PeerConn
+	connMtx         sync.Mutex
+	pt              *pieceTracker
+	defaultOpts     *extensions.Message
+	closing         bool
+	started         bool
+	MaxRequests     int
+	MaxPeers        uint
+	pexState        *PEXSwarmState
+	xdht            *dht.XDHT
+	statsTracker    *stats.Tracker
+	tx              uint64
+	rx              uint64
+	seeding         bool
+	pendingMetaInfo []byte
+	pendingInfoBF   *bittorrent.Bitfield
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -96,6 +99,10 @@ func (t *Torrent) LostNetwork() {
 	t.netacces.Lock()
 	t.suspended = true
 	t.netContext = nil
+}
+
+func (t *Torrent) Ready() bool {
+	return t.st.MetaInfo() != nil
 }
 
 // implements io.Closer
@@ -219,11 +226,22 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		peers = append(peers, c.Stats())
 	})
 	state := Downloading
+	if !t.Ready() {
+		return TorrentStatus{
+			Peers:    peers,
+			Name:     name,
+			State:    state,
+			Infohash: t.st.Infohash().Hex(),
+			TX:       t.tx,
+			RX:       t.rx,
+		}
+	}
 	if t.Done() {
 		state = Seeding
 	} else if t.closing || !t.started {
 		state = Stopped
 	}
+
 	bf := t.Bitfield()
 	var files []TorrentFileInfo
 	nfo := t.st.MetaInfo().Info
@@ -449,6 +467,50 @@ func (t *Torrent) removeIBConn(c *PeerConn) {
 	t.pexState.onPeerDisconnected(addr)
 }
 
+func (t *Torrent) hasAllPendingInfo() bool {
+	return t.pendingInfoBF.Completed()
+}
+
+func (t *Torrent) resetPendingInfo() {
+	t.pendingInfoBF = bittorrent.NewBitfield(t.pendingInfoBF.Length, nil)
+	t.pendingMetaInfo = make([]byte, len(t.pendingMetaInfo))
+}
+
+func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
+	if t.pendingMetaInfo != nil {
+		copy(t.pendingMetaInfo[idx*(16*1024):], data)
+		if t.hasAllPendingInfo() {
+			r := bytes.NewReader(t.pendingMetaInfo)
+			var info metainfo.Info
+			err := bencode.NewDecoder(r).Decode(&info)
+			if err == nil {
+				err = t.st.PutInfo(info)
+			}
+			if err != nil {
+				t.resetPendingInfo()
+			}
+		}
+	}
+}
+
+func (t *Torrent) nextMetaInfoReq() *uint32 {
+	if t.Ready() {
+		return nil
+	}
+	if t.pendingMetaInfo == nil || t.pendingInfoBF == nil {
+		return nil
+	}
+	var i uint32
+	for i < uint32(len(t.pendingMetaInfo)/(1024*16)) {
+		if t.pendingInfoBF.Has(i) {
+			i++
+		} else {
+			return &i
+		}
+	}
+	return nil
+}
+
 // connect to a new peer for this swarm, blocks
 func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 	if t.HasOBConn(a) {
@@ -479,7 +541,11 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 					pc := makePeerConn(c, t, h.PeerID, opts)
 					t.addOBPeer(pc)
 					pc.start()
-					pc.Send(t.Bitfield().ToWireMessage())
+					if t.Ready() {
+						pc.Send(t.Bitfield().ToWireMessage())
+					} else {
+						go pc.metaInfoDownload()
+					}
 					return nil
 				} else {
 					log.Warn("Infohash missmatch")
@@ -548,6 +614,10 @@ func (t *Torrent) run() {
 	t.started = true
 	go t.runRateTicker()
 	for !t.closing {
+		if !t.Ready() {
+			time.Sleep(time.Second)
+			continue
+		}
 		if t.Done() {
 			if t.seeding {
 				break

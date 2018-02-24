@@ -1,15 +1,22 @@
 package common
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 )
+
+var ErrBadMagnetURI = errors.New("bad magnet URI")
 
 // ErrBadInfoHashLen is error indicating that the infohash is a bad size
 var ErrBadInfoHashLen = errors.New("bad infohash length")
 
 // Infohash is a bittorrent infohash buffer
 type Infohash [20]byte
+
+func (ih Infohash) Equal(other Infohash) bool {
+	return bytes.Equal(ih.Bytes(), other.Bytes())
+}
 
 // Hex gets hex representation of infohash
 func (ih Infohash) Hex() string {

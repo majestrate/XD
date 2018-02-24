@@ -11,10 +11,11 @@ import (
 // Extension is a bittorrent extenension string
 type Extension string
 
-var extensionDefaults = map[Extension]uint8{
+var extensionDefaults = map[Extension]uint32{
 	I2PDHT:       1,
 	PeerExchange: 2,
 	XDHT:         3,
+	UTMetaData:   4,
 }
 
 func (ex Extension) String() string {
@@ -23,11 +24,11 @@ func (ex Extension) String() string {
 
 // ExtendedOptions is a serializable BitTorrent extended options message
 type Message struct {
-	ID         uint8            `bencode:"-"`
-	Version    string           `bencode:"v"` // handshake data
-	Extensions map[string]uint8 `bencode:"m"` // handshake data
-	Payload    interface{}      `bencode:"-"`
-	PayloadRaw []byte           `bencode:"-"`
+	ID         uint8             `bencode:"-"`
+	Version    string            `bencode:"v"` // handshake data
+	Extensions map[string]uint32 `bencode:"m"` // handshake data
+	Payload    interface{}       `bencode:"-"`
+	PayloadRaw []byte            `bencode:"-"`
 }
 
 // supports PEX?
@@ -38,6 +39,20 @@ func (opts *Message) PEX() bool {
 // supports XDHT
 func (opts *Message) XDHT() bool {
 	return opts.IsSupported(XDHT.String())
+}
+
+// supports ut_metadata
+func (opts *Message) MetaData() bool {
+	return opts.IsSupported(UTMetaData.String())
+}
+
+// return metadata length from handshake
+func (opts *Message) MetadataLen() (l uint32) {
+	sz, ok := opts.Extensions["metadata_size"]
+	if ok {
+		l = sz
+	}
+	return
 }
 
 // set a bittorrent extension as supported
@@ -55,7 +70,7 @@ func (opts *Message) IsSupported(ext string) (has bool) {
 // Lookup finds the extension name of the extension by id
 func (opts *Message) Lookup(id uint8) (string, bool) {
 	for k, v := range opts.Extensions {
-		if v == id {
+		if v == uint32(id) {
 			return k, true
 		}
 	}
@@ -64,7 +79,7 @@ func (opts *Message) Lookup(id uint8) (string, bool) {
 
 // Copy makes a copy of this ExtendedOptions
 func (opts *Message) Copy() *Message {
-	ext := make(map[string]uint8)
+	ext := make(map[string]uint32)
 	for k, v := range opts.Extensions {
 		ext[k] = v
 	}
@@ -84,6 +99,8 @@ func (opts *Message) ToWireMessage() common.WireMessage {
 		bencode.NewEncoder(b).Encode(opts)
 	} else if opts.Payload != nil {
 		bencode.NewEncoder(b).Encode(opts.Payload)
+	} else if opts.PayloadRaw != nil {
+		b.Write(opts.PayloadRaw)
 	}
 	return common.NewWireMessage(common.Extended, b.Bytes())
 }
@@ -92,7 +109,7 @@ func (opts *Message) ToWireMessage() common.WireMessage {
 func New() *Message {
 	return &Message{
 		Version:    version.Version(),
-		Extensions: make(map[string]uint8),
+		Extensions: make(map[string]uint32),
 	}
 }
 
@@ -113,16 +130,15 @@ func FromWireMessage(msg common.WireMessage) (opts *Message) {
 	if msg.MessageID() == common.Extended {
 		payload := msg.Payload()
 		if len(payload) > 0 {
+			body := make([]byte, len(payload))
+			copy(body, payload)
 			opts = &Message{
-				ID:         payload[0],
-				PayloadRaw: payload[1:],
+				ID:         body[0],
+				PayloadRaw: body[1:],
 			}
 			if opts.ID == 0 {
 				// handshake
 				bencode.DecodeBytes(opts.PayloadRaw, opts)
-			} else {
-				// extension data
-				bencode.DecodeBytes(opts.PayloadRaw, &opts.Payload)
 			}
 		}
 	}
