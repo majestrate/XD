@@ -513,10 +513,11 @@ func (t *Torrent) nextMetaInfoReq() *uint32 {
 		return nil
 	}
 	if t.metaInfo == nil || t.pendingInfoBF == nil {
+		log.Debug("no bitfield or metainfo")
 		return nil
 	}
 	var i uint32
-	for i < uint32(len(t.metaInfo)/(1024*16)) {
+	for i <= uint32(len(t.metaInfo)/(1024*16)) {
 		if t.pendingInfoBF.Has(i) {
 			i++
 		} else {

@@ -330,13 +330,17 @@ func (c *PeerConn) metaInfoDownload() {
 		if c.theirOpts.MetainfoSize != nil {
 			l := *c.theirOpts.MetainfoSize
 			log.Infof("want %d bytes of meta info", l)
-			if c.t.metaInfo == nil {
+			if c.t.metaInfo == nil || len(c.t.metaInfo) == 0 {
 				// set meta info
 				c.t.metaInfo = make([]byte, l)
 				l = 1 + (l / (16 * 1024))
 				log.Debugf("bitfield is %d bits", l)
 				c.t.pendingInfoBF = bittorrent.NewBitfield(l, nil)
+			} else {
+				log.Debugf("metainfo len=%d", len(c.t.metaInfo))
 			}
+		} else {
+			log.Debugf("no metainfo size: %q", c.theirOpts)
 		}
 		id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
 		if ok {

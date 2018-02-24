@@ -76,10 +76,11 @@ func (opts *Message) Copy() *Message {
 		ext[k] = v
 	}
 	return &Message{
-		ID:         opts.ID,
-		Version:    opts.Version,
-		Extensions: ext,
-		Payload:    opts.Payload,
+		ID:           opts.ID,
+		Version:      opts.Version,
+		Extensions:   ext,
+		Payload:      opts.Payload,
+		MetainfoSize: opts.MetainfoSize,
 	}
 }
 
