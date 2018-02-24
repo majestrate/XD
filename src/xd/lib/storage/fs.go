@@ -280,7 +280,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		err = t.VerifyPiece(uint32(idx))
 		if err == common.ErrInvalidPiece {
 			err = nil
-		} else {
+		} else if err != nil {
 			log.Errorf("failed to check piece %d: %s", idx, err.Error())
 		}
 		idx++
