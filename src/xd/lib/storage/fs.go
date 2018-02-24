@@ -196,6 +196,12 @@ func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
 
 func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 	t.bfmtx.Lock()
+	t.ensureBitfield()
+	t.bfmtx.Unlock()
+	return t.bf
+}
+
+func (t *fsTorrent) ensureBitfield() {
 	if t.bf == nil {
 		if !t.st.HasBitfield(t.ih) {
 			// we have no pieces
@@ -203,8 +209,6 @@ func (t *fsTorrent) Bitfield() *bittorrent.Bitfield {
 		}
 		t.bf = t.st.FindBitfield(t.ih)
 	}
-	t.bfmtx.Unlock()
-	return t.bf
 }
 
 func (t *fsTorrent) DownloadRemaining() (r uint64) {
@@ -248,14 +252,11 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 }
 
 func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
+	t.ensureBitfield()
 	if t.meta.Info.CheckPiece(pc) {
-		if t.bf != nil {
-			t.bf.Set(pc.Index)
-		}
+		t.bf.Set(pc.Index)
 	} else {
-		if t.bf != nil {
-			t.bf.Unset(pc.Index)
-		}
+		t.bf.Unset(pc.Index)
 		err = common.ErrInvalidPiece
 	}
 	return
