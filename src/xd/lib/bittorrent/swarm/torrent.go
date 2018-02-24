@@ -550,8 +550,6 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 					pc.start()
 					if t.Ready() {
 						pc.Send(t.Bitfield().ToWireMessage())
-					} else {
-						go pc.metaInfoDownload()
 					}
 					return nil
 				} else {

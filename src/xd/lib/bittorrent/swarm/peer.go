@@ -326,7 +326,28 @@ func (c *PeerConn) checkInterested() {
 }
 
 func (c *PeerConn) metaInfoDownload() {
-
+	if !c.t.Ready() && c.theirOpts.MetaData() {
+		l := c.theirOpts.MetadataLen()
+		if c.t.pendingMetaInfo == nil && l > 0 {
+			// set meta info
+			c.t.pendingMetaInfo = make([]byte, l)
+			c.t.pendingInfoBF = bittorrent.NewBitfield(1+(l/(16*1024)), nil)
+		}
+		id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
+		if ok {
+			var md extensions.MetaData
+			md.Type = extensions.UTRequest
+			r := c.t.nextMetaInfoReq()
+			if r != nil {
+				md.Piece = *r
+			}
+			m := &extensions.Message{ID: uint8(id), PayloadRaw: md.Bytes()}
+			log.Debugf("asking for initial info piece: %q", m)
+			c.Send(m.ToWireMessage())
+		} else {
+			log.Debug("ut_metadata not found?")
+		}
+	}
 }
 
 func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
@@ -337,20 +358,24 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	msgid := msg.MessageID()
 	log.Debugf("%s from %s", msgid.String(), c.id.String())
-	if msgid == common.BitField && c.t.Ready() {
+	if msgid == common.BitField {
 		isnew := false
 		if c.bf == nil {
 			isnew = true
 		}
-		c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
-		log.Debugf("got bitfield from %s", c.id.String())
-		c.checkInterested()
+		if c.t.Ready() {
+			c.bf = bittorrent.NewBitfield(c.t.MetaInfo().Info.NumPieces(), msg.Payload())
+			log.Debugf("got bitfield from %s", c.id.String())
+			c.checkInterested()
+		}
 		if isnew {
 			c.Unchoke()
 			if c.ourOpts != nil {
 				c.Send(c.ourOpts.ToWireMessage())
 			}
-			go c.runDownload()
+			if c.t.Ready() {
+				go c.runDownload()
+			}
 		}
 		return
 	}
@@ -459,21 +484,7 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 		// handshake
 		if c.theirOpts == nil {
 			c.theirOpts = opts.Copy()
-			if !c.t.Ready() && c.theirOpts.MetaData() {
-				l := c.theirOpts.MetadataLen()
-				if c.t.pendingMetaInfo == nil && l > 0 {
-					// set meta info
-					c.t.pendingMetaInfo = make([]byte, l)
-					c.t.pendingInfoBF = bittorrent.NewBitfield(1+(l/(16*1024)), nil)
-					id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
-					if ok {
-						var md extensions.MetaData
-						md.Type = extensions.UTRequest
-						m := &extensions.Message{ID: uint8(id), PayloadRaw: md.Bytes()}
-						c.Send(m.ToWireMessage())
-					}
-				}
-			}
+			c.metaInfoDownload()
 		} else {
 			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
 		}
@@ -508,6 +519,7 @@ func (c *PeerConn) handleMetadata(m *extensions.Message) {
 	msg, err := extensions.ParseMetadata(m.PayloadRaw)
 	if err == nil {
 		if msg.Type == extensions.UTData {
+			log.Debugf("got UTData: piece %d", msg.Piece)
 			if !c.t.Ready() && msg.Size > 0 {
 				c.t.putInfoSlice(msg.Piece, msg.Data)
 				r := c.t.nextMetaInfoReq()
@@ -517,10 +529,12 @@ func (c *PeerConn) handleMetadata(m *extensions.Message) {
 					msg.Size = 0
 					msg.Piece = *r
 					m = &extensions.Message{ID: m.ID, PayloadRaw: msg.Bytes()}
+					log.Debugf("asking for info piece %d", msg.Piece)
 					c.Send(m.ToWireMessage())
 				}
 			}
 		} else if msg.Type == extensions.UTReject {
+
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {
 				idx := msg.Piece * (16 * 1024)
