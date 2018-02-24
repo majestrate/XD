@@ -479,6 +479,7 @@ func (t *Torrent) resetPendingInfo() {
 
 func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 	if t.pendingMetaInfo != nil {
+		t.pendingInfoBF.Set(idx)
 		copy(t.pendingMetaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
 			r := bytes.NewReader(t.pendingMetaInfo)

@@ -465,6 +465,13 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 					// set meta info
 					c.t.pendingMetaInfo = make([]byte, l)
 					c.t.pendingInfoBF = bittorrent.NewBitfield(1+(l/(16*1024)), nil)
+					id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
+					if ok {
+						var md extensions.MetaData
+						md.Type = extensions.UTRequest
+						m := &extensions.Message{ID: uint8(id), PayloadRaw: md.Bytes()}
+						c.Send(m.ToWireMessage())
+					}
 				}
 			}
 		} else {
