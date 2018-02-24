@@ -45,10 +45,15 @@ func (t *fsTorrent) MoveTo(other string) (err error) {
 	t.access.Lock()
 	err = t.st.FS.EnsureDir(other)
 	if err == nil {
+		multifile := !t.MetaInfo().IsSingleFile()
 		files := t.MetaInfo().Info.GetFiles()
 		for _, file := range files {
-			oldpath := file.Path.FilePath(t.dir)
-			newpath := file.Path.FilePath(other)
+			root := ""
+			if multifile {
+				root = t.MetaInfo().Info.Path
+			}
+			oldpath := file.Path.FilePath(t.st.FS.Join(t.dir, root))
+			newpath := file.Path.FilePath(t.st.FS.Join(other, root))
 			log.Debugf("move %s -> %s", oldpath, newpath)
 			err = t.st.FS.Move(oldpath, newpath)
 			if err != nil {
