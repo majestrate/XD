@@ -486,7 +486,12 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 			if err == nil {
 				err = t.st.PutInfo(info)
 			}
-			if err != nil {
+			if err == nil {
+				// reset
+				t.VisitPeers(func(p *PeerConn) {
+					p.Close()
+				})
+			} else {
 				t.resetPendingInfo()
 			}
 		}
@@ -594,7 +599,7 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 		c.Close()
 		return
 	}
-	if t.NeedsPeers() {
+	if t.NeedsPeers() && t.Ready() {
 		log.Debugf("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 		t.addIBPeer(c)
 		c.start()
