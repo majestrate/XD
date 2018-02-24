@@ -11,8 +11,12 @@ type AddTorrentRequest struct {
 }
 
 func (atr *AddTorrentRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
-	go sw.AddRemoteTorrent(atr.URL)
-	w.Return(map[string]interface{}{"error": nil})
+	err := sw.AddRemoteTorrent(atr.URL)
+	if err == nil {
+		w.Return(map[string]interface{}{"error": nil})
+	} else {
+		w.Return(map[string]interface{}{"error": err.Error()})
+	}
 }
 
 func (atr *AddTorrentRequest) MarshalJSON() (data []byte, err error) {

@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"net"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
@@ -252,7 +255,45 @@ func (sw *Swarm) Close() (err error) {
 	return
 }
 
-func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
+func (sw *Swarm) AddRemoteTorrent(remote string) (err error) {
+	var u *url.URL
+	u, err = url.Parse(remote)
+	if err == nil {
+		scheme := strings.ToLower(u.Scheme)
+		if scheme == "file" || scheme == "" {
+			err = sw.addFileTorrent(u.Path)
+		} else {
+			err = sw.addHTTPTorrent(u.String())
+		}
+	}
+	return
+}
+
+func (sw *Swarm) addFileTorrent(path string) (err error) {
+	var info metainfo.TorrentFile
+	var f *os.File
+	f, err = os.Open(path)
+	if err == nil {
+		err = info.BDecode(f)
+		f.Close()
+		if err == nil {
+			var t storage.Torrent
+			t, err = sw.Torrents.st.OpenTorrent(&info)
+			if err == nil {
+				err = t.VerifyAll(true)
+				if err == nil {
+					sw.AddTorrent(t)
+				}
+			}
+		}
+	}
+	if err != nil {
+		log.Errorf("failed to load torrent %s", err.Error())
+	}
+	return
+}
+
+func (sw *Swarm) addHTTPTorrent(remote string) (err error) {
 	sw.WaitForNetwork()
 	cl := &http.Client{
 		Transport: &http.Transport{
@@ -261,8 +302,8 @@ func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
 	}
 	var info metainfo.TorrentFile
 	var r *http.Response
-	log.Infof("fetching torrent from %s", url)
-	r, err = cl.Get(url)
+	log.Infof("fetching torrent from %s", remote)
+	r, err = cl.Get(remote)
 	if err == nil {
 		if r.StatusCode == http.StatusOK {
 			defer r.Body.Close()
@@ -271,14 +312,14 @@ func (sw *Swarm) AddRemoteTorrent(url string) (err error) {
 				var t storage.Torrent
 				t, err = sw.Torrents.st.OpenTorrent(&info)
 				if err == nil {
-					t.VerifyAll(true)
+					err = t.VerifyAll(true)
 					sw.AddTorrent(t)
 				}
 			}
 		}
 	}
 	if err != nil {
-		log.Errorf("failed to fetch: %s", err.Error())
+		log.Errorf("failed to fetch torrent: %s", err.Error())
 	}
 	return
 }
