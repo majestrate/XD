@@ -12,7 +12,7 @@ type ListTorrentStatusRequest struct {
 func (req *ListTorrentStatusRequest) ProcessRequest(sw *swarm.Swarm, w *ResponseWriter) {
 	status := make(swarm.SwarmStatus)
 	sw.Torrents.ForEachTorrent(func(t *swarm.Torrent) {
-		status[t.MetaInfo().Infohash().Hex()] = t.GetStatus()
+		status[t.Infohash().Hex()] = t.GetStatus()
 	})
 	w.Return(status)
 }

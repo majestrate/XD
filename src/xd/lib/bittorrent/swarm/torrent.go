@@ -583,7 +583,10 @@ func (t *Torrent) MetaInfo() *metainfo.TorrentFile {
 }
 
 func (t *Torrent) Name() string {
-	return t.MetaInfo().TorrentName()
+	if t.Ready() {
+		return t.MetaInfo().TorrentName()
+	}
+	return t.Infohash().Hex()
 }
 
 // return false if we reached max peers for this torrent
@@ -609,15 +612,23 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 	}
 }
 
+func (t *Torrent) Infohash() common.Infohash {
+	return t.st.Infohash()
+}
+
 func (t *Torrent) run() {
-	if !t.MetaInfo().IsPrivate() {
-		go t.pexBroadcastLoop()
-	}
 	if t.Started != nil {
 		go t.Started()
 	}
 	t.started = true
 	go t.runRateTicker()
+	if t.Ready() {
+		if !t.MetaInfo().IsPrivate() {
+			go t.pexBroadcastLoop()
+		}
+	} else {
+		go t.pexBroadcastLoop()
+	}
 	for !t.closing {
 		if !t.Ready() {
 			time.Sleep(time.Second)
