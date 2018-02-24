@@ -390,6 +390,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.Send(common.NewWireMessage(common.BitField, bits))
 			if c.ourOpts != nil {
 				c.Send(c.ourOpts.ToWireMessage())
+				c.metaInfoDownload()
 			}
 		}
 		if isnew {
@@ -504,7 +505,6 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 		// handshake
 		if c.theirOpts == nil {
 			c.theirOpts = opts.Copy()
-			c.metaInfoDownload()
 		} else {
 			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
 		}
