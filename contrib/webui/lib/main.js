@@ -48,9 +48,11 @@ var Torrent = function(data) {
       return data;
     };
     this.TotalSize = function() {
-        var total_size = 0;
+      var total_size = 0;
+      if(data.Files) {
         data.Files.forEach(function(f){ total_size += f.FileInfo.Length });
-        return bytesToSize(total_size);
+      }
+      return bytesToSize(total_size);
     };
     this.Progress = data.Progress * 100;
     this.Ratio = function() {

@@ -167,7 +167,8 @@ func newTorrent(st storage.Torrent) *Torrent {
 	for _, rate := range defaultRates {
 		t.statsTracker.NewRate(rate)
 	}
-
+	t.defaultOpts.SetSupported(extensions.UTMetaData)
+	t.defaultOpts.SetSupported(extensions.PeerExchange)
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
 	return t
