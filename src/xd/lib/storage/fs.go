@@ -322,10 +322,8 @@ func (t *fsTorrent) FileList() (flist []string) {
 }
 
 func (t *fsTorrent) Seed() (seeding bool, err error) {
-	log.Infof("Checking all data for %s", t.Name())
 	err = t.VerifyAll()
 	if err == nil {
-		log.Infof("All pieces okay for %s", t.Name())
 		seeding = err == nil
 		if t.dir != t.st.SeedingDir {
 			log.Infof("Moving downloaded data to %s", t.st.SeedingDir)
