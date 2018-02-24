@@ -1,6 +1,6 @@
 # XD
 
-Standalone I2P BitTorrent Client written in GO
+I2P BitTorrent Client written in GO
 
 ![XD](contrib/logos/xd_logo_256x256.png)
 
