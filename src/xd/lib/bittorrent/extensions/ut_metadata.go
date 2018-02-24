@@ -23,7 +23,7 @@ func ParseMetadata(buff []byte) (md MetaData, err error) {
 	err = bencode.NewDecoder(r).Decode(&md)
 	if err == nil && md.Size > 0 {
 		md.Data = make([]byte, md.Size)
-		copy(md.Data, buff[len(buff)-int(1+md.Size):])
+		copy(md.Data, buff[len(buff)-int(md.Size):])
 	}
 	return
 }
