@@ -17,10 +17,11 @@ Current:
 
 * i2p only, no chances of cross network contamination, aka no way to leak IP.
 * no java required, works with [i2pd](https://github.com/purplei2p/i2pd) using the SAM api
+* Magnet URI
 
 Soon:
 
-* DHT/Magnet Support
+* DHT Support
 * Maggot Support
 
 Eventually:
