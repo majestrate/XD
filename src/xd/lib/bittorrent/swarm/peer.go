@@ -329,11 +329,13 @@ func (c *PeerConn) metaInfoDownload() {
 	if !c.t.Ready() && c.theirOpts.MetaData() {
 		if c.theirOpts.MetainfoSize != nil {
 			l := *c.theirOpts.MetainfoSize
-			if c.t.metaInfo == nil && l > 0 {
+			log.Infof("want %d bytes of meta info", l)
+			if c.t.metaInfo == nil {
 				// set meta info
 				c.t.metaInfo = make([]byte, l)
-				log.Debugf("pending metainfo is %d bytes", l)
-				c.t.pendingInfoBF = bittorrent.NewBitfield(1+(l/(16*1024)), nil)
+				l = 1 + (l / (16 * 1024))
+				log.Debugf("bitfield is %d bits", l)
+				c.t.pendingInfoBF = bittorrent.NewBitfield(l, nil)
 			}
 		}
 		id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
@@ -385,7 +387,6 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			if c.ourOpts != nil {
 				c.Send(c.ourOpts.ToWireMessage())
 			}
-			c.metaInfoDownload()
 		}
 		if isnew {
 			if c.t.Ready() {
@@ -499,6 +500,7 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 		// handshake
 		if c.theirOpts == nil {
 			c.theirOpts = opts.Copy()
+			c.metaInfoDownload()
 		} else {
 			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
 		}
