@@ -313,7 +313,9 @@ func (sw *Swarm) addHTTPTorrent(remote string) (err error) {
 				t, err = sw.Torrents.st.OpenTorrent(&info)
 				if err == nil {
 					err = t.VerifyAll(true)
-					sw.AddTorrent(t)
+					if err == nil {
+						sw.AddTorrent(t)
+					}
 				}
 			}
 		}
