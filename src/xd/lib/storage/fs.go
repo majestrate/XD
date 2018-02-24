@@ -249,9 +249,13 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 
 func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
 	if t.meta.Info.CheckPiece(pc) {
-		t.bf.Set(pc.Index)
+		if t.bf != nil {
+			t.bf.Set(pc.Index)
+		}
 	} else {
-		t.bf.Unset(pc.Index)
+		if t.bf != nil {
+			t.bf.Unset(pc.Index)
+		}
 		err = common.ErrInvalidPiece
 	}
 	return
