@@ -337,7 +337,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	msgid := msg.MessageID()
 	log.Debugf("%s from %s", msgid.String(), c.id.String())
-	if msgid == common.BitField {
+	if msgid == common.BitField && c.t.Ready() {
 		isnew := false
 		if c.bf == nil {
 			isnew = true
