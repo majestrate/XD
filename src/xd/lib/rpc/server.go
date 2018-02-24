@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"xd/lib/bittorrent/swarm"
@@ -19,25 +20,44 @@ const RPCContentType = "text/json; encoding=UTF-8"
 
 // Bittorrent Swarm RPC Handler
 type Server struct {
-	sw         []*swarm.Swarm
-	fileserver http.Handler
+	sw           []*swarm.Swarm
+	fileserver   http.Handler
+	expectedHost string
 }
 
-func NewServer(sw []*swarm.Swarm) *Server {
+func NewServer(sw []*swarm.Swarm, host string) *Server {
 	fs := assets.GetAssets()
 	if fs == nil {
 		return &Server{
-			sw: sw,
+			sw:           sw,
+			expectedHost: host,
 		}
 	} else {
 		return &Server{
-			sw:         sw,
-			fileserver: http.FileServer(fs),
+			sw:           sw,
+			expectedHost: host,
+			fileserver:   http.FileServer(fs),
 		}
 	}
 }
 
 func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	if r.expectedHost != "" {
+		host := req.Host
+
+		h, _, err := net.SplitHostPort(host)
+		if err == nil {
+			host = h
+		}
+
+		if !(host == r.expectedHost || host == "localhost") {
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprintf(w, "expected host %s but got %s", r.expectedHost, host)
+			return
+		}
+	}
+
 	if req.Method == "GET" && r.fileserver != nil {
 		r.fileserver.ServeHTTP(w, req)
 	} else if req.Method == "POST" {

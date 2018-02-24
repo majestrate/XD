@@ -137,8 +137,7 @@ func Run() {
 	// start rpc server
 	if conf.RPC.Enabled {
 		log.Infof("RPC enabled")
-		srv := rpc.NewServer(swarms)
-
+		var host string
 		var l net.Listener
 		var e error
 		var closeSock func()
@@ -155,11 +154,14 @@ func Run() {
 			l, e = net.Listen("tcp", conf.RPC.Bind)
 			closeSock = func() {
 			}
+			if e == nil {
+				host, _, _ = net.SplitHostPort(l.Addr().String())
+			}
 		}
 		if e == nil {
 			closers = append(closers, l)
 			s := http.Server{
-				Handler: srv,
+				Handler: rpc.NewServer(swarms, host),
 			}
 			go func() {
 				log.Errorf("rpc died: %s", s.Serve(l))
