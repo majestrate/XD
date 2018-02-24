@@ -12,7 +12,7 @@ import (
 type Extension string
 
 var extensionDefaults = map[Extension]uint32{
-	I2PDHT:       1,
+	//I2PDHT:       1,
 	PeerExchange: 2,
 	XDHT:         3,
 	UTMetaData:   4,
@@ -110,6 +110,16 @@ func New() *Message {
 	return &Message{
 		Version:    version.Version(),
 		Extensions: make(map[string]uint32),
+	}
+}
+
+func NewOur() *Message {
+	return &Message{
+		Version: version.Version(),
+		Extensions: map[string]uint32{
+			UTMetaData.String():   3,
+			PeerExchange.String(): 4,
+		},
 	}
 }
 

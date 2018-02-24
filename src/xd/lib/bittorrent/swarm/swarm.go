@@ -128,7 +128,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		}
 		var opts *extensions.Message
 		if h.Reserved.Has(bittorrent.Extension) {
-			opts = extensions.New()
+			opts = extensions.NewOur()
 		}
 		// reply to handshake
 		var id common.PeerID
