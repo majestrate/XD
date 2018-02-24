@@ -252,7 +252,6 @@ func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) e
 }
 
 func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
-	t.ensureBitfield()
 	if t.meta.Info.CheckPiece(pc) {
 		t.bf.Set(pc.Index)
 	} else {
@@ -287,6 +286,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		idx++
 	}
 	t.bfmtx.Unlock()
+	log.Infof("local data check done for %s", t.Name())
 	err = t.Flush()
 	return
 }
