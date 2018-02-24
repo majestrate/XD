@@ -263,6 +263,7 @@ func (t *fsTorrent) PutInfo(info metainfo.Info) (err error) {
 			err = ErrMetaInfoMissmatch
 			return
 		}
+		t.access.Lock()
 		t.meta = meta
 		metapath := t.st.metainfoFilename(ih)
 		var f fs.WriteFile
@@ -270,7 +271,12 @@ func (t *fsTorrent) PutInfo(info metainfo.Info) (err error) {
 		if err == nil {
 			err = t.meta.BEncode(f)
 			f.Close()
+			if err == nil {
+				log.Debugf("allocate room for %s", t.Name())
+				err = t.Allocate()
+			}
 		}
+		t.access.Unlock()
 	}
 	return
 }
