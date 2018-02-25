@@ -21,12 +21,12 @@ Current:
 
 Soon:
 
-* DHT Support
-* Maggot Support
+* transmission compatible RPC
 
 Eventually:
 
-* rtorrent compatible RPC (?)
+* DHT Support
+* Maggot Support
 
 ## Dependencies
 
