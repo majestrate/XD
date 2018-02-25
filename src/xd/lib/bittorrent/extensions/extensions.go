@@ -55,7 +55,9 @@ func (opts *Message) SetSupported(ext Extension) {
 
 // return true if an extension by its name is supported
 func (opts *Message) IsSupported(ext string) (has bool) {
-	_, has = opts.Extensions[ext]
+	if opts.Extensions != nil {
+		_, has = opts.Extensions[ext]
+	}
 	return
 }
 
