@@ -31,6 +31,7 @@ func NewBitfield(bits uint32, value []byte) *Bitfield {
 	}
 }
 
+// UnmarshalJSON implements json.Marhsaller
 func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 	var bl []int
 	err = json.Unmarshal(data, &bl)
@@ -46,6 +47,7 @@ func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// MarshalJSON implements json.Marshaller
 func (bf Bitfield) MarshalJSON() (data []byte, err error) {
 	var ls []int
 	idx := uint32(0)
@@ -86,6 +88,7 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 	return nil
 }
 
+// XOR returns Bitfield with bitwise XOR applied from other Bitfield
 func (bf *Bitfield) XOR(other *Bitfield) *Bitfield {
 	if bf.Length == other.Length {
 		b := NewBitfield(bf.Length, bf.Data)
@@ -99,12 +102,14 @@ func (bf *Bitfield) XOR(other *Bitfield) *Bitfield {
 	return nil
 }
 
+// Progress returns precent done as a float between 0 and 1
 func (bf *Bitfield) Progress() float64 {
 	fl := float64(bf.CountSet())
 	fl /= float64(bf.Length)
 	return fl
 }
 
+// Percent returns string represnetation of percent done
 func (bf *Bitfield) Percent() string {
 	fl := float64(bf.CountSet())
 	fl /= float64(bf.Length)
