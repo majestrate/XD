@@ -6,3 +6,5 @@ src/xd/lib/rpc/assets/assets.go
 XD-*
 build-assets
 *.ini
+
+pkg/
