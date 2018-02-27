@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/rpc/assets"
+	"xd/lib/rpc/transmission"
 )
 
 const ParamMethod = "method"
@@ -23,6 +24,7 @@ type Server struct {
 	sw           []*swarm.Swarm
 	fileserver   http.Handler
 	expectedHost string
+	trpc         http.Handler
 }
 
 func NewServer(sw []*swarm.Swarm, host string) *Server {
@@ -31,12 +33,14 @@ func NewServer(sw []*swarm.Swarm, host string) *Server {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
+			trpc:         transmission.New(sw),
 		}
 	} else {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
 			fileserver:   http.FileServer(fs),
+			trpc:         transmission.New(sw),
 		}
 	}
 }
@@ -129,6 +133,8 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				// TODO: whatever fix this later
 				w.WriteHeader(http.StatusInternalServerError)
 			}
+		} else if req.URL.Path == transmission.RPCPath && r.trpc != nil {
+			r.trpc.ServeHTTP(w, req)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
