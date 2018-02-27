@@ -2,58 +2,60 @@ package extensions
 
 import (
 	"bytes"
-	"github.com/zeebo/bencode"
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/version"
+
+	"github.com/zeebo/bencode"
 )
 
 // Extension is a bittorrent extenension string
 type Extension string
 
-var extensionDefaults = map[Extension]uint32{
+var extensionDefaults = map[string]uint32{
 	//I2PDHT:       1,
-	PeerExchange: 2,
-	XDHT:         3,
-	UTMetaData:   4,
+	PeerExchange.String(): 2,
+	XDHT.String():         3,
+	UTMetaData.String():   4,
 }
 
+// String gets extension as string
 func (ex Extension) String() string {
 	return string(ex)
 }
 
-// ExtendedOptions is a serializable BitTorrent extended options message
+// Message is a serializable BitTorrent extended options message
 type Message struct {
 	ID           uint8             `bencode:"-"`
 	Version      string            `bencode:"v"` // handshake data
 	Extensions   map[string]uint32 `bencode:"m"` // handshake data
 	Payload      interface{}       `bencode:"-"`
 	PayloadRaw   []byte            `bencode:"-"`
-	MetainfoSize *uint32           `bencode:"metadata_size",omitempty`
+	MetainfoSize *uint32           `bencode:"metadata_size,omitempty"`
 }
 
-// supports PEX?
+// PEX returns true if PEX is supported
 func (opts *Message) PEX() bool {
 	return opts.IsSupported(PeerExchange.String())
 }
 
-// supports XDHT
+// XDHT returns true if XHDT is supported
 func (opts *Message) XDHT() bool {
 	return opts.IsSupported(XDHT.String())
 }
 
-// supports ut_metadata
+// MetaData returns true if ut_metadata is supported
 func (opts *Message) MetaData() bool {
 	return opts.IsSupported(UTMetaData.String())
 }
 
-// set a bittorrent extension as supported
+// SetSupported sets a bittorrent extension as supported
 func (opts *Message) SetSupported(ext Extension) {
 	// TODO: this will error if we do not support this extension
-	opts.Extensions[ext.String()] = extensionDefaults[ext]
+	opts.Extensions[ext.String()] = extensionDefaults[ext.String()]
 }
 
-// return true if an extension by its name is supported
+// IsSupported returns true if an extension by its name is supported
 func (opts *Message) IsSupported(ext string) (has bool) {
 	if opts.Extensions != nil {
 		_, has = opts.Extensions[ext]
@@ -71,7 +73,7 @@ func (opts *Message) Lookup(id uint8) (string, bool) {
 	return "", false
 }
 
-// Copy makes a copy of this ExtendedOptions
+// Copy makes a copy of this Message
 func (opts *Message) Copy() *Message {
 	ext := make(map[string]uint32)
 	for k, v := range opts.Extensions {
@@ -101,7 +103,7 @@ func (opts *Message) ToWireMessage() common.WireMessage {
 	return common.NewWireMessage(common.Extended, b.Bytes())
 }
 
-// New creates new valid ExtendedOptions instance
+// New creates new valid Message instance
 func New() *Message {
 	return &Message{
 		Version:    version.Version(),
@@ -109,13 +111,11 @@ func New() *Message {
 	}
 }
 
+// NewOur creates a new Message instance with metadata size set
 func NewOur(sz uint32) *Message {
 	m := &Message{
-		Version: version.Version(),
-		Extensions: map[string]uint32{
-			UTMetaData.String():   3,
-			PeerExchange.String(): 4,
-		},
+		Version:    version.Version(),
+		Extensions: extensionDefaults,
 	}
 	if sz > 0 {
 		m.MetainfoSize = &sz

@@ -24,6 +24,7 @@ func formatRate(r float64) string {
 	return str
 }
 
+// Run runs xd-cli main function
 func Run() {
 	var args []string
 	cmd := "help"

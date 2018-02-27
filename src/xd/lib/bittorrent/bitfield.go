@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zeebo/bencode"
 	"io"
 	"xd/lib/common"
+
+	"github.com/zeebo/bencode"
 )
 
 // Bitfield is a serializable bitmap for bittorrent
@@ -211,7 +212,7 @@ func (bf *Bitfield) FindRarest(others []*Bitfield, exclude func(uint32) bool) (i
 		}
 	}
 
-	min := uint32(len(others) + 1)
+	min := ^uint32(0)
 	for index, count := range bits {
 		if exclude(index) {
 			continue
