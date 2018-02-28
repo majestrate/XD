@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/sync"
 )
 
 // http tracker

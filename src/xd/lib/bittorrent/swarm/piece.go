@@ -1,12 +1,12 @@
 package swarm
 
 import (
-	"sync"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/log"
 	"xd/lib/storage"
+	"xd/lib/sync"
 )
 
 // how big should we download pieces at a time (bytes)?

@@ -1,8 +1,8 @@
 package swarm
 
 import (
-	"sync"
 	"time"
+	"xd/lib/sync"
 	"xd/lib/tracker"
 )
 

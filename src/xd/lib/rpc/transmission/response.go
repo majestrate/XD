@@ -1,7 +1,7 @@
 package transmission
 
-type Request struct {
-	Method string `json:"method"`
+type Response struct {
+	Result string `json:"result"`
 	Args   Args   `json:"arguments"`
 	Tag    Tag    `json:"tag"`
 }

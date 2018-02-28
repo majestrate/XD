@@ -2,55 +2,36 @@ package swarm
 
 import (
 	"net"
-	"sync"
 	"xd/lib/network/i2p"
+	"xd/lib/sync"
 )
-
 
 // PEXSwarmState manages PeerExchange state on a bittorrent swarm
 type PEXSwarmState struct {
-	active map[string]bool
-	access sync.Mutex
-}
-
-// Create a new PEXSwarmState
-func NewPEXSwarmState() *PEXSwarmState {
-
-	return &PEXSwarmState{
-		active: make(map[string]bool),
-	}
+	m sync.Map
 }
 
 func (p *PEXSwarmState) onNewPeer(addr net.Addr) {
-	p.access.Lock()
-	p.active[addr.String()] = true
-	p.access.Unlock()
+	p.m.Store(addr.String(), true)
 }
 
 func (p *PEXSwarmState) onPeerDisconnected(addr net.Addr) {
-	p.access.Lock()
-	p.active[addr.String()] = false
-	p.access.Unlock()
-
+	p.m.Store(addr.String(), false)
 }
 
 // PopDestHashList gets list of i2p destination hashes of currently active and disconnected peers
 func (p *PEXSwarmState) PopDestHashLists() (connected, disconnected []byte) {
-	p.access.Lock()
-	var remove []string
-	for addr, active := range p.active {
+	p.m.Range(func(k, v interface{}) bool {
+		addr := k.(string)
+		active := v.(bool)
 		h := i2p.I2PAddr(addr).Base32Addr()
 		if active {
 			connected = append(connected, h[:]...)
 		} else {
 			disconnected = append(disconnected, h[:]...)
-			remove = append(remove, addr)
+			p.m.Delete(k)
 		}
-	}
-	// clean up stale
-	for _, addr := range remove {
-		delete(p.active, addr)
-	}
-	p.access.Unlock()
+		return false
+	})
 	return
 }

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"time"
 	"xd/lib/log"
+	"xd/lib/sync"
 )
 
 type samSession struct {

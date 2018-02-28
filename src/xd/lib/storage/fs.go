@@ -3,13 +3,13 @@ package storage
 import (
 	"errors"
 	"io"
-	"sync"
 	"xd/lib/bittorrent"
 	"xd/lib/common"
 	"xd/lib/fs"
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/stats"
+	"xd/lib/sync"
 )
 
 // filesystem based storrent storage session

@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 	"strings"
-	"sync"
 	"time"
+	"xd/lib/sync"
 	t "xd/lib/translate"
 )
 

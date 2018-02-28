@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/zeebo/bencode"
 	"net"
-	"sync"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
@@ -16,6 +15,7 @@ import (
 	"xd/lib/network"
 	"xd/lib/stats"
 	"xd/lib/storage"
+	"xd/lib/sync"
 	"xd/lib/tracker"
 )
 
@@ -54,7 +54,7 @@ type Torrent struct {
 	started        bool
 	MaxRequests    int
 	MaxPeers       uint
-	pexState       *PEXSwarmState
+	pexState       PEXSwarmState
 	xdht           *dht.XDHT
 	statsTracker   *stats.Tracker
 	tx             uint64
@@ -159,7 +159,6 @@ func newTorrent(st storage.Torrent) *Torrent {
 		ibconns:      make(map[string]*PeerConn),
 		obconns:      make(map[string]*PeerConn),
 		MaxRequests:  DefaultMaxParallelRequests,
-		pexState:     NewPEXSwarmState(),
 		MaxPeers:     DefaultMaxSwarmPeers,
 		statsTracker: stats.NewTracker(),
 	}

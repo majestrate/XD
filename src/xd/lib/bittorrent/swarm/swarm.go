@@ -218,6 +218,8 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 		sw.Torrents.ForEachTorrent(func(t *Torrent) {
 			t.LostNetwork()
 		})
+		// regenerate peer id
+		sw.id = common.GeneratePeerID()
 	}
 	sw.net = nil
 	return
@@ -227,8 +229,7 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 	sw := &Swarm{
 		Torrents: Holder{
-			st:       storage,
-			torrents: make(map[string]*Torrent),
+			st: storage,
 		},
 		trackers: map[string]tracker.Announcer{},
 		gnutella: gnutella,

@@ -2,12 +2,12 @@ package swarm
 
 import (
 	"net"
-	"sync"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/sync"
 	"xd/lib/util"
 )
 

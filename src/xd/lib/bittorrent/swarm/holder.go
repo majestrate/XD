@@ -1,17 +1,16 @@
 package swarm
 
 import (
-	"sync"
 	"xd/lib/common"
 	"xd/lib/storage"
+	"xd/lib/sync"
 )
 
 // torrent swarm container
 type Holder struct {
 	closing   bool
 	st        storage.Storage
-	access    sync.Mutex
-	torrents  map[string]*Torrent
+	torrents  sync.Map
 	MaxReq    int
 	QueueSize int
 }
@@ -22,9 +21,7 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	}
 	tr := newTorrent(t)
 	tr.MaxRequests = h.MaxReq
-	h.access.Lock()
-	h.torrents[t.Infohash().Hex()] = tr
-	h.access.Unlock()
+	h.torrents.Store(t.Infohash().Hex(), tr)
 }
 
 func (h *Holder) addMagnet(ih common.Infohash) {
@@ -33,41 +30,29 @@ func (h *Holder) addMagnet(ih common.Infohash) {
 	}
 	tr := newTorrent(h.st.EmptyTorrent(ih))
 	tr.MaxRequests = h.MaxReq
-	h.access.Lock()
-	h.torrents[ih.Hex()] = tr
-	h.access.Unlock()
+	h.torrents.Store(ih.Hex(), tr)
 }
 
 func (h *Holder) removeTorrent(ih common.Infohash) {
 	if h.closing {
 		return
 	}
-	h.access.Lock()
-	ihh := ih.Hex()
-	_, ok := h.torrents[ihh]
-	if ok {
-		delete(h.torrents, ihh)
-	}
-	h.access.Unlock()
+	h.torrents.Delete(ih.Hex())
 }
 
 func (h *Holder) forEachTorrent(visit func(*Torrent), fork bool) {
-	if h.torrents == nil {
+	if h.closing {
 		return
 	}
-	var torrents []*Torrent
-	h.access.Lock()
-	for _, t := range h.torrents {
-		torrents = append(torrents, t)
-	}
-	h.access.Unlock()
-	for _, t := range torrents {
+	h.torrents.Range(func(_, v interface{}) bool {
+		t := v.(*Torrent)
 		if fork {
 			go visit(t)
 		} else {
 			visit(t)
 		}
-	}
+		return false
+	})
 }
 
 func (h *Holder) ForEachTorrent(visit func(*Torrent)) {
@@ -81,19 +66,15 @@ func (h *Holder) ForEachTorrentParallel(visit func(*Torrent)) {
 // find a torrent by infohash
 // returns nil if we don't have a torrent with this infohash
 func (h *Holder) GetTorrent(ih common.Infohash) (t *Torrent) {
-
-	h.access.Lock()
-	t, _ = h.torrents[ih.Hex()]
-	h.access.Unlock()
+	v, ok := h.torrents.Load(ih.Hex())
+	if ok {
+		t = v.(*Torrent)
+	}
 	return
 }
 
 func (h *Holder) VisitTorrent(ih common.Infohash, visit func(*Torrent)) {
-	var t *Torrent
-	h.access.Lock()
-	t, _ = h.torrents[ih.Hex()]
-	h.access.Unlock()
-	visit(t)
+	visit(h.GetTorrent(ih))
 }
 
 // implements io.Closer
@@ -102,24 +83,17 @@ func (h *Holder) Close() (err error) {
 		return
 	}
 	var wg sync.WaitGroup
-	var torrents []string
 	h.closing = true
-	h.access.Lock()
-	for n := range h.torrents {
-		torrents = append(torrents, n)
-	}
-	h.access.Unlock()
-	for _, n := range torrents {
+	h.torrents.Range(func(k, v interface{}) bool {
+		t := v.(*Torrent)
 		wg.Add(1)
-		go func(name string) {
-			h.access.Lock()
-			t := h.torrents[name]
-			delete(h.torrents, name)
-			h.access.Unlock()
+		go func() {
 			t.Stop()
-			wg.Done()
-		}(n)
-	}
+			h.torrents.Delete(k)
+			wg.Add(-1)
+		}()
+		return false
+	})
 	wg.Wait()
 	return
 }
