@@ -498,17 +498,17 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 		return
 	}
 	if t.metaInfo != nil && !t.Ready() {
-		log.Debugf("put info slice idx=%d", idx)
+		log.Debugf("put info slice idx=%d len=%d", idx, len(data))
 		t.pendingInfoBF.Set(idx)
 		copy(t.metaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
-			log.Debug("got all info slices")
+			t.puttingMetaInfo = true
+			log.Debugf("got all info slices: %q", t.metaInfo)
 			r := bytes.NewReader(t.metaInfo)
 			var info metainfo.Info
 			err := bencode.NewDecoder(r).Decode(&info)
 			if err == nil {
 				log.Info("putting metainfo")
-				t.puttingMetaInfo = true
 				err = t.st.PutInfo(info)
 			}
 			if err == nil {
@@ -519,6 +519,7 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 					p.Close()
 				})
 			} else {
+				t.puttingMetaInfo = false
 				log.Errorf("failed to get meta info %s", err.Error())
 				t.resetPendingInfo()
 			}
@@ -668,7 +669,7 @@ func (t *Torrent) run() {
 			counter++
 			if t.Ready() {
 				continue
-			} else if counter%90 == 0 && !t.puttingMetaInfo {
+			} else if counter%90 == 0 && !t.puttingMetaInfo && t.metaInfo != nil {
 				// reset pending info if we can't fetch it fast enough
 				t.resetPendingInfo()
 			}
