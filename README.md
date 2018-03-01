@@ -17,7 +17,7 @@ Current:
 
 * i2p only, no chances of cross network contamination, aka no way to leak IP.
 * works with [i2pd](https://github.com/purplei2p/i2pd) and Java I2P using the SAM api
-* Magnet URI
+* Magnet URIs
 
 Soon:
 
