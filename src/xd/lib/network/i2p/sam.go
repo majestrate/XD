@@ -186,7 +186,7 @@ func (s *samSession) Lookup(name, port string) (a net.Addr, err error) {
 
 func (s *samSession) createStreamSession() (err error) {
 	// try opening if this session isn't already open
-	optsstr := "inbound.name=XD"
+	optsstr := " inbound.name=XD"
 	if s.opts != nil {
 		for k, v := range s.opts {
 			optsstr += fmt.Sprintf(" %s=%s", k, v)
