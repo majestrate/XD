@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const SigType = 7
+
 // a destination keypair file
 type Keyfile struct {
 	privkey string
@@ -67,7 +69,7 @@ func (k *Keyfile) ensure(nc net.Conn) (err error) {
 	}
 	if os.IsNotExist(err) || len(k.fname) == 0 {
 		// no keyfile
-		_, err = fmt.Fprintf(nc, "DEST GENERATE\n")
+		_, err = fmt.Fprintf(nc, "DEST GENERATE SIGNATURE_TYPE=%d\n", SigType)
 		r := bufio.NewReader(nc)
 		var line string
 		line, err = r.ReadString(10)
