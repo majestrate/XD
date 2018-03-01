@@ -2,8 +2,9 @@ package extensions
 
 import (
 	"bytes"
-
 	"github.com/zeebo/bencode"
+	"io"
+	"xd/lib/util"
 )
 
 // UTMetaData is the bittorrent extension for ut_metadata
@@ -31,19 +32,16 @@ func ParseMetadata(buff []byte) (md MetaData, err error) {
 	r := bytes.NewReader(buff)
 	err = bencode.NewDecoder(r).Decode(&md)
 	if err == nil && md.Size > 0 {
-		sz := md.Size
-		for sz > (16 * 1024) {
-			sz -= 16 * 1024
-		}
-		md.Data = make([]byte, sz)
-		copy(md.Data, buff[len(buff)-int(sz):])
+		b := new(util.Buffer)
+		io.Copy(b, r)
+		md.Data = b.Bytes()
 	}
 	return
 }
 
 // Bytes serializes a MetaData to byteslice
 func (md MetaData) Bytes() []byte {
-	buff := new(bytes.Buffer)
+	buff := new(util.Buffer)
 	if md.Type == UTData {
 		bencode.NewEncoder(buff).Encode(md)
 		buff.Write(md.Data)

@@ -334,6 +334,7 @@ func (c *PeerConn) metaInfoDownload() {
 				l = 1 + (l / (16 * 1024))
 				log.Debugf("bitfield is %d bits", l)
 				c.t.pendingInfoBF = bittorrent.NewBitfield(l, nil)
+				c.t.requestingInfoBF = bittorrent.NewBitfield(l, nil)
 			} else {
 				log.Debugf("metainfo len=%d", len(c.t.metaInfo))
 			}
@@ -547,6 +548,7 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 			}
 		} else if msg.Type == extensions.UTReject {
 			log.Debugf("ut_metadata rejected from %s", c.id.String())
+			c.t.requestingInfoBF.Unset(msg.Piece)
 			c.askNextMetadata(m.ID)
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {

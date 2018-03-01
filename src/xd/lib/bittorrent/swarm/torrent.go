@@ -32,36 +32,38 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	Completed      func()
-	Started        func()
-	Stopped        func()
-	RemoveSelf     func()
-	netacces       sync.Mutex
-	suspended      bool
-	netContext     network.Network
-	Trackers       map[string]tracker.Announcer
-	announcers     map[string]*torrentAnnounce
-	announceMtx    sync.Mutex
-	announceTicker *time.Ticker
-	id             common.PeerID
-	st             storage.Torrent
-	obconns        map[string]*PeerConn
-	ibconns        map[string]*PeerConn
-	connMtx        sync.Mutex
-	pt             *pieceTracker
-	defaultOpts    extensions.Message
-	closing        bool
-	started        bool
-	MaxRequests    int
-	MaxPeers       uint
-	pexState       PEXSwarmState
-	xdht           *dht.XDHT
-	statsTracker   *stats.Tracker
-	tx             uint64
-	rx             uint64
-	seeding        bool
-	metaInfo       []byte
-	pendingInfoBF  *bittorrent.Bitfield
+	Completed        func()
+	Started          func()
+	Stopped          func()
+	RemoveSelf       func()
+	netacces         sync.Mutex
+	suspended        bool
+	netContext       network.Network
+	Trackers         map[string]tracker.Announcer
+	announcers       map[string]*torrentAnnounce
+	announceMtx      sync.Mutex
+	announceTicker   *time.Ticker
+	id               common.PeerID
+	st               storage.Torrent
+	obconns          map[string]*PeerConn
+	ibconns          map[string]*PeerConn
+	connMtx          sync.Mutex
+	pt               *pieceTracker
+	defaultOpts      extensions.Message
+	closing          bool
+	started          bool
+	MaxRequests      int
+	MaxPeers         uint
+	pexState         PEXSwarmState
+	xdht             *dht.XDHT
+	statsTracker     *stats.Tracker
+	tx               uint64
+	rx               uint64
+	seeding          bool
+	metaInfo         []byte
+	pendingInfoBF    *bittorrent.Bitfield
+	requestingInfoBF *bittorrent.Bitfield
+	puttingMetaInfo  bool
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -478,33 +480,53 @@ func (t *Torrent) hasAllPendingInfo() bool {
 }
 
 func (t *Torrent) resetPendingInfo() {
+	t.requestingInfoBF = bittorrent.NewBitfield(t.requestingInfoBF.Length, nil)
 	t.pendingInfoBF = bittorrent.NewBitfield(t.pendingInfoBF.Length, nil)
 	t.metaInfo = make([]byte, len(t.metaInfo))
+	t.VisitPeers(func(c *PeerConn) {
+		if c.theirOpts.MetaData() {
+			id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
+			if ok {
+				c.askNextMetadata(uint8(id))
+			}
+		}
+	})
 }
 
 func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
+	if t.puttingMetaInfo {
+		return
+	}
 	if t.metaInfo != nil && !t.Ready() {
+		log.Debugf("put info slice idx=%d", idx)
 		t.pendingInfoBF.Set(idx)
 		copy(t.metaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
+			log.Debug("got all info slices")
 			r := bytes.NewReader(t.metaInfo)
 			var info metainfo.Info
 			err := bencode.NewDecoder(r).Decode(&info)
 			if err == nil {
+				log.Info("putting metainfo")
+				t.puttingMetaInfo = true
 				err = t.st.PutInfo(info)
 			}
 			if err == nil {
 				// reset
+				sz := uint32(len(t.metaInfo))
+				t.defaultOpts.MetainfoSize = &sz
 				t.VisitPeers(func(p *PeerConn) {
 					p.Close()
 				})
-				sz := uint32(len(t.metaInfo))
-				t.defaultOpts.MetainfoSize = &sz
 			} else {
 				log.Errorf("failed to get meta info %s", err.Error())
 				t.resetPendingInfo()
 			}
+		} else {
+			log.Debug("need more info slices")
 		}
+	} else {
+		log.Debug("unwarrented metainfo slice")
 	}
 }
 
@@ -512,13 +534,14 @@ func (t *Torrent) nextMetaInfoReq() *uint32 {
 	if t.Ready() {
 		return nil
 	}
-	if t.metaInfo == nil || t.pendingInfoBF == nil {
+	if t.metaInfo == nil || t.pendingInfoBF == nil || t.requestingInfoBF == nil {
 		log.Debug("no bitfield or metainfo")
 		return nil
 	}
 	var i uint32
-	for i < uint32(len(t.metaInfo)/(1024*16)) {
-		if !t.pendingInfoBF.Has(i) {
+	for i < uint32(len(t.metaInfo)/(1024*16))+1 {
+		if (!t.pendingInfoBF.Has(i)) && (!t.requestingInfoBF.Has(i)) {
+			t.requestingInfoBF.Set(i)
 			return &i
 		}
 		i++
@@ -637,9 +660,18 @@ func (t *Torrent) run() {
 	} else {
 		go t.pexBroadcastLoop()
 	}
+	counter := 0
 	for !t.closing {
 		if !t.Ready() {
 			time.Sleep(time.Second)
+			// reset pending info if we can't fetch it fast enough
+			counter++
+			if t.Ready() {
+				continue
+			} else if counter%90 == 0 && !t.puttingMetaInfo {
+				// reset pending info if we can't fetch it fast enough
+				t.resetPendingInfo()
+			}
 			continue
 		}
 		if t.Done() {
