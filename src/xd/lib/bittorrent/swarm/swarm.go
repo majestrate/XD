@@ -126,7 +126,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 			c.Close()
 			return
 		}
-		var opts *extensions.Message
+		var opts extensions.Message
 		if h.Reserved.Has(bittorrent.Extension) {
 			if t.Ready() {
 				opts = extensions.NewOur(uint32(len(t.metaInfo)))

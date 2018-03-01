@@ -32,8 +32,8 @@ type PeerConn struct {
 	lastRecv            time.Time
 	rx                  *util.Rate
 	downloading         []common.PieceRequest
-	ourOpts             *extensions.Message
-	theirOpts           *extensions.Message
+	ourOpts             extensions.Message
+	theirOpts           extensions.Message
 	MaxParalellRequests int
 	access              sync.Mutex
 }
@@ -48,7 +48,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	return
 }
 
-func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts *extensions.Message) *PeerConn {
+func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.Message) *PeerConn {
 	p := new(PeerConn)
 	p.c = c
 	p.t = t
@@ -378,18 +378,14 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.checkInterested()
 			if isnew {
 				c.Unchoke()
-				if c.ourOpts != nil {
-					c.Send(c.ourOpts.ToWireMessage())
-				}
+				c.Send(c.ourOpts.ToWireMessage())
 			}
 		} else {
 			// empty bitfield
 			bits := make([]byte, len(msg.Payload()))
 			c.Send(common.NewWireMessage(common.BitField, bits))
-			if c.ourOpts != nil {
-				c.Send(c.ourOpts.ToWireMessage())
-				c.metaInfoDownload()
-			}
+			c.Send(c.ourOpts.ToWireMessage())
+			c.metaInfoDownload()
 		}
 		if isnew {
 			if c.t.Ready() {
@@ -436,11 +432,11 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Extended {
 		// handle extended options
-		opts := extensions.FromWireMessage(msg)
-		if opts == nil {
-			log.Warnf("failed to parse extended options for %s", c.id.String())
-		} else {
+		opts, err := extensions.FromWireMessage(msg)
+		if err == nil {
 			c.handleExtendedOpts(opts)
+		} else {
+			log.Warnf("failed to parse extended options for %s, %s", c.id.String(), err.Error())
 		}
 	}
 	return
@@ -485,9 +481,6 @@ func (c *PeerConn) handlePEXAddedf(m interface{}) {
 }
 
 func (c *PeerConn) SupportsPEX() bool {
-	if c.theirOpts == nil {
-		return false
-	}
 	return c.theirOpts.PEX()
 }
 
@@ -497,39 +490,31 @@ func (c *PeerConn) sendPEX(connected, disconnected []byte) {
 	c.Send(msg.ToWireMessage())
 }
 
-func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
+func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
 	log.Debugf("got extended opts from %s: %q", c.id.String(), opts)
 	if opts.ID == 0 {
 		// handshake
-		if c.theirOpts == nil {
-			c.theirOpts = opts.Copy()
-		} else {
-			log.Warnf("got multiple extended option handshakes from %s", c.id.String())
-		}
+		c.theirOpts = opts.Copy()
 	} else {
-		// extended data
-		if c.ourOpts == nil {
-			log.Warnf("%s gave unexpected extended message %d", c.id.String(), opts.ID)
-		} else {
-			// lookup the extension number
-			ext, ok := c.ourOpts.Lookup(opts.ID)
-			if ok {
-				if ext == extensions.PeerExchange.String() {
-					// this is PEX message
-					c.handlePEX(opts.Payload)
-				} else if ext == extensions.XDHT.String() {
-					// xdht message
-					err := c.t.xdht.HandleMessage(opts, c.id)
-					if err != nil {
-						log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
-					}
-				} else if ext == extensions.UTMetaData.String() {
-					c.handleMetadata(opts)
+		// lookup the extension number
+		ext, ok := c.ourOpts.Lookup(opts.ID)
+		if ok {
+			if ext == extensions.PeerExchange.String() {
+				// this is PEX message
+				c.handlePEX(opts.Payload)
+			} else if ext == extensions.XDHT.String() {
+				// xdht message
+				err := c.t.xdht.HandleMessage(opts, c.id)
+				if err != nil {
+					log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
 				}
-			} else {
-				log.Warnf("peer %s gave us extension for message we do not have id=%d", c.id.String(), opts.ID)
+			} else if ext == extensions.UTMetaData.String() {
+				c.handleMetadata(opts)
 			}
+		} else {
+			log.Warnf("peer %s gave us extension for message we do not have id=%d", c.id.String(), opts.ID)
 		}
+
 	}
 }
 
@@ -551,7 +536,7 @@ func (c *PeerConn) askNextMetadata(id uint8) {
 	}
 }
 
-func (c *PeerConn) handleMetadata(m *extensions.Message) {
+func (c *PeerConn) handleMetadata(m extensions.Message) {
 	msg, err := extensions.ParseMetadata(m.PayloadRaw)
 	if err == nil {
 		if msg.Type == extensions.UTData {
@@ -581,7 +566,8 @@ func (c *PeerConn) handleMetadata(m *extensions.Message) {
 			} else {
 				msg.Type = extensions.UTReject
 			}
-			m = &extensions.Message{ID: m.ID, PayloadRaw: msg.Bytes()}
+			m.Payload = nil
+			m.PayloadRaw = msg.Bytes()
 			c.Send(m.ToWireMessage())
 		}
 	} else {

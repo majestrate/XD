@@ -14,7 +14,7 @@ func (dht *XDHT) HandleError(code, msg interface{}) {
 
 }
 
-func (dht *XDHT) HandleMessage(msg *extensions.Message, src common.PeerID) (err error) {
+func (dht *XDHT) HandleMessage(msg extensions.Message, src common.PeerID) (err error) {
 	r := bytes.NewReader(msg.PayloadRaw)
 	var dhtmsg Message
 	err = bencode.NewDecoder(r).Decode(&dhtmsg)

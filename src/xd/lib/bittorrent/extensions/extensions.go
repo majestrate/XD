@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"errors"
 	"github.com/zeebo/bencode"
 	"xd/lib/common"
 	"xd/lib/log"
@@ -34,17 +35,17 @@ type Message struct {
 }
 
 // PEX returns true if PEX is supported
-func (opts *Message) PEX() bool {
+func (opts Message) PEX() bool {
 	return opts.IsSupported(PeerExchange.String())
 }
 
 // XDHT returns true if XHDT is supported
-func (opts *Message) XDHT() bool {
+func (opts Message) XDHT() bool {
 	return opts.IsSupported(XDHT.String())
 }
 
 // MetaData returns true if ut_metadata is supported
-func (opts *Message) MetaData() bool {
+func (opts Message) MetaData() bool {
 	return opts.IsSupported(UTMetaData.String())
 }
 
@@ -55,7 +56,7 @@ func (opts *Message) SetSupported(ext Extension) {
 }
 
 // IsSupported returns true if an extension by its name is supported
-func (opts *Message) IsSupported(ext string) (has bool) {
+func (opts Message) IsSupported(ext string) (has bool) {
 	if opts.Extensions != nil {
 		_, has = opts.Extensions[ext]
 	}
@@ -63,7 +64,7 @@ func (opts *Message) IsSupported(ext string) (has bool) {
 }
 
 // Lookup finds the extension name of the extension by id
-func (opts *Message) Lookup(id uint8) (string, bool) {
+func (opts Message) Lookup(id uint8) (string, bool) {
 	for k, v := range opts.Extensions {
 		if v == uint32(id) {
 			return k, true
@@ -73,12 +74,12 @@ func (opts *Message) Lookup(id uint8) (string, bool) {
 }
 
 // Copy makes a copy of this Message
-func (opts *Message) Copy() *Message {
+func (opts Message) Copy() Message {
 	ext := make(map[string]uint32)
 	for k, v := range opts.Extensions {
 		ext[k] = v
 	}
-	m := &Message{
+	m := Message{
 		ID:           opts.ID,
 		Version:      opts.Version,
 		Extensions:   ext,
@@ -93,7 +94,7 @@ func (opts *Message) Copy() *Message {
 }
 
 // ToWireMessage serializes this ExtendedOptions to a BitTorrent wire message
-func (opts *Message) ToWireMessage() common.WireMessage {
+func (opts Message) ToWireMessage() common.WireMessage {
 	var body []byte
 	if opts.ID == 0 {
 		var b util.Buffer
@@ -114,16 +115,16 @@ func (opts *Message) ToWireMessage() common.WireMessage {
 }
 
 // New creates new valid Message instance
-func New() *Message {
-	return &Message{
+func New() Message {
+	return Message{
 		Version:    version.Version(),
 		Extensions: make(map[string]uint32),
 	}
 }
 
 // NewOur creates a new Message instance with metadata size set
-func NewOur(sz uint32) *Message {
-	m := &Message{
+func NewOur(sz uint32) Message {
+	m := Message{
 		Version:    version.Version(),
 		Extensions: extensionDefaults,
 	}
@@ -134,7 +135,7 @@ func NewOur(sz uint32) *Message {
 }
 
 // NewPEX creates a new PEX message for i2p peers
-func NewPEX(id uint8, connected, disconnected []byte) *Message {
+func NewPEX(id uint8, connected, disconnected []byte) Message {
 	payload := map[string]interface{}{
 		"added":   connected,
 		"dropped": disconnected,
@@ -145,24 +146,31 @@ func NewPEX(id uint8, connected, disconnected []byte) *Message {
 	return msg
 }
 
+var ErrInvalidSize = errors.New("invalid message size")
+var ErrInvalidMessageID = errors.New("invalid message id")
+
 // FromWireMessage loads an ExtendedOptions messgae from a BitTorrent wire message
-func FromWireMessage(msg common.WireMessage) (opts *Message) {
+func FromWireMessage(msg common.WireMessage) (opts Message, err error) {
 	if msg.MessageID() == common.Extended {
 		payload := msg.Payload()
 		if len(payload) > 1 {
-			opts = &Message{
+			opts = Message{
 				ID:         payload[0],
 				PayloadRaw: payload[1:],
 			}
 			if opts.ID == 0 {
 				// handshake
-				bencode.DecodeBytes(opts.PayloadRaw, opts)
+				bencode.DecodeBytes(opts.PayloadRaw, &opts)
 				// clear out raw payload because handshake
 				opts.PayloadRaw = nil
 			} else {
 				bencode.DecodeBytes(opts.PayloadRaw, &opts.Payload)
 			}
+		} else {
+			err = ErrInvalidSize
 		}
+	} else {
+		err = ErrInvalidMessageID
 	}
 	return
 }
