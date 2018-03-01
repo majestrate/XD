@@ -517,12 +517,11 @@ func (t *Torrent) nextMetaInfoReq() *uint32 {
 		return nil
 	}
 	var i uint32
-	for i <= uint32(len(t.metaInfo)/(1024*16)) {
-		if t.pendingInfoBF.Has(i) {
-			i++
-		} else {
+	for i < uint32(len(t.metaInfo)/(1024*16)) {
+		if !t.pendingInfoBF.Has(i) {
 			return &i
 		}
+		i++
 	}
 	return nil
 }
@@ -537,7 +536,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 	if err == nil {
 		// connected
 		// build handshake
-		h := new(bittorrent.Handshake)
+		var h bittorrent.Handshake
 		// enable bittorrent extensions
 		h.Reserved.Set(bittorrent.Extension)
 		copy(h.Infohash[:], ih[:])

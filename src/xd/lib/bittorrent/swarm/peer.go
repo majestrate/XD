@@ -98,14 +98,13 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 			return
 		}
 		log.Debugf("writing %d bytes", msg.Len())
-		err := msg.Send(c.c)
+		err := util.WriteFull(c.c, msg)
 		if err == nil {
 			if msg.MessageID() == common.Piece {
 				n := uint64(msg.Len())
 				c.tx.AddSample(n)
 				c.t.statsTracker.AddSample(RateUpload, n)
 			}
-			log.Debugf("wrote message %s %d bytes", msg.MessageID(), msg.Len())
 		} else {
 			log.Debugf("write error: %s", err.Error())
 		}
@@ -534,6 +533,24 @@ func (c *PeerConn) handleExtendedOpts(opts *extensions.Message) {
 	}
 }
 
+func (c *PeerConn) askNextMetadata(id uint8) {
+	r := c.t.nextMetaInfoReq()
+	if r != nil {
+		var m extensions.Message
+		var msg extensions.MetaData
+		msg.Type = extensions.UTRequest
+		msg.Data = nil
+		msg.Size = 0
+		msg.Piece = *r
+		m.ID = id
+		m.PayloadRaw = msg.Bytes()
+		log.Debugf("asking for info piece %d", msg.Piece)
+		c.Send(m.ToWireMessage())
+	} else {
+		log.Debug("no more info pieces required")
+	}
+}
+
 func (c *PeerConn) handleMetadata(m *extensions.Message) {
 	msg, err := extensions.ParseMetadata(m.PayloadRaw)
 	if err == nil {
@@ -541,21 +558,11 @@ func (c *PeerConn) handleMetadata(m *extensions.Message) {
 			log.Debugf("got UTData: piece %d", msg.Piece)
 			if !c.t.Ready() && msg.Size > 0 {
 				c.t.putInfoSlice(msg.Piece, msg.Data)
-				r := c.t.nextMetaInfoReq()
-				if r != nil {
-					msg.Type = extensions.UTRequest
-					msg.Data = nil
-					msg.Size = 0
-					msg.Piece = *r
-					m = &extensions.Message{ID: m.ID, PayloadRaw: msg.Bytes()}
-					log.Debugf("asking for info piece %d", msg.Piece)
-					c.Send(m.ToWireMessage())
-				} else {
-					log.Debug("no more info pieces required")
-				}
+				c.askNextMetadata(m.ID)
 			}
 		} else if msg.Type == extensions.UTReject {
-
+			log.Debugf("ut_metadata rejected from %s", c.id.String())
+			c.askNextMetadata(m.ID)
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {
 				idx := msg.Piece * (16 * 1024)

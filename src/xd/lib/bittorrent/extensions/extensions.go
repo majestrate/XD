@@ -1,12 +1,11 @@
 package extensions
 
 import (
-	"bytes"
+	"github.com/zeebo/bencode"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/util"
 	"xd/lib/version"
-
-	"github.com/zeebo/bencode"
 )
 
 // Extension is a bittorrent extenension string
@@ -79,28 +78,39 @@ func (opts *Message) Copy() *Message {
 	for k, v := range opts.Extensions {
 		ext[k] = v
 	}
-	return &Message{
+	m := &Message{
 		ID:           opts.ID,
 		Version:      opts.Version,
 		Extensions:   ext,
 		Payload:      opts.Payload,
 		MetainfoSize: opts.MetainfoSize,
 	}
+	if opts.PayloadRaw != nil {
+		m.PayloadRaw = make([]byte, len(opts.PayloadRaw))
+		copy(m.PayloadRaw, opts.PayloadRaw)
+	}
+	return m
 }
 
 // ToWireMessage serializes this ExtendedOptions to a BitTorrent wire message
 func (opts *Message) ToWireMessage() common.WireMessage {
-	b := new(bytes.Buffer)
-	b.Write([]byte{opts.ID})
+	var body []byte
 	if opts.ID == 0 {
-		bencode.NewEncoder(b).Encode(opts)
+		var b util.Buffer
+		bencode.NewEncoder(&b).Encode(opts)
+		body = b.Bytes()
 	} else if opts.Payload != nil {
-		bencode.NewEncoder(b).Encode(opts.Payload)
+		var b util.Buffer
+		bencode.NewEncoder(&b).Encode(opts.Payload)
+		body = b.Bytes()
 	} else if opts.PayloadRaw != nil {
-		b.Write(opts.PayloadRaw)
+		body = opts.PayloadRaw
+	} else {
+		// wtf? invalid message
+		log.Errorf("cannot create invalid extended message: %q", opts)
+		return nil
 	}
-	log.Debugf("extended bytes %q", b.Bytes())
-	return common.NewWireMessage(common.Extended, b.Bytes())
+	return common.NewWireMessage(common.Extended, []byte{opts.ID}, body)
 }
 
 // New creates new valid Message instance
@@ -139,16 +149,16 @@ func NewPEX(id uint8, connected, disconnected []byte) *Message {
 func FromWireMessage(msg common.WireMessage) (opts *Message) {
 	if msg.MessageID() == common.Extended {
 		payload := msg.Payload()
-		if len(payload) > 0 {
-			body := make([]byte, len(payload))
-			copy(body, payload)
+		if len(payload) > 1 {
 			opts = &Message{
-				ID:         body[0],
-				PayloadRaw: body[1:],
+				ID:         payload[0],
+				PayloadRaw: payload[1:],
 			}
 			if opts.ID == 0 {
 				// handshake
 				bencode.DecodeBytes(opts.PayloadRaw, opts)
+				// clear out raw payload because handshake
+				opts.PayloadRaw = nil
 			} else {
 				bencode.DecodeBytes(opts.PayloadRaw, &opts.Payload)
 			}

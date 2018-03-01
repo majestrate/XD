@@ -89,16 +89,26 @@ func (msg *WireMessage) Reset() {
 // KeepAlive makes a WireMessage of size 0
 var KeepAlive = WireMessage([]byte{0, 0, 0, 0})
 
-// NewWireMessage creates new wire message with id and body
-func NewWireMessage(id WireMessageType, body []byte) (msg WireMessage) {
-	if body == nil {
-		body = []byte{}
+// NewWireMessage creates new wire message with id and many byteslices for the body
+func NewWireMessage(id WireMessageType, bodyParts ...[]byte) (msg WireMessage) {
+	var body [][]byte
+	if bodyParts == nil {
+		body = [][]byte{}
+	} else {
+		body = bodyParts
 	}
-	l := len(body) + 1
+	l := uint32(1)
+	for idx := range body {
+		l += uint32(len(body[idx]))
+	}
 	msg = make([]byte, 4+l)
-	binary.BigEndian.PutUint32(msg[:], uint32(l))
+	binary.BigEndian.PutUint32(msg[:], l)
 	msg[4] = id.Byte()
-	copy(msg[5:], body)
+	i := 5
+	for idx := range body {
+		copy(msg[i:], body[idx][:])
+		i += len(body[idx])
+	}
 	return
 }
 
@@ -109,9 +119,9 @@ const MaxWireMessageSize = 32 * 1024
 func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
 	var msg [MaxWireMessageSize + 4]byte
 	for err == nil {
-		data := msg[:4]
-		_, err = io.ReadFull(r, data)
-		l := binary.BigEndian.Uint32(data)
+		hdr := msg[:4]
+		_, err = io.ReadFull(r, hdr)
+		l := binary.BigEndian.Uint32(hdr)
 		if l > 0 {
 			if l > MaxWireMessageSize {
 				log.Warnf("message too big, discarding %d bytes", l)
@@ -131,7 +141,7 @@ func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
 
 // KeepAlive returns true if this message is a keepalive message
 func (msg WireMessage) KeepAlive() bool {
-	return msg.Len() == 0
+	return len(msg) == 4
 }
 
 // Len returns the length of the body of this message
@@ -158,28 +168,21 @@ func (msg WireMessage) MessageID() WireMessageType {
 
 var ErrToBig = errors.New("message too big")
 
-// Send writes WireMessage via writer
-func (msg WireMessage) Send(w io.Writer) (err error) {
-	err = util.WriteFull(w, msg[:])
-	return
-}
-
 // ToWireMessage serialize to BitTorrent wire message
-func (p *PieceData) ToWireMessage() WireMessage {
-	buff := make([]byte, 8+len(p.Data))
+func (p PieceData) ToWireMessage() WireMessage {
+	var buff [8]byte
 	binary.BigEndian.PutUint32(buff[:], p.Index)
 	binary.BigEndian.PutUint32(buff[4:], p.Begin)
-	copy(buff[8:], p.Data[:])
-	return NewWireMessage(Piece, buff)
+	return NewWireMessage(Piece, buff[:], p.Data)
 }
 
 // ToWireMessage serialize to BitTorrent wire message
-func (req *PieceRequest) ToWireMessage() WireMessage {
-	body := make([]byte, 12)
+func (req PieceRequest) ToWireMessage() WireMessage {
+	var body [12]byte
 	binary.BigEndian.PutUint32(body[:], req.Index)
 	binary.BigEndian.PutUint32(body[4:], req.Begin)
 	binary.BigEndian.PutUint32(body[8:], req.Length)
-	return NewWireMessage(Request, body)
+	return NewWireMessage(Request, body[:])
 }
 
 // VisitPieceData gets this wire message as a PieceData if applicable
@@ -212,7 +215,7 @@ func (msg WireMessage) GetPieceRequest() (req PieceRequest) {
 }
 
 // GetHave gets the piece index of a have message
-func (msg *WireMessage) GetHave() (h uint32) {
+func (msg WireMessage) GetHave() (h uint32) {
 	if msg.MessageID() == Have {
 		data := msg.Payload()
 		if len(data) == 4 {
@@ -224,9 +227,9 @@ func (msg *WireMessage) GetHave() (h uint32) {
 
 // NewHave creates a new have message
 func NewHave(idx uint32) WireMessage {
-	body := make([]byte, 4)
+	var body [4]byte
 	binary.BigEndian.PutUint32(body[:], idx)
-	return NewWireMessage(Have, body)
+	return NewWireMessage(Have, body[:])
 }
 
 // NewNotInterested creates a new NotInterested message
@@ -240,9 +243,9 @@ func NewInterested() WireMessage {
 }
 
 func NewCancel(idx, offset, length uint32) WireMessage {
-	body := make([]byte, 12)
+	var body [12]byte
 	binary.BigEndian.PutUint32(body[:], idx)
 	binary.BigEndian.PutUint32(body[4:], offset)
 	binary.BigEndian.PutUint32(body[8:], length)
-	return NewWireMessage(Cancel, body)
+	return NewWireMessage(Cancel, body[:])
 }
