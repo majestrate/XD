@@ -549,7 +549,6 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 		} else if msg.Type == extensions.UTReject {
 			log.Debugf("ut_metadata rejected from %s", c.id.String())
 			c.t.requestingInfoBF.Unset(msg.Piece)
-			c.askNextMetadata(m.ID)
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {
 				idx := msg.Piece * (16 * 1024)
