@@ -65,7 +65,7 @@ func (m *Map) Range(f func(key, value interface{}) bool) {
 	}
 	m.access.Unlock()
 	for k := range mcopy {
-		if f(k, mcopy[k]) {
+		if !f(k, mcopy[k]) {
 			return
 		}
 	}

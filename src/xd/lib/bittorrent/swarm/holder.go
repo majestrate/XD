@@ -51,7 +51,7 @@ func (h *Holder) forEachTorrent(visit func(*Torrent), fork bool) {
 		} else {
 			visit(t)
 		}
-		return false
+		return true
 	})
 }
 
