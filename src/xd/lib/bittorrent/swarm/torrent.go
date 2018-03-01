@@ -483,6 +483,10 @@ func (t *Torrent) resetPendingInfo() {
 	t.requestingInfoBF = bittorrent.NewBitfield(t.requestingInfoBF.Length, nil)
 	t.pendingInfoBF = bittorrent.NewBitfield(t.pendingInfoBF.Length, nil)
 	t.metaInfo = make([]byte, len(t.metaInfo))
+	t.askAllMetadata()
+}
+
+func (t *Torrent) askAllMetadata() {
 	t.VisitPeers(func(c *PeerConn) {
 		if c.theirOpts.MetaData() {
 			id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
@@ -672,6 +676,7 @@ func (t *Torrent) run() {
 			} else if counter%30 == 0 && !t.puttingMetaInfo && t.requestingInfoBF != nil {
 				// reset requesting info if we can't fetch it fast enough
 				t.requestingInfoBF = bittorrent.NewBitfield(t.requestingInfoBF.Length, nil)
+				t.askAllMetadata()
 			}
 			continue
 		}
