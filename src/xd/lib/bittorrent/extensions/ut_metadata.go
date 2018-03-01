@@ -3,7 +3,6 @@ package extensions
 import (
 	"bytes"
 	"github.com/zeebo/bencode"
-	"io"
 	"xd/lib/util"
 )
 
@@ -30,11 +29,11 @@ type MetaData struct {
 // ParseMetadata parses a MetaData from a byteslice
 func ParseMetadata(buff []byte) (md MetaData, err error) {
 	r := bytes.NewReader(buff)
-	err = bencode.NewDecoder(r).Decode(&md)
+	d := bencode.NewDecoder(r)
+	err = d.Decode(&md)
 	if err == nil && md.Size > 0 {
-		b := new(util.Buffer)
-		io.Copy(b, r)
-		md.Data = b.Bytes()
+		l := d.BytesParsed()
+		md.Data = buff[l:]
 	}
 	return
 }
