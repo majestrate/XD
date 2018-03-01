@@ -8,3 +8,6 @@ const XSRFToken = "X-Transmission-Session-Id"
 
 // RPCPath is the url path for rpc
 const RPCPath = "/transmission/rpc"
+
+// ContentType is the content type for responses
+const ContentType = "text/json; encoding=UTF-8"

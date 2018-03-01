@@ -2,6 +2,8 @@ package transmission
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"time"
 	"xd/lib/bittorrent/swarm"
@@ -22,9 +24,10 @@ func newToken() *xsrfToken {
 }
 
 type Server struct {
-	swarms    []*swarm.Swarm
+	sw        *swarm.Swarm
 	tokens    sync.Map
 	nextToken *xsrfToken
+	handlers  map[string]Handler
 }
 
 func (s *Server) Error(w http.ResponseWriter, err error, tag Tag) {
@@ -76,18 +79,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req Request
+	var resp Response
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err == nil {
+		h, ok := s.handlers[req.Method]
+		if ok {
+			resp = h(req.Args)
+		}
+		resp.Tag = req.Tag
 	}
-	if err != nil {
+	if err == nil {
+		buff := new(util.Buffer)
+		w.Header().Set("Content-Type", ContentType)
+		json.NewEncoder(buff).Encode(resp)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", buff.Len()))
+		io.Copy(w, buff)
+	} else {
 		s.Error(w, err, req.Tag)
 	}
 	r.Body.Close()
 }
 
-func New(sw []*swarm.Swarm) *Server {
+func New(sw *swarm.Swarm) *Server {
 	return &Server{
-		swarms:    sw,
+		sw:        sw,
 		nextToken: newToken(),
+		handlers:  make(map[string]Handler),
 	}
 }

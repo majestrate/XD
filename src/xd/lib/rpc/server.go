@@ -33,14 +33,14 @@ func NewServer(sw []*swarm.Swarm, host string) *Server {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
-			trpc:         transmission.New(sw),
+			trpc:         transmission.New(sw[0]),
 		}
 	} else {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
 			fileserver:   http.FileServer(fs),
-			trpc:         transmission.New(sw),
+			trpc:         transmission.New(sw[0]),
 		}
 	}
 }
