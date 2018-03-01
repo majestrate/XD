@@ -669,9 +669,9 @@ func (t *Torrent) run() {
 			counter++
 			if t.Ready() {
 				continue
-			} else if counter%90 == 0 && !t.puttingMetaInfo && t.metaInfo != nil {
-				// reset pending info if we can't fetch it fast enough
-				t.resetPendingInfo()
+			} else if counter%30 == 0 && !t.puttingMetaInfo && t.requestingInfoBF != nil {
+				// reset requesting info if we can't fetch it fast enough
+				t.requestingInfoBF = bittorrent.NewBitfield(t.requestingInfoBF.Length, nil)
 			}
 			continue
 		}
