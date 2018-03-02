@@ -28,6 +28,10 @@ type fsTorrent struct {
 	dir string
 	// storage access mutex
 	access sync.Mutex
+	// set to true when we did a deep check
+	seeding bool
+	// seeding mutex
+	seedAccess sync.Mutex
 }
 
 func (t *fsTorrent) Delete() (err error) {
@@ -335,6 +339,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		}
 		idx++
 	}
+	t.seeding = t.bf.Completed()
 	t.bfmtx.Unlock()
 	log.Infof("local data check done for %s", t.Name())
 	err = t.Flush()
@@ -381,13 +386,19 @@ func (t *fsTorrent) FileList() (flist []string) {
 }
 
 func (t *fsTorrent) Seed() (seeding bool, err error) {
+	t.seedAccess.Lock()
+	defer t.seedAccess.Unlock()
+	if t.seeding {
+		seeding = true
+		return
+	}
 	err = t.VerifyAll()
 	if err == nil {
 		if t.dir != t.st.SeedingDir {
 			log.Infof("Moving downloaded data to %s", t.st.SeedingDir)
 			err = t.MoveTo(t.st.SeedingDir)
 		}
-		seeding = err == nil
+		seeding = t.seeding && err == nil
 	} else if err == common.ErrInvalidPiece {
 		log.Error("invalid pieces will redownload")
 		err = nil

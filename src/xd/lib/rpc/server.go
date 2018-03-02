@@ -83,6 +83,10 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				}
 				if err == nil {
 					switch method {
+					case RPCSwarmCount:
+						rr = &SwarmCountRequest{
+							N: len(r.sw),
+						}
 					case RPCChangeTorrent:
 						rr = &ChangeTorrentRequest{
 							Infohash: fmt.Sprintf("%s", body[ParamInfohash]),
