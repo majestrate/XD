@@ -55,6 +55,11 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			host = h
 		}
 
+		name, err := net.LookupHost(host)
+		if err == nil {
+			host = name[0]
+		}
+
 		if !(host == r.expectedHost || host == "localhost") {
 			w.WriteHeader(http.StatusForbidden)
 			fmt.Fprintf(w, "expected host %s but got %s", r.expectedHost, host)
