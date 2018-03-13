@@ -13,3 +13,5 @@ const RPCPath = "/transmission/rpc"
 const ContentType = "text/json; encoding=UTF-8"
 
 const notImplemented = "Not Implemented"
+
+const idRecentlyActive = "recently-active"

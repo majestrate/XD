@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"xd/lib/bittorrent/swarm"
+	"xd/lib/log"
 	"xd/lib/sync"
 	"xd/lib/util"
 )
@@ -53,9 +54,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var resp Response
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err == nil {
+		log.Debugf("trpc request: %q", req)
 		h, ok := s.handlers[req.Method]
 		if ok {
 			resp = h(s.sw, req.Args)
+			if resp.Result != Success {
+				log.Warnf("trpc error: %s", resp.Result)
+			}
 		}
 		resp.Tag = req.Tag
 	}

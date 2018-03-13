@@ -10,21 +10,7 @@ func TorrentGet(sw *swarm.Swarm, args Args) (resp Response) {
 	i_fields, ok := args["fields"]
 	var err error
 	if ok {
-		var ids TorrentIDArray
-		ids_i, ok := args["ids"]
-		if ok {
-			for _, id := range ids_i.([]interface{}) {
-				tid, ok := id.(int64)
-				if ok {
-					ids = append(ids, TorrentID(tid))
-				}
-			}
-		} else {
-			tids := sw.Torrents.TorrentIDs()
-			for tid := range tids {
-				ids = append(ids, TorrentID(tid))
-			}
-		}
+		ids := getTorrentIDs(sw.Torrents.TorrentIDs, args)
 		var torrents []tgResp
 
 		for _, id := range ids {
