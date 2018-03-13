@@ -154,9 +154,7 @@ func Run() {
 			l, e = net.Listen("tcp", conf.RPC.Bind)
 			closeSock = func() {
 			}
-			if e == nil {
-				host, _, _ = net.SplitHostPort(l.Addr().String())
-			}
+			host = conf.RPC.ExpectedHost
 		}
 		if e == nil {
 			closers = append(closers, l)

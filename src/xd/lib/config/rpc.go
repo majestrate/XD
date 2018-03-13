@@ -6,21 +6,27 @@ import (
 )
 
 type RPCConfig struct {
-	Enabled bool
-	Bind    string
+	Enabled      bool
+	Bind         string
+	ExpectedHost string
 	// TODO: authentication
 }
 
 const DefaultRPCAddr = "127.0.0.1:1488"
+const DefaultRPCHost = "127.0.0.1"
 
 func (cfg *RPCConfig) Load(s *configparser.Section) error {
 	if s != nil {
+		cfg.ExpectedHost = s.Get("host", DefaultRPCHost)
 		cfg.Bind = s.Get("bind", DefaultRPCAddr)
 		cfg.Enabled = s.Get("enabled", "1") == "1"
 	}
 	if cfg.Bind == "" {
 		cfg.Bind = DefaultRPCAddr
 		cfg.Enabled = true
+	}
+	if cfg.ExpectedHost == "" {
+		cfg.ExpectedHost = DefaultRPCHost
 	}
 	return nil
 }
@@ -36,6 +42,9 @@ func (cfg *RPCConfig) Save(s *configparser.Section) error {
 	if cfg.Bind != "" {
 		opts["bind"] = cfg.Bind
 	}
+	if cfg.ExpectedHost != "" {
+		opts["host"] = cfg.ExpectedHost
+	}
 
 	for k := range opts {
 		s.Add(k, opts[k])
@@ -45,10 +54,15 @@ func (cfg *RPCConfig) Save(s *configparser.Section) error {
 }
 
 const EnvRPCAddr = "XD_RPC_ADDRESS"
+const EnvRPCHost = "XD_RPC_HOST"
 
 func (cfg *RPCConfig) LoadEnv() {
 	addr := os.Getenv(EnvRPCAddr)
 	if addr != "" {
 		cfg.Bind = addr
+	}
+	host := os.Getenv(EnvRPCHost)
+	if host != "" {
+		cfg.ExpectedHost = host
 	}
 }
