@@ -21,6 +21,7 @@ type Server struct {
 
 func (s *Server) Error(w http.ResponseWriter, err error, tag Tag) {
 	w.WriteHeader(http.StatusOK)
+	log.Warnf("trpc error: %s", err.Error())
 	json.NewEncoder(w).Encode(Response{
 		Tag:    tag,
 		Result: err.Error(),
@@ -59,7 +60,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			resp = h(s.sw, req.Args)
 			if resp.Result != Success {
-				log.Warnf("trpc error: %s", resp.Result)
+				log.Warnf("trpc handler non success: %s", resp.Result)
 			}
 		}
 		resp.Tag = req.Tag
@@ -68,6 +69,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		buff := new(util.Buffer)
 		w.Header().Set("Content-Type", ContentType)
 		json.NewEncoder(buff).Encode(resp)
+		log.Debugf("trpc response: %s", buff.String())
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", buff.Len()))
 		io.Copy(w, buff)
 	} else {
