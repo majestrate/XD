@@ -7,7 +7,7 @@ import (
 
 func TorrentGet(sw *swarm.Swarm, args Args) (resp Response) {
 	resp.Args = make(Args)
-	i, ok := args["fields"]
+	i_fields, ok := args["fields"]
 	var err error
 	if ok {
 		var ids TorrentIDArray
@@ -29,8 +29,12 @@ func TorrentGet(sw *swarm.Swarm, args Args) (resp Response) {
 
 		for _, id := range ids {
 			r := make(tgResp)
-			for _, f := range i.([]interface{}) {
-
+			f_slice, ok := i_fields.([]interface{})
+			if !ok {
+				resp.Result = "fields is not an array"
+				return
+			}
+			for _, f := range f_slice {
 				field, ok := f.(string)
 				if ok {
 					h, ok := tgFieldHandlers[field]
@@ -44,7 +48,7 @@ func TorrentGet(sw *swarm.Swarm, args Args) (resp Response) {
 						return
 					}
 				} else {
-					resp.Result = fmt.Sprintf("field is not a string")
+					resp.Result = "field is not a string"
 					return
 				}
 			}
