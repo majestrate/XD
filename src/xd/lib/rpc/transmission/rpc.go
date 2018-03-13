@@ -55,7 +55,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		h, ok := s.handlers[req.Method]
 		if ok {
-			resp = h(req.Args)
+			resp = h(s.sw, req.Args)
 		}
 		resp.Tag = req.Tag
 	}
@@ -75,6 +75,28 @@ func New(sw *swarm.Swarm) *Server {
 	return &Server{
 		sw:        sw,
 		nextToken: newToken(),
-		handlers:  make(map[string]Handler),
+		handlers: map[string]Handler{
+			"torrent-start":        NotImplemented,
+			"torrent-start-now":    NotImplemented,
+			"torrent-stop":         NotImplemented,
+			"torrent-verify":       NotImplemented,
+			"torrent-reannounce":   NotImplemented,
+			"torrent-get":          NotImplemented,
+			"torrent-set":          NotImplemented,
+			"torrent-add":          NotImplemented,
+			"torrent-remove":       NotImplemented,
+			"torrent-set-location": NotImplemented,
+			"torrent-rename-path":  NotImplemented,
+			"session-set":          NotImplemented,
+			"session-stats":        NotImplemented,
+			"blocklist-update":     NotImplemented,
+			"port-test":            NotImplemented,
+			"session-close":        NotImplemented,
+			"queue-move-top":       NotImplemented,
+			"queue-move-up":        NotImplemented,
+			"queue-move-down":      NotImplemented,
+			"queue-move-bottom":    NotImplemented,
+			"free-space":           NotImplemented,
+		},
 	}
 }

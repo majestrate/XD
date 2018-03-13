@@ -11,3 +11,5 @@ const RPCPath = "/transmission/rpc"
 
 // ContentType is the content type for responses
 const ContentType = "text/json; encoding=UTF-8"
+
+const notImplemented = "Not Implemented"

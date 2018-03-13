@@ -9,17 +9,23 @@ type RPCConfig struct {
 	Enabled      bool
 	Bind         string
 	ExpectedHost string
-	// TODO: authentication
+	Auth         bool
+	Username     string
+	Password     string
 }
 
 const DefaultRPCAddr = "127.0.0.1:1488"
 const DefaultRPCHost = "127.0.0.1"
+const DefaultRPCAuth = "0"
 
 func (cfg *RPCConfig) Load(s *configparser.Section) error {
 	if s != nil {
 		cfg.ExpectedHost = s.Get("host", DefaultRPCHost)
 		cfg.Bind = s.Get("bind", DefaultRPCAddr)
 		cfg.Enabled = s.Get("enabled", "1") == "1"
+		cfg.Auth = s.Get("auth", DefaultRPCAuth) == "1"
+		cfg.Username = s.Get("username", "")
+		cfg.Password = s.Get("password", "")
 	}
 	if cfg.Bind == "" {
 		cfg.Bind = DefaultRPCAddr
@@ -44,6 +50,12 @@ func (cfg *RPCConfig) Save(s *configparser.Section) error {
 	}
 	if cfg.ExpectedHost != "" {
 		opts["host"] = cfg.ExpectedHost
+	}
+
+	if cfg.Auth && cfg.Username != "" && cfg.Password != "" {
+		opts["auth"] = "1"
+		opts["username"] = cfg.Username
+		opts["password"] = cfg.Password
 	}
 
 	for k := range opts {
