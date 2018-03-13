@@ -32,6 +32,7 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
+	TID              int64
 	Completed        func()
 	Started          func()
 	Stopped          func()
@@ -153,8 +154,11 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 	return tm
 }
 
+var tIDCounter = int64(0)
+
 func newTorrent(st storage.Torrent) *Torrent {
 	t := &Torrent{
+		TID:          tIDCounter,
 		Trackers:     make(map[string]tracker.Announcer),
 		announcers:   make(map[string]*torrentAnnounce),
 		st:           st,
@@ -164,6 +168,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		MaxPeers:     DefaultMaxSwarmPeers,
 		statsTracker: stats.NewTracker(),
 	}
+	tIDCounter++
 	for _, rate := range defaultRates {
 		t.statsTracker.NewRate(rate)
 	}

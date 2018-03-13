@@ -8,11 +8,28 @@ import (
 
 // torrent swarm container
 type Holder struct {
-	closing   bool
-	st        storage.Storage
-	torrents  sync.Map
-	MaxReq    int
-	QueueSize int
+	closing      bool
+	st           storage.Storage
+	torrents     sync.Map
+	torrentsByID sync.Map
+	MaxReq       int
+	QueueSize    int
+}
+
+func (h *Holder) TorrentIDs() (ids map[int64]string) {
+	ids = make(map[int64]string)
+	h.ForEachTorrent(func(t *Torrent) {
+		ids[t.TID] = t.Infohash().Hex()
+	})
+	return
+}
+
+func (h *Holder) GetTorrentByID(id int64) (t *Torrent) {
+	tr, ok := h.torrentsByID.Load(id)
+	if ok {
+		t = tr.(*Torrent)
+	}
+	return
 }
 
 func (h *Holder) addTorrent(t storage.Torrent) {
@@ -22,6 +39,7 @@ func (h *Holder) addTorrent(t storage.Torrent) {
 	tr := newTorrent(t)
 	tr.MaxRequests = h.MaxReq
 	h.torrents.Store(t.Infohash().Hex(), tr)
+	h.torrentsByID.Store(tr.TID, tr)
 }
 
 func (h *Holder) addMagnet(ih common.Infohash) {
@@ -31,13 +49,18 @@ func (h *Holder) addMagnet(ih common.Infohash) {
 	tr := newTorrent(h.st.EmptyTorrent(ih))
 	tr.MaxRequests = h.MaxReq
 	h.torrents.Store(ih.Hex(), tr)
+	h.torrentsByID.Store(tr.TID, tr)
 }
 
 func (h *Holder) removeTorrent(ih common.Infohash) {
 	if h.closing {
 		return
 	}
-	h.torrents.Delete(ih.Hex())
+	tr, ok := h.torrents.Load(ih.Hex())
+	if ok {
+		h.torrents.Delete(ih.Hex())
+		h.torrentsByID.Delete(tr.(*Torrent).TID)
+	}
 }
 
 func (h *Holder) forEachTorrent(visit func(*Torrent), fork bool) {
@@ -84,6 +107,10 @@ func (h *Holder) Close() (err error) {
 	}
 	var wg sync.WaitGroup
 	h.closing = true
+	h.torrentsByID.Range(func(k, _ interface{}) bool {
+		h.torrentsByID.Delete(k)
+		return false
+	})
 	h.torrents.Range(func(k, v interface{}) bool {
 		t := v.(*Torrent)
 		wg.Add(1)

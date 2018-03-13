@@ -81,7 +81,7 @@ func New(sw *swarm.Swarm) *Server {
 			"torrent-stop":         NotImplemented,
 			"torrent-verify":       NotImplemented,
 			"torrent-reannounce":   NotImplemented,
-			"torrent-get":          NotImplemented,
+			"torrent-get":          TorrentGet,
 			"torrent-set":          NotImplemented,
 			"torrent-add":          NotImplemented,
 			"torrent-remove":       NotImplemented,
