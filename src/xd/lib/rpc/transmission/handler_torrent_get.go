@@ -20,22 +20,25 @@ func TorrentGet(sw *swarm.Swarm, args Args) (resp Response) {
 				resp.Result = "fields is not an array"
 				return
 			}
-			for _, f := range f_slice {
-				field, ok := f.(string)
-				if ok {
-					h, ok := tgFieldHandlers[field]
+			t := sw.Torrents.GetTorrentByID(int64(id))
+			if t != nil {
+				for _, f := range f_slice {
+					field, ok := f.(string)
 					if ok {
-						err = h(sw, &r, id)
-						if err != nil {
-							break
+						h, ok := tgFieldHandlers[field]
+						if ok {
+							err = h(field, t, &r)
+							if err != nil {
+								break
+							}
+						} else {
+							resp.Result = fmt.Sprintf("field '%s' not implemented", field)
+							return
 						}
 					} else {
-						resp.Result = fmt.Sprintf("field '%s' not implemented", field)
+						resp.Result = "field is not a string"
 						return
 					}
-				} else {
-					resp.Result = "field is not a string"
-					return
 				}
 			}
 			if err == nil {

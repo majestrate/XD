@@ -58,6 +58,7 @@ func (p *PeerConnStats) Less(o *PeerConnStats) bool {
 type TorrentState string
 
 const Seeding = TorrentState("seeding")
+const Checking = TorrentState("checking")
 const Stopped = TorrentState("stopped")
 const Downloading = TorrentState("downloading")
 

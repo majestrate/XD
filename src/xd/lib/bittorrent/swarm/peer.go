@@ -38,6 +38,13 @@ type PeerConn struct {
 	access              sync.Mutex
 }
 
+func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
+	if c.bf != nil {
+		return c.bf.Copy()
+	}
+	return nil
+}
+
 // get stats for this connection
 func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st = new(PeerConnStats)

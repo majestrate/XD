@@ -31,6 +31,11 @@ func NewBitfield(bits uint32, value []byte) *Bitfield {
 	}
 }
 
+// Copy returns an immutable copy of this bitfield
+func (bf *Bitfield) Copy() *Bitfield {
+	return NewBitfield(bf.Length, bf.Data)
+}
+
 // UnmarshalJSON implements json.Marhsaller
 func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 	var bl []int
@@ -63,6 +68,11 @@ func (bf Bitfield) MarshalJSON() (data []byte, err error) {
 	return
 }
 
+// Zero sets all bits to zero
+func (bf *Bitfield) Zero() {
+	bf.Data = make([]byte, (bf.Length/8)+1)
+}
+
 // Inverted gets copy of current Bitfield with all bits inverted
 func (bf *Bitfield) Inverted() (i *Bitfield) {
 	i = NewBitfield(bf.Length, nil)
@@ -82,6 +92,31 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 		b := NewBitfield(bf.Length, bf.Data)
 		for idx := range other.Data {
 			b.Data[idx] &= other.Data[idx]
+		}
+		return b
+	}
+	return nil
+}
+
+// SelfOR applies bitwise OR from other Bitfield to itself
+func (bf *Bitfield) SelfOR(other *Bitfield) {
+	if bf.Length == other.Length {
+		for idx := range other.Data {
+			if idx < len(bf.Data) {
+				bf.Data[idx] |= other.Data[idx]
+			}
+		}
+	}
+}
+
+// OR returns Bitfield with bitwise OR applied from other Bitfield
+func (bf *Bitfield) OR(other *Bitfield) *Bitfield {
+	if bf.Length == other.Length {
+		b := NewBitfield(bf.Length, bf.Data)
+		for idx := range other.Data {
+			if idx < len(b.Data) {
+				b.Data[idx] |= other.Data[idx]
+			}
 		}
 		return b
 	}

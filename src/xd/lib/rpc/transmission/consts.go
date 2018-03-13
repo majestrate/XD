@@ -15,3 +15,15 @@ const ContentType = "text/json; encoding=UTF-8"
 const notImplemented = "Not Implemented"
 
 const idRecentlyActive = "recently-active"
+
+const tr_Status_Stopped = 0
+const tr_Status_CheckWait = 1
+const tr_Status_Check = 2
+const tr_Status_DownloadWait = 3
+const tr_Status_Download = 4
+const tr_Status_SeedWait = 5
+const tr_Status_Seed = 6
+
+const tr_Pri_Low = -1
+const tr_Pri_Norm = 0
+const tr_Pri_High = 1

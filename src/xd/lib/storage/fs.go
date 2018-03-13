@@ -28,10 +28,16 @@ type fsTorrent struct {
 	dir string
 	// storage access mutex
 	access sync.Mutex
+	// set to true when we are doing a deep check
+	checking bool
 	// set to true when we did a deep check
 	seeding bool
 	// seeding mutex
 	seedAccess sync.Mutex
+}
+
+func (t *fsTorrent) DownloadDir() string {
+	return t.dir
 }
 
 func (t *fsTorrent) Delete() (err error) {
@@ -326,6 +332,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		return
 	}
 	t.bfmtx.Lock()
+	t.checking = true
 	log.Infof("checking local data for %s", t.Name())
 	t.ensureBitfield()
 	sz := t.MetaInfo().Info.NumPieces()
@@ -343,6 +350,7 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	t.bfmtx.Unlock()
 	log.Infof("local data check done for %s", t.Name())
 	err = t.Flush()
+	t.checking = false
 	return
 }
 
@@ -374,6 +382,10 @@ func (t *fsTorrent) Close() error {
 func (t *fsTorrent) SaveStats(s *stats.Tracker) (err error) {
 	err = t.st.saveStatsForTorrent(t.ih, s)
 	return
+}
+
+func (t *fsTorrent) Checking() bool {
+	return t.checking
 }
 
 func (t *fsTorrent) FileList() (flist []string) {

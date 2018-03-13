@@ -20,6 +20,9 @@ type Torrent interface {
 	// verify all piece data
 	VerifyAll() error
 
+	// return true if we are currently doing a deep check
+	Checking() bool
+
 	// put a chunk of data at index and offset
 	PutChunk(idx, offset uint32, data []byte) error
 
@@ -65,6 +68,9 @@ type Torrent interface {
 
 	// set metainfo for empty torrent
 	PutInfo(info metainfo.Info) error
+
+	// get directory for data files
+	DownloadDir() string
 }
 
 // torrent storage driver

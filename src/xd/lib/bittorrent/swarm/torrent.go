@@ -65,6 +65,7 @@ type Torrent struct {
 	pendingInfoBF    *bittorrent.Bitfield
 	requestingInfoBF *bittorrent.Bitfield
 	puttingMetaInfo  bool
+	addedAt          time.Time
 }
 
 func (t *Torrent) ObtainedNetwork(n network.Network) {
@@ -81,6 +82,14 @@ func (t *Torrent) WaitForNetwork() {
 		log.Debug("torrent waiting for network")
 		time.Sleep(time.Second)
 	}
+}
+
+func (t *Torrent) DownloadDir() string {
+	return t.st.DownloadDir()
+}
+
+func (t *Torrent) AddedAt() time.Time {
+	return t.addedAt
 }
 
 // get our current network context
@@ -167,6 +176,7 @@ func newTorrent(st storage.Torrent) *Torrent {
 		MaxRequests:  DefaultMaxParallelRequests,
 		MaxPeers:     DefaultMaxSwarmPeers,
 		statsTracker: stats.NewTracker(),
+		addedAt:      time.Now(),
 	}
 	tIDCounter++
 	for _, rate := range defaultRates {
@@ -232,6 +242,20 @@ func (t *Torrent) VisitPeers(v func(*PeerConn)) {
 	}
 }
 
+func (t *Torrent) RX() (rx int64) {
+	t.VisitPeers(func(c *PeerConn) {
+		rx += int64(c.rx.Mean())
+	})
+	return
+}
+
+func (t *Torrent) TX() (tx int64) {
+	t.VisitPeers(func(c *PeerConn) {
+		tx += int64(c.tx.Mean())
+	})
+	return
+}
+
 func (t *Torrent) GetStatus() TorrentStatus {
 	name := t.Name()
 	var peers []*PeerConnStats
@@ -239,6 +263,9 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		peers = append(peers, c.Stats())
 	})
 	state := Downloading
+	if t.st.Checking() {
+		state = Checking
+	}
 	if !t.Ready() {
 		return TorrentStatus{
 			Peers:    peers,
@@ -253,6 +280,9 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		state = Seeding
 	} else if t.closing || !t.started {
 		state = Stopped
+	}
+	if t.st.Checking() {
+		state = Checking
 	}
 
 	bf := t.Bitfield()
