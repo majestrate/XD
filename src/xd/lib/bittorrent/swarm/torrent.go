@@ -39,7 +39,7 @@ type Torrent struct {
 	RemoveSelf       func()
 	netacces         sync.Mutex
 	suspended        bool
-	netContext       network.Network
+	Network          func() network.Network
 	Trackers         map[string]tracker.Announcer
 	announcers       map[string]*torrentAnnounce
 	announceMtx      sync.Mutex
@@ -68,49 +68,12 @@ type Torrent struct {
 	addedAt          time.Time
 }
 
-func (t *Torrent) ObtainedNetwork(n network.Network) {
-	t.netContext = n
-	if t.suspended {
-		t.suspended = false
-		t.netacces.Unlock()
-	}
-	log.Debug("torrent obtained network")
-}
-
-func (t *Torrent) WaitForNetwork() {
-	for t.netContext == nil {
-		log.Debug("torrent waiting for network")
-		time.Sleep(time.Second)
-	}
-}
-
 func (t *Torrent) DownloadDir() string {
 	return t.st.DownloadDir()
 }
 
 func (t *Torrent) AddedAt() time.Time {
 	return t.addedAt
-}
-
-// get our current network context
-func (t *Torrent) Network() (n network.Network) {
-	for t.suspended {
-		time.Sleep(time.Millisecond)
-	}
-	t.netacces.Lock()
-	n = t.netContext
-	t.netacces.Unlock()
-	return
-}
-
-// called when we lost network access abruptly
-func (t *Torrent) LostNetwork() {
-	if t.suspended {
-		return
-	}
-	t.netacces.Lock()
-	t.suspended = true
-	t.netContext = nil
 }
 
 func (t *Torrent) Ready() bool {
@@ -165,12 +128,13 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 
 var tIDCounter = int64(0)
 
-func newTorrent(st storage.Torrent) *Torrent {
+func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
 	t := &Torrent{
 		TID:          tIDCounter,
 		Trackers:     make(map[string]tracker.Announcer),
 		announcers:   make(map[string]*torrentAnnounce),
 		st:           st,
+		Network:      getNet,
 		ibconns:      make(map[string]*PeerConn),
 		obconns:      make(map[string]*PeerConn),
 		MaxRequests:  DefaultMaxParallelRequests,
@@ -347,7 +311,8 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
-	t.WaitForNetwork()
+	// wait for network
+	t.Network()
 	ev := tracker.Started
 	if t.Done() {
 		ev = tracker.Completed

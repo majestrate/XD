@@ -48,6 +48,9 @@ assets: $(GO_ASSETS) webui
 $(XD): assets
 	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
+dev: assets
+	GOPATH=$(REPO) $(GO) build -race -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
+
 $(CLI): $(XD)
 	$(RM) $(CLI)
 	$(LINK) $(XD) $(CLI)

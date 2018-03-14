@@ -23,14 +23,16 @@ import (
 
 // a bittorrent swarm tracking many torrents
 type Swarm struct {
-	closing  bool
-	net      network.Network
-	Torrents Holder
-	id       common.PeerID
-	trackers map[string]tracker.Announcer
-	xdht     dht.XDHT
-	gnutella *gnutella.Swarm
-	active   int
+	closing   bool
+	Torrents  Holder
+	id        common.PeerID
+	trackers  map[string]tracker.Announcer
+	xdht      dht.XDHT
+	gnutella  *gnutella.Swarm
+	active    int
+	getNet    chan network.Network
+	netStatus chan bool
+	newNet    chan network.Network
 }
 
 func (sw *Swarm) Running() bool {
@@ -41,11 +43,8 @@ func (sw *Swarm) onStopped(t *Torrent) {
 	sw.active--
 }
 
-// wait until we get a network context
-func (sw *Swarm) WaitForNetwork() {
-	for sw.net == nil {
-		time.Sleep(time.Second)
-	}
+func (sw *Swarm) Network() network.Network {
+	return <-sw.getNet
 }
 
 func (sw *Swarm) waitForQueue() {
@@ -63,9 +62,8 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	t.Stopped = func() {
 		sw.onStopped(t)
 	}
-
-	sw.WaitForNetwork()
-	t.ObtainedNetwork(sw.net)
+	// wait for network
+	sw.Network()
 	t.xdht = &sw.xdht
 	// give peerid
 	t.id = sw.id
@@ -173,7 +171,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 // add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
-	sw.Torrents.addTorrent(t)
+	sw.Torrents.addTorrent(t, sw.Network)
 	tr := sw.Torrents.GetTorrent(t.Infohash())
 	go sw.startTorrent(tr)
 	return
@@ -194,15 +192,33 @@ func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 	return
 }
 
+func (sw *Swarm) netLoop() {
+	var netStatus bool
+	var n network.Network
+	for sw.Running() {
+		select {
+		case n = <-sw.newNet:
+			log.Info("new network context obtained")
+		case netStatus = <-sw.netStatus:
+			if netStatus {
+				log.Info("network obtained")
+			} else {
+				log.Info("network lost")
+			}
+		default:
+			if netStatus {
+				sw.getNet <- n
+			}
+		}
+	}
+}
+
 // run with network context
 func (sw *Swarm) Run(n network.Network) (err error) {
-	// give network to swarm
-	sw.net = n
-	// give network to torrents
-	sw.Torrents.ForEachTorrent(func(t *Torrent) {
-		t.ObtainedNetwork(n)
-	})
-	log.Debug("gave network context to torrents")
+	// broadcast we have gotten a network context
+	sw.netStatus <- true
+	// give network to netLoop
+	sw.newNet <- n
 	// accept inbound connections
 	for err == nil {
 		var c net.Conn
@@ -214,14 +230,10 @@ func (sw *Swarm) Run(n network.Network) (err error) {
 	}
 	if sw.Running() {
 		log.Warn("network lost")
-		// suspend torrent's network on abbrupt break
-		sw.Torrents.ForEachTorrent(func(t *Torrent) {
-			t.LostNetwork()
-		})
 		// regenerate peer id
 		sw.id = common.GeneratePeerID()
+		sw.netStatus <- false
 	}
-	sw.net = nil
 	return
 }
 
@@ -231,11 +243,15 @@ func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 		Torrents: Holder{
 			st: storage,
 		},
-		trackers: map[string]tracker.Announcer{},
-		gnutella: gnutella,
+		trackers:  map[string]tracker.Announcer{},
+		gnutella:  gnutella,
+		getNet:    make(chan network.Network),
+		newNet:    make(chan network.Network),
+		netStatus: make(chan bool),
 	}
 	sw.id = common.GeneratePeerID()
 	log.Infof("generated peer id %s", sw.id.String())
+	go sw.netLoop()
 	return sw
 }
 
@@ -332,10 +348,10 @@ func (sw *Swarm) addFileTorrent(path string) (err error) {
 }
 
 func (sw *Swarm) addHTTPTorrent(remote string) (err error) {
-	sw.WaitForNetwork()
+	n := sw.Network()
 	cl := &http.Client{
 		Transport: &http.Transport{
-			Dial: sw.net.Dial,
+			Dial: n.Dial,
 		},
 	}
 	var info metainfo.TorrentFile

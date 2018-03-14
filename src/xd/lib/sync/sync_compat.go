@@ -6,6 +6,12 @@ import (
 	"sync"
 )
 
+type Cond struct {
+	sync.Cond
+}
+
+var NewCond = sync.NewCond
+
 type WaitGroup struct {
 	sync.WaitGroup
 }

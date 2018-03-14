@@ -16,7 +16,6 @@ const DefaultMaxParallelRequests = 4
 // a peer connection
 type PeerConn struct {
 	inbound             bool
-	closing             bool
 	c                   net.Conn
 	id                  common.PeerID
 	t                   *Torrent
@@ -36,6 +35,8 @@ type PeerConn struct {
 	theirOpts           extensions.Message
 	MaxParalellRequests int
 	access              sync.Mutex
+	close               chan bool
+	statsTicker         *time.Ticker
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -61,6 +62,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.t = t
 	p.tx = util.NewRate(10)
 	p.rx = util.NewRate(10)
+	p.statsTicker = time.NewTicker(time.Second)
 	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
@@ -72,30 +74,28 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	return p
 }
 
+func (c *PeerConn) run() {
+	for {
+		select {
+		case <-c.statsTicker.C:
+			c.tx.Tick()
+			c.rx.Tick()
+		case <-c.close:
+			c.doClose()
+			return
+		case msg := <-c.send:
+			c.doSend(msg)
+		}
+	}
+}
+
 func (c *PeerConn) start() {
+	go c.run()
 	go c.runReader()
-	go c.runWriter()
-	go c.runKeepAlive()
-	go c.tickStats()
-}
-
-func (c *PeerConn) runKeepAlive() {
-	for !c.closing {
-		time.Sleep(time.Second)
-		c.sendKeepAlive()
-	}
-}
-
-func (c *PeerConn) tickStats() {
-	for !c.closing {
-		time.Sleep(time.Second)
-		c.tx.Tick()
-		c.rx.Tick()
-	}
 }
 
 func (c *PeerConn) doSend(msg common.WireMessage) {
-	if (!c.closing) && msg != nil {
+	if msg != nil {
 		now := time.Now()
 		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {
@@ -120,9 +120,6 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg common.WireMessage) {
-	if c.closing {
-		return
-	}
 	c.send <- msg
 }
 
@@ -194,10 +191,6 @@ func (c *PeerConn) numDownloading() int {
 }
 
 func (c *PeerConn) queueDownload(req common.PieceRequest) {
-	if c.closing {
-		c.clearDownloading()
-		return
-	}
 	c.access.Lock()
 	c.downloading = append(c.downloading, req)
 	c.access.Unlock()
@@ -270,12 +263,11 @@ func (c *PeerConn) markNotInterested() {
 	log.Debugf("%s is not interested", c.id.String())
 }
 
-// hard close connection
 func (c *PeerConn) Close() {
-	if c.closing {
-		return
-	}
-	c.closing = true
+	c.close <- true
+}
+
+func (c *PeerConn) doClose() {
 	for _, r := range c.downloading {
 		c.t.pt.canceledRequest(r)
 	}
@@ -310,12 +302,6 @@ func (c *PeerConn) cancelPiece(idx uint32) {
 		}
 	}
 	c.access.Unlock()
-}
-
-func (c *PeerConn) runWriter() {
-	for !c.closing {
-		c.doSend(<-c.send)
-	}
 }
 
 func (c *PeerConn) checkInterested() {
@@ -594,7 +580,7 @@ func (c *PeerConn) sendKeepAlive() {
 // run download loop
 func (c *PeerConn) runDownload() {
 
-	for !c.t.Done() && !c.closing && (c.usInterested || c.peerInterested) {
+	for !c.t.Done() && (c.usInterested || c.peerInterested) {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
 			time.Sleep(time.Second)
@@ -615,12 +601,6 @@ func (c *PeerConn) runDownload() {
 			time.Sleep(time.Second)
 		}
 	}
-	if c.closing {
-		c.Close()
-	} else {
-		log.Debugf("peer %s is 'done'", c.id.String())
-	}
-
 	// done downloading
 	if c.Done != nil {
 		c.Done()
