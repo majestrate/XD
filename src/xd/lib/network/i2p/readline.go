@@ -2,13 +2,13 @@ package i2p
 
 import "io"
 
-func readLine(r io.Reader) (line string, err error) {
-	var buff [1]byte
+func readLine(r io.Reader, buff []byte) (line string, err error) {
+	var n int
 	for err == nil {
-		_, err = r.Read(buff[:])
+		n, err = r.Read(buff[:])
 		if err == nil {
 			line += string(buff[:])
-			if buff[0] == 10 {
+			if buff[n-1] == 10 {
 				break
 			}
 		}

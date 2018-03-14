@@ -32,6 +32,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 		err = errors.New("session closed")
 		return
 	}
+	readbuf := make([]byte, 1)
 	var nc net.Conn
 	nc, err = l.session.OpenControlSocket()
 	if err == nil {
@@ -39,7 +40,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 		if err == nil {
 			var line string
 			// read response line
-			line, err = readLine(nc)
+			line, err = readLine(nc, readbuf)
 			if err == nil {
 				sc := bufio.NewScanner(strings.NewReader(line))
 				sc.Split(bufio.ScanWords)
@@ -61,7 +62,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 				}
 			}
 			// read address line
-			line, err = readLine(nc)
+			line, err = readLine(nc, readbuf)
 			if err == nil {
 				// we got a new connection yeeeeh
 				c = &I2PConn{

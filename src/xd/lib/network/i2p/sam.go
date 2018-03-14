@@ -19,8 +19,9 @@ type samSession struct {
 	keys       *Keyfile
 	opts       map[string]string
 	// control connection
-	c   net.Conn
-	mtx sync.RWMutex
+	c       net.Conn
+	mtx     sync.RWMutex
+	readbuf [1]byte
 }
 
 func (s *samSession) Close() error {
@@ -43,6 +44,7 @@ func (s *samSession) Addr() net.Addr {
 }
 
 func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
+	readbuf := make([]byte, 1)
 	n, err = net.Dial("tcp", s.addr)
 	if err == nil {
 		// make the connection never time out
@@ -57,7 +59,7 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 		}
 		_, err = fmt.Fprintf(n, "HELLO VERSION MIN=%s MAX=%s\n", s.minversion, s.maxversion)
 		var line string
-		line, err = readLine(n)
+		line, err = readLine(n, readbuf)
 		if err == nil {
 			sc := bufio.NewScanner(strings.NewReader(line))
 			sc.Split(bufio.ScanWords)
@@ -82,6 +84,7 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 }
 
 func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
+	readbuf := make([]byte, 1)
 	var nc net.Conn
 	nc, err = s.OpenControlSocket()
 	if err == nil {
@@ -89,7 +92,7 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s SILENT=false\n", s.Name(), addr.String())
 		var line string
 		// read reply
-		line, err = readLine(nc)
+		line, err = readLine(nc, readbuf)
 		if err == nil {
 			// parse reply
 			sc := bufio.NewScanner(strings.NewReader(line))
@@ -144,7 +147,7 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	}
 	_, err = fmt.Fprintf(s.c, "NAMING LOOKUP NAME=%s\n", name)
 	var line string
-	line, err = readLine(s.c)
+	line, err = readLine(s.c, s.readbuf[:])
 	if err == nil {
 		// okay
 		sc := bufio.NewScanner(strings.NewReader(line))
@@ -192,7 +195,7 @@ func (s *samSession) createStreamSession() (err error) {
 	if err == nil {
 		// read response line
 		var line string
-		line, err = readLine(s.c)
+		line, err = readLine(s.c, s.readbuf[:])
 		if err == nil {
 			// parse response line
 			sc := bufio.NewScanner(strings.NewReader(line))
