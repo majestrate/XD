@@ -453,15 +453,6 @@ type IOP interface {
 	RunIOP()
 }
 
-type seedIOP struct {
-	t         *fsTorrent
-	replyChnl chan error
-}
-
-func (s *seedIOP) RunIOP() {
-	s.replyChnl <- s.t.doSeed()
-}
-
 type readIOP struct {
 	data      []byte
 	offset    int64
