@@ -37,10 +37,9 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 	if err == nil {
 		_, err = fmt.Fprintf(nc, "STREAM ACCEPT ID=%s SILENT=false\n", l.session.Name())
 		if err == nil {
-			r := bufio.NewReader(nc)
 			var line string
 			// read response line
-			line, err = r.ReadString(10)
+			line, err = readLine(nc)
 			if err == nil {
 				sc := bufio.NewScanner(strings.NewReader(line))
 				sc.Split(bufio.ScanWords)
@@ -62,7 +61,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 				}
 			}
 			// read address line
-			line, err = r.ReadString(10)
+			line, err = readLine(nc)
 			if err == nil {
 				// we got a new connection yeeeeh
 				c = &I2PConn{

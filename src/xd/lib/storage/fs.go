@@ -100,7 +100,7 @@ func (t *fsTorrent) Allocate() (err error) {
 	return
 }
 
-func (t *fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
+func (t fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
 		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
@@ -111,7 +111,7 @@ func (t *fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error)
 	return
 }
 
-func (t *fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
+func (t fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
 		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
@@ -122,7 +122,7 @@ func (t *fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err erro
 	return
 }
 
-func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
+func (t fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
 
 	// from github.com/anacrolix/torrent
 	var f fs.ReadFile
@@ -145,10 +145,10 @@ func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int
 	return
 }
 
-func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
-
+func (t fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
+	files := t.meta.Info.GetFiles()
 	// from github.com/anacrolix/torrent
-	for _, fi := range t.meta.Info.GetFiles() {
+	for _, fi := range files {
 		fil := int64(fi.Length)
 		for off < fil {
 			n1, err1 := t.readFileAt(fi, b, off)
@@ -176,7 +176,7 @@ func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
+func (t fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
 
 	// from github.com/anacrolix/torrent
 	for _, fi := range t.meta.Info.GetFiles() {
@@ -291,38 +291,50 @@ func (t *fsTorrent) PutInfo(info metainfo.Info) (err error) {
 	return
 }
 
-func (t *fsTorrent) VisitPiece(r common.PieceRequest, v func(common.PieceData) error) (err error) {
+func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err error) {
 	t.access.Lock()
 	sz := t.meta.Info.PieceLength
-	p := common.PieceData{
-		Index: r.Index,
-		Begin: r.Begin,
-		Data:  make([]byte, r.Length, r.Length),
+	offset := int64(r.Begin) + (int64(sz) * int64(r.Index))
+	iop := readIOP{
+		offset:    offset,
+		r:         t,
+		replyChnl: make(chan error),
 	}
-	_, err = t.ReadAt(p.Data, int64(r.Begin)+(int64(sz)*int64(r.Index)))
-	t.access.Unlock()
+	if pc.Data == nil || uint32(len(pc.Data)) != r.Length {
+		pc.Data = make([]byte, r.Length)
+	}
+	iop.data = pc.Data
+	t.st.ioChan <- &iop
+	err = <-iop.replyChnl
 	if err == nil {
-		err = v(p)
+		pc.Index = r.Index
+		pc.Begin = r.Begin
 	}
-	return
-}
-
-func (t *fsTorrent) checkPiece(pc common.PieceData) (err error) {
-	if t.meta.Info.CheckPiece(pc) {
-		t.bf.Set(pc.Index)
-	} else {
-		t.bf.Unset(pc.Index)
-		err = common.ErrInvalidPiece
-	}
+	t.access.Unlock()
 	return
 }
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
+	var pc common.PieceData
+	err = t.verifyPiece(idx, &pc)
+	return
+}
+
+func (t *fsTorrent) verifyPiece(idx uint32, pc *common.PieceData) (err error) {
 	l := t.meta.LengthOfPiece(idx)
-	err = t.VisitPiece(common.PieceRequest{
+	r := common.PieceRequest{
 		Index:  idx,
 		Length: l,
-	}, t.checkPiece)
+	}
+	err = t.GetPiece(r, pc)
+	if err == nil {
+		if t.meta.Info.CheckPiece(pc) {
+			t.bf.Set(pc.Index)
+		} else {
+			t.bf.Unset(pc.Index)
+			err = common.ErrInvalidPiece
+		}
+	}
 	return
 }
 
@@ -331,14 +343,18 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		err = ErrNoMetaInfo
 		return
 	}
+	var pc common.PieceData
 	t.bfmtx.Lock()
 	t.checking = true
 	log.Infof("checking local data for %s", t.Name())
 	t.ensureBitfield()
-	sz := t.MetaInfo().Info.NumPieces()
+	info := t.MetaInfo().Info
+	sz := info.NumPieces()
+	pc.Data = make([]byte, info.PieceLength)
 	idx := uint32(0)
 	for idx < sz {
-		err = t.VerifyPiece(uint32(idx))
+		t := t
+		err = t.verifyPiece(uint32(idx), &pc)
 		if err == common.ErrInvalidPiece {
 			err = nil
 		} else if err != nil {
@@ -361,7 +377,14 @@ func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
 	}
 	t.access.Lock()
 	sz := int64(t.meta.Info.PieceLength)
-	_, err = t.WriteAt(data, (sz*int64(idx))+int64(offset))
+	iop := &writeIOP{
+		data:      data,
+		offset:    (sz * int64(idx)) + int64(offset),
+		w:         t,
+		replyChnl: make(chan error),
+	}
+	t.st.ioChan <- iop
+	err = <-iop.replyChnl
 	t.access.Unlock()
 	return
 }
@@ -390,18 +413,25 @@ func (t *fsTorrent) Checking() bool {
 
 func (t *fsTorrent) FileList() (flist []string) {
 	if t.meta != nil {
-		for _, f := range t.meta.Info.GetFiles() {
-			flist = append(flist, f.Path.FilePath(t.dir))
+		files := t.meta.Info.GetFiles()
+		flist = make([]string, len(files))
+		for idx, f := range files {
+			flist[idx] = f.Path.FilePath(t.dir)
 		}
 	}
 	return
 }
 
-func (t *fsTorrent) Seed() (seeding bool, err error) {
+func (t *fsTorrent) Seed() (bool, error) {
+	err := t.doSeed()
+	return t.seeding, err
+}
+
+func (t *fsTorrent) doSeed() (err error) {
 	t.seedAccess.Lock()
 	defer t.seedAccess.Unlock()
 	if t.seeding {
-		seeding = true
+		t.seeding = true
 		return
 	}
 	err = t.VerifyAll()
@@ -410,12 +440,50 @@ func (t *fsTorrent) Seed() (seeding bool, err error) {
 			log.Infof("Moving downloaded data to %s", t.st.SeedingDir)
 			err = t.MoveTo(t.st.SeedingDir)
 		}
-		seeding = t.seeding && err == nil
+		t.seeding = err == nil
 	} else if err == common.ErrInvalidPiece {
 		log.Error("invalid pieces will redownload")
 		err = nil
+		t.seeding = false
 	}
 	return
+}
+
+type IOP interface {
+	RunIOP()
+}
+
+type seedIOP struct {
+	t         *fsTorrent
+	replyChnl chan error
+}
+
+func (s *seedIOP) RunIOP() {
+	s.replyChnl <- s.t.doSeed()
+}
+
+type readIOP struct {
+	data      []byte
+	offset    int64
+	r         io.ReaderAt
+	replyChnl chan error
+}
+
+func (r *readIOP) RunIOP() {
+	_, err := r.r.ReadAt(r.data, r.offset)
+	r.replyChnl <- err
+}
+
+type writeIOP struct {
+	data      []byte
+	offset    int64
+	w         io.WriterAt
+	replyChnl chan error
+}
+
+func (w *writeIOP) RunIOP() {
+	_, err := w.w.WriteAt(w.data, w.offset)
+	w.replyChnl <- err
 }
 
 // filesystem based torrent storage
@@ -428,9 +496,22 @@ type FsStorage struct {
 	MetaDir string
 	// filesystem driver
 	FS fs.Driver
+	// io channel
+	ioChan chan IOP
+}
+
+func (st *FsStorage) Run() {
+	for {
+		iop := <-st.ioChan
+		if iop == nil {
+			return
+		}
+		iop.RunIOP()
+	}
 }
 
 func (st *FsStorage) Close() (err error) {
+	st.ioChan <- nil
 	err = st.FS.Close()
 	return
 }
@@ -447,6 +528,7 @@ func (st *FsStorage) flushBitfield(ih common.Infohash, bf *bittorrent.Bitfield) 
 }
 
 func (st *FsStorage) Init() (err error) {
+	st.ioChan = make(chan IOP, 128)
 	log.Info("Ensure filesystem storage")
 	err = st.FS.Open()
 	if err != nil {

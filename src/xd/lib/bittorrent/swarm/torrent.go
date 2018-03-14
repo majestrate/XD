@@ -66,6 +66,12 @@ type Torrent struct {
 	requestingInfoBF *bittorrent.Bitfield
 	puttingMetaInfo  bool
 	addedAt          time.Time
+	peersPool        sync.Pool
+}
+
+func (t *Torrent) getNextPeer() *PeerConn {
+	p := t.peersPool.Get()
+	return p.(*PeerConn)
 }
 
 func (t *Torrent) DownloadDir() string {
@@ -142,6 +148,7 @@ func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
 		statsTracker: stats.NewTracker(),
 		addedAt:      time.Now(),
 	}
+	t.peersPool.New = func() interface{} { return &PeerConn{} }
 	tIDCounter++
 	for _, rate := range defaultRates {
 		t.statsTracker.NewRate(rate)
@@ -725,16 +732,22 @@ func (t *Torrent) pexBroadcastLoop() {
 func (t *Torrent) handlePieceRequest(c *PeerConn, r common.PieceRequest) {
 
 	if r.Length > 0 {
+		var pc common.PieceData
 		log.Debugf("%s asked for piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
-		t.st.VisitPiece(r, func(p common.PieceData) error {
-			// have the piece, send it
-			c.Send(p.ToWireMessage())
-			log.Debugf("%s queued piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
-			return nil
-		})
-		//if err != nil {
-		//	ev.c.Close()
-		//}
+		if r.Length <= uint32(cap(c.sendPieceBuff)) {
+			pc.Data = c.sendPieceBuff[:r.Length]
+			err := t.st.GetPiece(r, &pc)
+			if err == nil {
+				// have the piece, send it
+				c.Send(pc.ToWireMessage())
+				log.Debugf("%s queued piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
+			} else {
+				c.Close()
+			}
+		} else {
+			log.Infof("%s asked for oversized piece bytes=%d", r.Length)
+			c.Close()
+		}
 	} else {
 		log.Infof("%s asked for a zero length piece", c.id.String())
 		// TODO: should we close here?

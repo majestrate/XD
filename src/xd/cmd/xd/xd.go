@@ -89,6 +89,8 @@ func Run() {
 		log.Errorf("error initializing storage: %s", err)
 		return
 	}
+	// io thread
+	go st.Run()
 	var swarms []*swarm.Swarm
 	count := 0
 	for count < conf.Bittorrent.Swarms {

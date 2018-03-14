@@ -208,6 +208,8 @@ func (sw *Swarm) netLoop() {
 		default:
 			if netStatus {
 				sw.getNet <- n
+			} else {
+				time.Sleep(time.Millisecond * 100)
 			}
 		}
 	}

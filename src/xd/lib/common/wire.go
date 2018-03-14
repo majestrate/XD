@@ -101,12 +101,12 @@ func NewWireMessage(id WireMessageType, bodyParts ...[]byte) (msg WireMessage) {
 	for idx := range body {
 		l += uint32(len(body[idx]))
 	}
-	msg = make([]byte, 4+l)
+	msg = make(WireMessage, 4+l)
 	binary.BigEndian.PutUint32(msg[:], l)
 	msg[4] = id.Byte()
 	i := 5
 	for idx := range body {
-		copy(msg[i:], body[idx][:])
+		copy(msg[i:], body[idx])
 		i += len(body[idx])
 	}
 	return
@@ -116,8 +116,7 @@ const MaxWireMessageSize = 32 * 1024
 
 // read wire messages from reader and call a function on each it gets
 // reads until reader is done
-func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
-	var msg [MaxWireMessageSize + 4]byte
+func ReadWireMessages(r io.Reader, f func(WireMessage) error, msg []byte) (err error) {
 	for err == nil {
 		hdr := msg[:4]
 		_, err = io.ReadFull(r, hdr)
@@ -131,7 +130,7 @@ func ReadWireMessages(r io.Reader, f func(WireMessage) error) (err error) {
 				log.Debugf("read message of size %d bytes", l)
 				_, err = io.ReadFull(r, body)
 				if err == nil {
-					err = f(WireMessage(msg[:4+l]))
+					err = f(msg[:4+l])
 				}
 			}
 		}

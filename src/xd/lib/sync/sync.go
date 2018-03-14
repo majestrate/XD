@@ -10,6 +10,4 @@ type Mutex = sync.Mutex
 type RWMutex = sync.RWMutex
 type WaitGroup = sync.WaitGroup
 type Map = sync.Map
-type Cond = sync.Cond
-
-var NewCond = sync.NewCond
+type Pool = sync.Pool

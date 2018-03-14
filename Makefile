@@ -46,10 +46,10 @@ assets: $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 $(XD): assets
-	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
 dev: assets
-	GOPATH=$(REPO) $(GO) build -race -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
 $(CLI): $(XD)
 	$(RM) $(CLI)

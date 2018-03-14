@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 	"xd/lib/sync"
-	t "xd/lib/translate"
+	//t "xd/lib/translate"
 )
 
 var mtx sync.Mutex
@@ -70,7 +70,7 @@ func accept(lvl logLevel) bool {
 
 func log(lvl logLevel, f string, args ...interface{}) {
 	if accept(lvl) {
-		m := t.T(f, args...)
+		m := fmt.Sprintf(f, args...)
 		t := time.Now()
 		mtx.Lock()
 		fmt.Fprintf(out, "%s[%s] %s\t%s%s", lvl.Color(), lvl.Name(), t, m, colorReset)

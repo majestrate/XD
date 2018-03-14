@@ -27,7 +27,7 @@ type Torrent interface {
 	PutChunk(idx, offset uint32, data []byte) error
 
 	// visit a piece from storage
-	VisitPiece(r common.PieceRequest, f func(common.PieceData) error) error
+	GetPiece(r common.PieceRequest, pc *common.PieceData) error
 
 	// verify a piece by index
 	VerifyPiece(idx uint32) error
@@ -96,4 +96,7 @@ type Storage interface {
 	// returns nil if we have no new torrents added from backend
 	// returns next new torrents added to storage
 	PollNewTorrents() []Torrent
+
+	// run mainloop
+	Run()
 }

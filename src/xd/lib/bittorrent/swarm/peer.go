@@ -15,6 +15,8 @@ const DefaultMaxParallelRequests = 4
 
 // a peer connection
 type PeerConn struct {
+	readBuff            [common.MaxWireMessageSize + 4]byte
+	sendPieceBuff       [BlockSize]byte
 	inbound             bool
 	c                   net.Conn
 	id                  common.PeerID
@@ -48,7 +50,7 @@ func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
 
 // get stats for this connection
 func (c *PeerConn) Stats() (st *PeerConnStats) {
-	st = new(PeerConnStats)
+	st = &PeerConnStats{}
 	st.TX = c.tx.Mean()
 	st.RX = c.rx.Mean()
 	st.Addr = c.c.RemoteAddr().String()
@@ -57,7 +59,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 }
 
 func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.Message) *PeerConn {
-	p := new(PeerConn)
+	p := t.getNextPeer()
 	p.c = c
 	p.t = t
 	p.tx = util.NewRate(10)
@@ -120,7 +122,9 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg common.WireMessage) {
-	c.send <- msg
+	if c.send != nil {
+		c.send <- msg
+	}
 }
 
 func (c *PeerConn) recv(msg common.WireMessage) (err error) {
@@ -268,6 +272,7 @@ func (c *PeerConn) Close() {
 }
 
 func (c *PeerConn) doClose() {
+	c.send = nil
 	for _, r := range c.downloading {
 		c.t.pt.canceledRequest(r)
 	}
@@ -283,7 +288,7 @@ func (c *PeerConn) doClose() {
 
 // run read loop
 func (c *PeerConn) runReader() {
-	err := common.ReadWireMessages(c.c, c.recv)
+	err := common.ReadWireMessages(c.c, c.recv, c.readBuff[:])
 	if err != nil {
 		log.Debugf("PeerConn() reader failed: %s", err.Error())
 	}

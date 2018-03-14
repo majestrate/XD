@@ -56,9 +56,8 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 			err = nil
 		}
 		_, err = fmt.Fprintf(n, "HELLO VERSION MIN=%s MAX=%s\n", s.minversion, s.maxversion)
-		r := bufio.NewReader(n)
 		var line string
-		line, err = r.ReadString(10)
+		line, err = readLine(n)
 		if err == nil {
 			sc := bufio.NewScanner(strings.NewReader(line))
 			sc.Split(bufio.ScanWords)
@@ -88,11 +87,9 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 	if err == nil {
 		// send connect
 		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s SILENT=false\n", s.Name(), addr.String())
-
-		r := bufio.NewReader(nc)
 		var line string
 		// read reply
-		line, err = r.ReadString(10)
+		line, err = readLine(nc)
 		if err == nil {
 			// parse reply
 			sc := bufio.NewScanner(strings.NewReader(line))
@@ -146,9 +143,8 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 		return
 	}
 	_, err = fmt.Fprintf(s.c, "NAMING LOOKUP NAME=%s\n", name)
-	r := bufio.NewReader(s.c)
 	var line string
-	line, err = r.ReadString(10)
+	line, err = readLine(s.c)
 	if err == nil {
 		// okay
 		sc := bufio.NewScanner(strings.NewReader(line))
@@ -195,9 +191,8 @@ func (s *samSession) createStreamSession() (err error) {
 	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=STREAM ID=%s SIGNATURE_TYPE=%d DESTINATION=%s%s\n", s.Name(), SigType, s.keys.privkey, optsstr)
 	if err == nil {
 		// read response line
-		r := bufio.NewReader(s.c)
 		var line string
-		line, err = r.ReadString(10)
+		line, err = readLine(s.c)
 		if err == nil {
 			// parse response line
 			sc := bufio.NewScanner(strings.NewReader(line))
