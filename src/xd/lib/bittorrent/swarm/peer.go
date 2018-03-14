@@ -116,6 +116,7 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 			}
 		} else {
 			log.Debugf("write error: %s", err.Error())
+			c.Close()
 		}
 	}
 }
