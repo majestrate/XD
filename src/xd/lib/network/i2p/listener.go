@@ -65,6 +65,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 			line, err = readLine(nc, readbuf)
 			if err == nil {
 				// we got a new connection yeeeeh
+				err = nc.(*net.TCPConn).SetKeepAlive(false)
 				c = &I2PConn{
 					c:     nc,
 					laddr: l.laddr,
