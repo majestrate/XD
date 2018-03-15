@@ -284,12 +284,12 @@ func (c *PeerConn) doClose() {
 	}
 	c.downloading = nil
 	log.Debugf("%s closing connection", c.id.String())
-	c.c.Close()
 	if c.inbound {
 		c.t.removeIBConn(c)
 	} else {
 		c.t.removeOBConn(c)
 	}
+	c.c.Close()
 }
 
 // run read loop
