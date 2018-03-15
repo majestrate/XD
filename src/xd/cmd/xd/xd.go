@@ -89,7 +89,7 @@ func Run() {
 		log.Errorf("error initializing storage: %s", err)
 		return
 	}
-	// io thread
+	// start io thread
 	go st.Run()
 	var swarms []*swarm.Swarm
 	count := 0
@@ -142,10 +142,10 @@ func Run() {
 		var host string
 		var l net.Listener
 		var e error
-		var closeSock func()
+		var cleanSock func()
 		if strings.HasPrefix(conf.RPC.Bind, "unix:") {
 			sock := conf.RPC.Bind[5:]
-			closeSock = func() {
+			cleanSock = func() {
 				os.Remove(sock)
 			}
 			l, e = net.Listen("unix", sock)
@@ -154,19 +154,19 @@ func Run() {
 			}
 		} else {
 			l, e = net.Listen("tcp", conf.RPC.Bind)
-			closeSock = func() {
+			cleanSock = func() {
 			}
 			host = conf.RPC.ExpectedHost
 		}
 		if e == nil {
 			closers = append(closers, l)
-			s := http.Server{
+			s := &http.Server{
 				Handler: rpc.NewServer(swarms, host),
 			}
-			go func() {
-				log.Errorf("rpc died: %s", s.Serve(l))
-				closeSock()
-			}()
+			go func(serv *http.Server) {
+				log.Errorf("rpc died: %s", serv.Serve(l))
+				cleanSock()
+			}(s)
 		} else {
 			log.Errorf("failed to bind rpc: %s", e)
 		}

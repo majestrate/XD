@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"xd/lib/configparser"
@@ -50,6 +51,10 @@ type StorageConfig struct {
 	Meta string
 	// root directory
 	Root string
+	// number of io threads
+	Workers int
+	// number of buffered iops when using pooled io
+	IOPBufferSize int
 	// sftp config
 	SFTP SFTPConfig
 }
@@ -61,6 +66,11 @@ func (cfg *StorageConfig) Load(s *configparser.Section) error {
 		if s != nil {
 			cfg.Root = s.Get("rootdir", cfg.Root)
 		}
+	}
+
+	if s != nil {
+		cfg.Workers = s.GetInt("workers", 0)
+		cfg.IOPBufferSize = s.GetInt("iop_buffer_size", 256)
 	}
 
 	cfg.setSubpaths(s)
@@ -93,6 +103,8 @@ func (cfg *StorageConfig) Save(s *configparser.Section) error {
 	s.Add("metadata", cfg.Meta)
 	s.Add("downloads", cfg.Downloads)
 	s.Add("completed", cfg.Completed)
+	s.Add("workers", fmt.Sprintf("%d", cfg.Workers))
+	s.Add("iop_buffer_size", fmt.Sprintf("%d", cfg.IOPBufferSize))
 	return nil
 }
 
@@ -107,10 +119,12 @@ func (cfg *StorageConfig) LoadEnv() {
 func (cfg *StorageConfig) CreateStorage() storage.Storage {
 
 	st := &storage.FsStorage{
-		SeedingDir: cfg.Completed,
-		DataDir:    cfg.Downloads,
-		MetaDir:    cfg.Meta,
-		FS:         fs.STD,
+		SeedingDir:    cfg.Completed,
+		DataDir:       cfg.Downloads,
+		MetaDir:       cfg.Meta,
+		FS:            fs.STD,
+		IOPBufferSize: cfg.IOPBufferSize,
+		Workers:       cfg.Workers,
 	}
 	if cfg.SFTP.Enabled {
 		st.FS = cfg.SFTP.ToFS()

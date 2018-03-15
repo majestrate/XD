@@ -295,17 +295,22 @@ func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err e
 	t.access.Lock()
 	sz := t.meta.Info.PieceLength
 	offset := int64(r.Begin) + (int64(sz) * int64(r.Index))
-	iop := readIOP{
-		offset:    offset,
-		r:         t,
-		replyChnl: make(chan error),
-	}
 	if pc.Data == nil || uint32(len(pc.Data)) != r.Length {
 		pc.Data = make([]byte, r.Length)
 	}
-	iop.data = pc.Data
-	t.st.ioChan <- &iop
-	err = <-iop.replyChnl
+	if t.st.pooledIO() {
+		iop := readIOP{
+			offset:    offset,
+			r:         t,
+			replyChnl: make(chan iopResult),
+		}
+		iop.data = pc.Data
+		t.st.ioChan <- &iop
+		res := <-iop.replyChnl
+		err = res.err
+	} else {
+		_, err = t.ReadAt(pc.Data, offset)
+	}
 	if err == nil {
 		pc.Index = r.Index
 		pc.Begin = r.Begin
@@ -377,14 +382,20 @@ func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
 	}
 	t.access.Lock()
 	sz := int64(t.meta.Info.PieceLength)
-	iop := &writeIOP{
-		data:      data,
-		offset:    (sz * int64(idx)) + int64(offset),
-		w:         t,
-		replyChnl: make(chan error),
+	off := (sz * int64(idx)) + int64(offset)
+	if t.st.pooledIO() {
+		iop := writeIOP{
+			data:      data,
+			offset:    off,
+			w:         t,
+			replyChnl: make(chan iopResult),
+		}
+		t.st.ioChan <- &iop
+		res := <-iop.replyChnl
+		err = res.err
+	} else {
+		_, err = t.WriteAt(data, off)
 	}
-	t.st.ioChan <- iop
-	err = <-iop.replyChnl
 	t.access.Unlock()
 	return
 }
@@ -453,28 +464,33 @@ type IOP interface {
 	RunIOP()
 }
 
+type iopResult struct {
+	err error
+	n   int
+}
+
 type readIOP struct {
 	data      []byte
 	offset    int64
 	r         io.ReaderAt
-	replyChnl chan error
+	replyChnl chan iopResult
 }
 
-func (r *readIOP) RunIOP() {
-	_, err := r.r.ReadAt(r.data, r.offset)
-	r.replyChnl <- err
+func (iop *readIOP) RunIOP() {
+	n, err := iop.r.ReadAt(iop.data, iop.offset)
+	iop.replyChnl <- iopResult{n: n, err: err}
 }
 
 type writeIOP struct {
 	data      []byte
 	offset    int64
 	w         io.WriterAt
-	replyChnl chan error
+	replyChnl chan iopResult
 }
 
-func (w *writeIOP) RunIOP() {
-	_, err := w.w.WriteAt(w.data, w.offset)
-	w.replyChnl <- err
+func (iop *writeIOP) RunIOP() {
+	n, err := iop.w.WriteAt(iop.data, iop.offset)
+	iop.replyChnl <- iopResult{n: n, err: err}
 }
 
 // filesystem based torrent storage
@@ -487,22 +503,52 @@ type FsStorage struct {
 	MetaDir string
 	// filesystem driver
 	FS fs.Driver
-	// io channel
+	// number of io worker threads
+	Workers int
+	// IOP channel buffer size
+	IOPBufferSize int
+	// buffered io channel
 	ioChan chan IOP
 }
 
 func (st *FsStorage) Run() {
-	for {
-		iop := <-st.ioChan
-		if iop == nil {
-			return
+	n := st.Workers
+	if n <= 0 {
+		st.ioChan = nil
+	} else {
+		workers := n
+		buff := st.IOPBufferSize
+		if buff <= 0 {
+			buff = 128
 		}
-		iop.RunIOP()
+		var wg sync.WaitGroup
+		st.ioChan = make(chan IOP, buff)
+		for workers > 0 {
+			go func() {
+				wg.Add(1)
+				for {
+					iop := <-st.ioChan
+					if iop == nil {
+						wg.Add(-1)
+						return
+					}
+					iop.RunIOP()
+				}
+			}()
+			workers--
+		}
+		wg.Wait()
 	}
 }
 
 func (st *FsStorage) Close() (err error) {
-	st.ioChan <- nil
+	if st.pooledIO() {
+		workers := st.Workers
+		for workers > 0 {
+			st.ioChan <- nil
+			workers--
+		}
+	}
 	err = st.FS.Close()
 	return
 }
@@ -519,7 +565,6 @@ func (st *FsStorage) flushBitfield(ih common.Infohash, bf *bittorrent.Bitfield) 
 }
 
 func (st *FsStorage) Init() (err error) {
-	st.ioChan = make(chan IOP, 128)
 	log.Info("Ensure filesystem storage")
 	err = st.FS.Open()
 	if err != nil {
@@ -643,6 +688,11 @@ func (st *FsStorage) openTorrent(info *metainfo.TorrentFile, rootpath string) (t
 	}
 
 	return
+}
+
+// return true if we are using pooled io
+func (st *FsStorage) pooledIO() bool {
+	return st.ioChan != nil
 }
 
 func (st *FsStorage) initSettings(i common.Infohash) {
