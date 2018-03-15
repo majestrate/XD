@@ -103,7 +103,7 @@ func (t *fsTorrent) Allocate() (err error) {
 func (t fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
-		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
+		fname = i.Path.FilePath(t.dir)
 	} else {
 		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath(""))
 	}
@@ -114,7 +114,7 @@ func (t fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) 
 func (t fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
-		fname = t.st.FS.Join(t.dir, i.Path.FilePath(""))
+		fname = i.Path.FilePath(t.dir)
 	} else {
 		fname = t.st.FS.Join(t.FilePath(), i.Path.FilePath(""))
 	}
