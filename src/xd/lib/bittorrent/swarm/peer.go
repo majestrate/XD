@@ -39,6 +39,7 @@ type PeerConn struct {
 	access              sync.Mutex
 	close               chan bool
 	statsTicker         *time.Ticker
+	closing             bool
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -269,6 +270,10 @@ func (c *PeerConn) markNotInterested() {
 }
 
 func (c *PeerConn) Close() {
+	if c.closing {
+		return
+	}
+	c.closing = true
 	c.close <- true
 }
 
