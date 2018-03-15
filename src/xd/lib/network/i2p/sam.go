@@ -7,9 +7,17 @@ import (
 	"net"
 	"strings"
 	"time"
-	"xd/lib/log"
-	"xd/lib/sync"
 )
+
+type lookupResp struct {
+	addr I2PAddr
+	err  error
+}
+
+type lookupReq struct {
+	name      string
+	replyChnl chan lookupResp
+}
 
 type samSession struct {
 	addr       string
@@ -18,17 +26,19 @@ type samSession struct {
 	name       string
 	keys       *Keyfile
 	opts       map[string]string
-	// control connection
-	c       net.Conn
-	mtx     sync.RWMutex
-	readbuf [1]byte
+	c          net.Conn
+	readbuf    [1]byte
+	lookup     chan *lookupReq
 }
 
 func (s *samSession) Close() error {
 	if s.c == nil {
 		return nil
 	}
-	return s.c.Close()
+	s.lookup <- nil
+	err := s.c.Close()
+	s.c = nil
+	return err
 }
 
 func (s *samSession) B32Addr() string {
@@ -54,7 +64,6 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 			err = n.(*net.TCPConn).SetKeepAlivePeriod(time.Second * 5)
 		}
 		if err != nil {
-			log.Errorf("failed to set keepalive: %s", err)
 			err = nil
 		}
 		_, err = fmt.Fprintf(n, "HELLO VERSION MIN=%s MAX=%s\n", s.minversion, s.maxversion)
@@ -138,42 +147,62 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	if err == nil {
 		name = n
 	}
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	if s.c == nil {
-		// no session socket
-		err = errors.New("session not open")
-		return
+	req := lookupReq{
+		replyChnl: make(chan lookupResp),
+		name:      name,
 	}
-	_, err = fmt.Fprintf(s.c, "NAMING LOOKUP NAME=%s\n", name)
-	var line string
-	line, err = readLine(s.c, s.readbuf[:])
-	if err == nil {
-		// okay
-		sc := bufio.NewScanner(strings.NewReader(line))
-		sc.Split(bufio.ScanWords)
-		for sc.Scan() {
-			txt := sc.Text()
-			upper := strings.ToUpper(txt)
-			if upper == "NAMING" {
-				continue
-			}
-			if upper == "REPLY" {
-				continue
-			}
-			if upper == "RESULT=OK" {
-				continue
-			}
-			if strings.HasPrefix(upper, "NAME=") {
-				continue
-			}
-			if strings.HasPrefix(txt, "VALUE=") {
-				// we got it
-				a = I2PAddr(txt[6:])
-				return
-			}
-			err = errors.New(line)
+	s.lookup <- &req
+	repl := <-req.replyChnl
+	a, err = repl.addr, repl.err
+	return
+}
+
+func (s *samSession) runLookups() {
+	var err error
+	for err == nil {
+		var resp lookupResp
+		req := <-s.lookup
+		if req == nil {
+			return
 		}
+		c := s.c
+		if c == nil {
+			return
+		}
+		_, err = fmt.Fprintf(c, "NAMING LOOKUP NAME=%s\n", req.name)
+		var line string
+		line, err = readLine(c, s.readbuf[:])
+		if err == nil {
+			// okay
+			sc := bufio.NewScanner(strings.NewReader(line))
+			sc.Split(bufio.ScanWords)
+			for sc.Scan() {
+				txt := sc.Text()
+				upper := strings.ToUpper(txt)
+				if upper == "NAMING" {
+					continue
+				}
+				if upper == "REPLY" {
+					continue
+				}
+				if upper == "RESULT=OK" {
+					continue
+				}
+				if strings.HasPrefix(upper, "NAME=") {
+					continue
+				}
+				if strings.HasPrefix(txt, "VALUE=") {
+					// we got it
+					resp.addr = I2PAddr(txt[6:])
+					break
+				}
+				resp.err = errors.New(line)
+				break
+			}
+		} else {
+			resp.err = err
+		}
+		req.replyChnl <- resp
 	}
 	return
 }
@@ -228,6 +257,7 @@ func (s *samSession) Open() (err error) {
 	if err == nil {
 		err = s.createStreamSession()
 		if err == nil {
+			go s.runLookups()
 			var a I2PAddr
 			a, err = s.LookupI2P("ME")
 			if err == nil {

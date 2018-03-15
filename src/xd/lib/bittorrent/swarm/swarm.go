@@ -145,6 +145,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		}
 		// make peer conn
 		p := makePeerConn(c, t, id, opts)
+		p.inbound = true
 		t.onNewPeer(p)
 
 	} else if bytes.Equal(firstBytes[:], []byte(gnutella.Handshake)) {

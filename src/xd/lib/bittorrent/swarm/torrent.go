@@ -344,6 +344,7 @@ func (t *Torrent) StopAnnouncing() {
 	for n := range t.Trackers {
 		wg.Add(1)
 		go func(name string) {
+			log.Debugf("%s stopping", name)
 			t.announce(name, tracker.Stopped)
 			log.Debugf("%s stopped", name)
 			wg.Add(-1)

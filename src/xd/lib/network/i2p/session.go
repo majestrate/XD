@@ -49,5 +49,6 @@ func NewSession(name, addr, keyfile string, opts map[string]string) Session {
 		maxversion: "3.0",
 		keys:       NewKeyfile(keyfile),
 		opts:       opts,
+		lookup:     make(chan *lookupReq, 18),
 	}
 }
