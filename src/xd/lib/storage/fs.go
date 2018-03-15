@@ -145,7 +145,7 @@ func (t fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int,
 	return
 }
 
-func (t fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
+func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
 	files := t.meta.Info.GetFiles()
 	// from github.com/anacrolix/torrent
 	for _, fi := range files {
@@ -176,7 +176,7 @@ func (t fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-func (t fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
+func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
 
 	// from github.com/anacrolix/torrent
 	for _, fi := range t.meta.Info.GetFiles() {
@@ -302,9 +302,9 @@ func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err e
 		iop := readIOP{
 			offset:    offset,
 			r:         t,
+			data:      pc.Data,
 			replyChnl: make(chan iopResult),
 		}
-		iop.data = pc.Data
 		t.st.ioChan <- &iop
 		res := <-iop.replyChnl
 		err = res.err
