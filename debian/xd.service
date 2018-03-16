@@ -1,1 +1,12 @@
-../contrib/systemd/xd.service
+[Unit]
+Description=Standalone I2P BitTorrent Client
+
+[Service]
+User=debian-xd
+Group=debian-xd
+WorkingDirectory=/var/lib/XD
+ExecStart=/usr/bin/XD /var/lib/XD/xd.ini
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
