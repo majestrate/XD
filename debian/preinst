@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+XDHOME='/var/lib/XD'
+XDDUSER='debian-xd'
+
+case "$1" in
+  install)
+    adduser --quiet --system --group --shell "/bin/false" --home $XDHOME $XDUSER
+  ;;
+  upgrade)
+    if [ "x$(stat --format '%U' "${XDHOME}")" = "x${XDUSER}" ]; then
+      exit 0
+    else
+      chown -f -R -P ${XDUSER}:${XDUSER} ${XDHOME}
+    fi
+  ;;
+  *)
+    echo "preinst called with unknown argument '$1'" >&2
+    exit 0
+  ;;
+esac
+
+#DEBHELPER#
+
+exit 0
