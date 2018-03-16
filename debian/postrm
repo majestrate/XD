@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "purge" ]; then
+	rm -rf /etc/XD
+	rm -rf /var/lib/XD
+fi
+
+#DEBHELPER#
+
+exit 0

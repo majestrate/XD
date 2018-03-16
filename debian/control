@@ -1,0 +1,18 @@
+Source: xd
+Section: net
+Priority: optional
+Maintainer: r4sas <r4sas@i2pmail.org>
+Build-Depends: debhelper, devscripts, golang-go (>= 1.6) | golang-1.7-go | golang-1.6-go
+Standards-Version: 3.9.6
+Homepage: https://xd-torrent.github.io/
+Vcs-Git: git://github.com/majestrate/XD.git
+Vcs-Browser: https://github.com/majestrate/XD
+
+Package: xd
+Architecture: any
+Pre-Depends: adduser
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: i2pd
+Description: I2P BitTorrent Client written in GO
+ .
+ This package provides the daemon.

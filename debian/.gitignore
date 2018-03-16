@@ -1,0 +1,8 @@
+xd/
+debhelper-build-stamp
+files
+xd.debhelper.log
+xd.postinst.debhelper
+xd.postrm.debhelper
+xd.prerm.debhelper
+xd.substvars
