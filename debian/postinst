@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+XDHOME='/var/lib/XD'
+XDUSER='debian-xd'
+
+if [ "$1" != "configure" ]; then
+    exit 0
+fi
+
+if [ ! -e "${XDHOME}/xd.ini" ]; then
+    cd $XDHOME && XD --genconf ${XDHOME}/xd.ini
+    chown -R ${XDUSER}:${XDUSER} ${XDHOME}
+fi
+
+#DEBHELPER#
+
+exit 0

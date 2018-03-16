@@ -1,10 +1,21 @@
 #!/bin/sh
+
 set -e
 
-if [ "$1" = "purge" ]; then
-	rm -rf /etc/XD
-	rm -rf /var/lib/XD
-fi
+case "$1" in
+    purge)
+        rm -rf /var/lib/XD /etc/XD
+        deluser --remove-home debian-xd
+        ;;
+
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
 
 #DEBHELPER#
 
