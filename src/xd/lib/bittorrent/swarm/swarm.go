@@ -33,6 +33,7 @@ type Swarm struct {
 	getNet   chan network.Network
 	netDied  chan bool
 	newNet   chan network.Network
+	netError chan error
 }
 
 func (sw *Swarm) Running() bool {
@@ -216,6 +217,11 @@ func (sw *Swarm) netLoop() {
 	log.Info("Swarm netLoop exiting")
 }
 
+// run until error
+func (sw *Swarm) Run() error {
+	return <-sw.netError
+}
+
 func (sw *Swarm) acceptLoop() {
 	for sw.Running() {
 		n := <-sw.getNet
@@ -225,6 +231,7 @@ func (sw *Swarm) acceptLoop() {
 			go sw.inboundConn(c)
 		} else {
 			log.Warnf("failed to accept inbound connection: %s", err.Error())
+			sw.netError <- err
 			time.Sleep(time.Second)
 		}
 	}
@@ -236,7 +243,7 @@ func (sw *Swarm) LostNetwork() {
 }
 
 // give this swarm a new network context
-func (sw *Swarm) ObtainedNetwork(n network.Network) (err error) {
+func (sw *Swarm) ObtainedNetwork(n network.Network) {
 	sw.id = common.GeneratePeerID()
 	log.Infof("Generated new peer id: %s", sw.id.String())
 	// give network to netLoop
@@ -256,6 +263,7 @@ func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 		getNet:   make(chan network.Network),
 		newNet:   make(chan network.Network),
 		netDied:  make(chan bool),
+		netError: make(chan error),
 	}
 	go sw.acceptLoop()
 	go sw.netLoop()
