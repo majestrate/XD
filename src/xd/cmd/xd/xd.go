@@ -35,6 +35,7 @@ func NewContext() *Context {
 		pr:      pr,
 		pw:      pw,
 		sigchnl: make(chan os.Signal),
+		netlost: true,
 	}
 }
 
