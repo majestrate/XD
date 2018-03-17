@@ -225,6 +225,7 @@ func (sw *Swarm) acceptLoop() {
 			go sw.inboundConn(c)
 		} else {
 			log.Warnf("failed to accept inbound connection: %s", err.Error())
+			time.Sleep(time.Second)
 		}
 	}
 }
