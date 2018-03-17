@@ -30,24 +30,30 @@ func printHelp(cmd string) {
 }
 
 func NewContext() *Context {
+	pr, pw := io.Pipe()
 	return &Context{
+		pr:      pr,
+		pw:      pw,
 		sigchnl: make(chan os.Signal),
-		stdin:   os.Stdin,
 	}
 }
 
 type Context struct {
+	pr         io.ReadCloser
+	pw         io.WriteCloser
 	closers    sync.Map
 	numClosers int
 	quit       bool
 	swarms     []*swarm.Swarm
 	sigchnl    chan os.Signal
-	stdin      io.ReadCloser
 	netlost    bool
 }
 
 func (c *Context) Run() {
-	r := bufio.NewReader(c.stdin)
+	go func() {
+		io.Copy(c.pw, os.Stdin)
+	}()
+	r := bufio.NewReader(c.pr)
 	for {
 		line, err := r.ReadString(10)
 		if err == nil {
@@ -55,11 +61,16 @@ func (c *Context) Run() {
 				if c.netlost {
 					log.Debug("respec paid")
 				}
+			} else if line == "\n" && c.quit {
+				break
+			} else if line == "" {
+				break
 			}
 		} else {
-			return
+			break
 		}
 	}
+	c.pr.Close()
 }
 
 func (c *Context) Running() bool {
@@ -67,7 +78,6 @@ func (c *Context) Running() bool {
 }
 
 func (c *Context) RunSignals() {
-	c.AddCloser(c.stdin)
 	signal.Notify(c.sigchnl, os.Interrupt)
 	for {
 		sig := <-c.sigchnl
@@ -98,6 +108,7 @@ func (c *Context) AddSwarm(sw *swarm.Swarm) {
 
 func (c *Context) Close() error {
 	c.quit = true
+	c.pw.Close()
 	// close swarms first
 	for _, sw := range c.swarms {
 		sw.Close()
@@ -160,8 +171,12 @@ func Run() {
 	if conf.Log.Pprof {
 		go func() {
 			pprofaddr := "127.0.0.1:6060"
-			log.Infof("spawning pprof at %s", pprofaddr)
-			log.Warnf("pprof exited: %s", http.ListenAndServe(pprofaddr, nil))
+			l, err := net.Listen("tcp", pprofaddr)
+			if err == nil {
+				ctx.AddCloser(l)
+				log.Infof("spawning pprof at %s", pprofaddr)
+				log.Warnf("pprof exited: %s", http.Serve(l, nil))
+			}
 		}()
 	}
 
