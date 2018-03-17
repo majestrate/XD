@@ -35,7 +35,7 @@ func (f stdFs) Glob(glob string) ([]string, error) {
 }
 
 func (f stdFs) OpenFileReadOnly(fname string) (ReadFile, error) {
-	return os.Open(fname)
+	return os.OpenFile(fname, os.O_RDONLY, 0600)
 }
 
 func (f stdFs) OpenFileWriteOnly(fname string) (WriteFile, error) {

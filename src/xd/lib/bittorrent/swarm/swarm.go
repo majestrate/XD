@@ -23,16 +23,16 @@ import (
 
 // a bittorrent swarm tracking many torrents
 type Swarm struct {
-	closing   bool
-	Torrents  Holder
-	id        common.PeerID
-	trackers  map[string]tracker.Announcer
-	xdht      dht.XDHT
-	gnutella  *gnutella.Swarm
-	active    int
-	getNet    chan network.Network
-	netStatus chan bool
-	newNet    chan network.Network
+	closing  bool
+	Torrents Holder
+	id       common.PeerID
+	trackers map[string]tracker.Announcer
+	xdht     dht.XDHT
+	gnutella *gnutella.Swarm
+	active   int
+	getNet   chan network.Network
+	netDied  chan bool
+	newNet   chan network.Network
 }
 
 func (sw *Swarm) Running() bool {
@@ -194,49 +194,53 @@ func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 }
 
 func (sw *Swarm) netLoop() {
-	var netStatus bool
+	log.Info("Swarm netLoop starting")
 	var n network.Network
 	for sw.Running() {
 		select {
-		case n = <-sw.newNet:
-			log.Info("new network context obtained")
-		case netStatus = <-sw.netStatus:
-			if netStatus {
-				log.Info("network obtained")
-			} else {
-				log.Info("network lost")
-			}
+		case newnet := <-sw.newNet:
+			log.Info("Network context obtained")
+			n = newnet
+		case _ = <-sw.netDied:
+			n = nil
+			log.Info("Network lost")
 		default:
-			if netStatus {
+			if n != nil {
 				sw.getNet <- n
 			} else {
-				time.Sleep(time.Millisecond * 100)
+				log.Debug("network is dead, press 'F' to pay respec")
+				time.Sleep(time.Second)
 			}
+		}
+	}
+	log.Info("Swarm netLoop exiting")
+}
+
+func (sw *Swarm) acceptLoop() {
+	for sw.Running() {
+		n := <-sw.getNet
+		c, err := n.Accept()
+		if err == nil {
+			log.Debugf("got inbound bittorrent connection from %s", c.RemoteAddr())
+			go sw.inboundConn(c)
+		} else {
+			log.Warnf("failed to accept inbound connection: %s", err.Error())
 		}
 	}
 }
 
-// run with network context
-func (sw *Swarm) Run(n network.Network) (err error) {
-	// broadcast we have gotten a network context
-	sw.netStatus <- true
+// inform that we lost the network context
+func (sw *Swarm) LostNetwork() {
+	sw.netDied <- true
+}
+
+// give this swarm a new network context
+func (sw *Swarm) ObtainedNetwork(n network.Network) (err error) {
+	sw.id = common.GeneratePeerID()
+	log.Infof("Generated new peer id: %s", sw.id.String())
 	// give network to netLoop
 	sw.newNet <- n
-	// accept inbound connections
-	for err == nil {
-		var c net.Conn
-		c, err = n.Accept()
-		if err == nil {
-			log.Debugf("got inbound bittorrent connection from %s", c.RemoteAddr())
-			go sw.inboundConn(c)
-		}
-	}
-	if sw.Running() {
-		log.Warn("network lost")
-		// regenerate peer id
-		sw.id = common.GeneratePeerID()
-		sw.netStatus <- false
-	}
+	log.Info("Swarm got network context")
 	return
 }
 
@@ -246,14 +250,13 @@ func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 		Torrents: Holder{
 			st: storage,
 		},
-		trackers:  map[string]tracker.Announcer{},
-		gnutella:  gnutella,
-		getNet:    make(chan network.Network),
-		newNet:    make(chan network.Network),
-		netStatus: make(chan bool),
+		trackers: map[string]tracker.Announcer{},
+		gnutella: gnutella,
+		getNet:   make(chan network.Network),
+		newNet:   make(chan network.Network),
+		netDied:  make(chan bool),
 	}
-	sw.id = common.GeneratePeerID()
-	log.Infof("generated peer id %s", sw.id.String())
+	go sw.acceptLoop()
 	go sw.netLoop()
 	return sw
 }

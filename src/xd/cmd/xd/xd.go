@@ -178,9 +178,10 @@ func Run() {
 			err := n.Open()
 			if err == nil {
 				log.Infof("i2p session made, we are %s", n.B32Addr())
-				err = sw.Run(n)
+				err = sw.ObtainedNetwork(n)
 				if err != nil {
 					log.Errorf("lost i2p session: %s", err)
+					sw.LostNetwork()
 				}
 			} else {
 				log.Errorf("failed to create i2p session: %s", err)
