@@ -1,0 +1,44 @@
+#!/bin/sh
+set -e
+
+XDHOME='/var/lib/XD'
+XDUSER='debian-xd'
+
+xdadduser() {
+    if ! getent group $XDUSER >/dev/null; then
+        addgroup --system $XDUSER >/dev/null
+    fi
+
+    if ! getent passwd $XDUSER >/dev/null; then
+        adduser \
+          --system \
+          --disabled-login \
+          --ingroup $XDUSER \
+          --home $XDHOME \
+          --gecos "XD client user" \
+          --shell /bin/false \
+          $XDUSER >/dev/null
+    fi
+}
+
+case "$1" in
+    install)
+        xdadduser
+        ;;
+
+    upgrade)
+        xdadduser
+        ;;
+
+    abort-upgrade)
+        ;;
+
+    *)
+        echo "preinst called with unknown argument \`$1'" >&2
+        exit 0
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
