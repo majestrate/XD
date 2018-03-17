@@ -17,6 +17,7 @@ var extensionDefaults = map[string]uint32{
 	PeerExchange.String(): 2,
 	XDHT.String():         3,
 	UTMetaData.String():   4,
+	XDEphemChat.String():  5,
 }
 
 // String gets extension as string
@@ -47,6 +48,11 @@ func (opts Message) XDHT() bool {
 // MetaData returns true if ut_metadata is supported
 func (opts Message) MetaData() bool {
 	return opts.IsSupported(UTMetaData.String())
+}
+
+// Ephemeralchat returns true if ephemeral chat is supported
+func (opts Message) EphemeralChat() bool {
+	return opts.IsSupported(XDEphemChat.String())
 }
 
 // SetSupported sets a bittorrent extension as supported
