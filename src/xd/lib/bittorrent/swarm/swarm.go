@@ -34,6 +34,7 @@ type Swarm struct {
 	netDied  chan bool
 	newNet   chan network.Network
 	netError chan error
+	netDead  bool
 }
 
 func (sw *Swarm) Running() bool {
@@ -202,9 +203,11 @@ func (sw *Swarm) netLoop() {
 		case newnet := <-sw.newNet:
 			log.Info("Network context obtained")
 			n = newnet
+			sw.netDead = false
 		case _ = <-sw.netDied:
 			n = nil
 			log.Info("Network lost")
+			sw.netDead = true
 		default:
 			if n != nil {
 				sw.getNet <- n
@@ -288,7 +291,7 @@ func (sw *Swarm) Close() (err error) {
 	if !sw.closing {
 		sw.closing = true
 		log.Info("Swarm closing")
-		err = sw.Torrents.Close()
+		sw.Torrents.Close(!sw.netDead)
 	}
 	return
 }

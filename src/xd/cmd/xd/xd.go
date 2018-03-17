@@ -1,6 +1,7 @@
 package xd
 
 import (
+	"bufio"
 	"io"
 	"net"
 	"net/http"
@@ -12,8 +13,8 @@ import (
 	"xd/lib/bittorrent/swarm"
 	"xd/lib/config"
 	"xd/lib/log"
-	"xd/lib/network/i2p"
 	"xd/lib/rpc"
+	"xd/lib/sync"
 	t "xd/lib/translate"
 	"xd/lib/util"
 	"xd/lib/version"
@@ -28,11 +29,92 @@ func printHelp(cmd string) {
 	log.Infof("usage: %s [config.ini] | --genconf config.ini\n", cmd)
 }
 
+func NewContext() *Context {
+	return &Context{
+		sigchnl: make(chan os.Signal),
+		stdin:   os.Stdin,
+	}
+}
+
+type Context struct {
+	closers    sync.Map
+	numClosers int
+	quit       bool
+	swarms     []*swarm.Swarm
+	sigchnl    chan os.Signal
+	stdin      io.ReadCloser
+	netlost    bool
+}
+
+func (c *Context) Run() {
+	r := bufio.NewReader(c.stdin)
+	for {
+		line, err := r.ReadString(10)
+		if err == nil {
+			if strings.ToLower(line) == "f\n" {
+				if c.netlost {
+					log.Debug("respec paid")
+				}
+			}
+		} else {
+			return
+		}
+	}
+}
+
+func (c *Context) Running() bool {
+	return !c.quit
+}
+
+func (c *Context) RunSignals() {
+	c.AddCloser(c.stdin)
+	signal.Notify(c.sigchnl, os.Interrupt)
+	for {
+		sig := <-c.sigchnl
+		if sig == os.Interrupt {
+			log.Info("Interrupted")
+			c.Close()
+			return
+		} else {
+			log.Warnf("got wierd signal wtf: %s", sig)
+			continue
+		}
+	}
+}
+
+func (c *Context) AddCloser(cl io.Closer) int {
+	c.numClosers++
+	c.closers.Store(c.numClosers, cl)
+	return c.numClosers
+}
+
+func (c *Context) ReplaceCloser(id int, cl io.Closer) {
+	c.closers.Store(id, cl)
+}
+
+func (c *Context) AddSwarm(sw *swarm.Swarm) {
+	c.swarms = append(c.swarms, sw)
+}
+
+func (c *Context) Close() error {
+	c.quit = true
+	// close swarms first
+	for _, sw := range c.swarms {
+		sw.Close()
+	}
+	c.closers.Range(func(k, v interface{}) bool {
+		cl := v.(io.Closer)
+		cl.Close()
+		return true
+	})
+	return nil
+}
+
 // Run runs XD main function
 func Run() {
 
-	running := true
-	var closers []io.Closer
+	ctx := NewContext()
+
 	v := version.Version()
 	conf := new(config.Config)
 	fname := "torrents.ini"
@@ -91,16 +173,14 @@ func Run() {
 	}
 	// start io thread
 	go st.Run()
-	var swarms []*swarm.Swarm
 	count := 0
 	for count < conf.Bittorrent.Swarms {
 		gnutella := conf.Gnutella.CreateSwarm()
 		sw := conf.Bittorrent.CreateSwarm(st, gnutella)
 		if gnutella != nil {
-			closers = append(closers, gnutella)
+			ctx.AddCloser(gnutella)
 		}
-		swarms = append(swarms, sw)
-		closers = append(closers, sw)
+		ctx.AddSwarm(sw)
 		count++
 	}
 
@@ -110,7 +190,7 @@ func Run() {
 		return
 	}
 	for _, t := range ts {
-		for _, sw := range swarms {
+		for _, sw := range ctx.swarms {
 			err = sw.AddTorrent(t)
 			if err != nil {
 				log.Errorf("error adding torrent: %s", err)
@@ -120,7 +200,7 @@ func Run() {
 
 	// torrent auto adder
 	go func() {
-		for running {
+		for ctx.Running() {
 			nt := st.PollNewTorrents()
 			for _, t := range nt {
 				e := t.VerifyAll()
@@ -128,7 +208,7 @@ func Run() {
 					log.Errorf("failed to add %s: %s", t.Name(), e.Error())
 					continue
 				}
-				for _, sw := range swarms {
+				for _, sw := range ctx.swarms {
 					sw.AddTorrent(t)
 				}
 			}
@@ -159,9 +239,9 @@ func Run() {
 			host = conf.RPC.ExpectedHost
 		}
 		if e == nil {
-			closers = append(closers, l)
+			ctx.AddCloser(l)
 			s := &http.Server{
-				Handler: rpc.NewServer(swarms, host),
+				Handler: rpc.NewServer(ctx.swarms, host),
 			}
 			go func(serv *http.Server) {
 				log.Errorf("rpc died: %s", serv.Serve(l))
@@ -172,47 +252,38 @@ func Run() {
 		}
 	}
 
-	runFunc := func(n i2p.Session, sw *swarm.Swarm) {
+	runFunc := func(netConf config.I2PConfig, sw *swarm.Swarm) {
+		n := netConf.CreateSession()
+		id := ctx.AddCloser(n)
 		for sw.Running() {
 			log.Info("opening i2p session")
 			err := n.Open()
 			if err == nil {
 				log.Infof("i2p session made, we are %s", n.B32Addr())
 				sw.ObtainedNetwork(n)
+				ctx.netlost = false
 				err = sw.Run()
 				if err != nil {
+					ctx.netlost = true
 					log.Errorf("lost i2p session: %s", err)
 					sw.LostNetwork()
+					n = netConf.CreateSession()
+					ctx.ReplaceCloser(id, n)
 				}
 			} else {
+				ctx.netlost = true
+				n = netConf.CreateSession()
+				ctx.ReplaceCloser(id, n)
 				log.Errorf("failed to create i2p session: %s", err)
 				time.Sleep(time.Second)
 			}
 		}
 	}
 
-	for idx := range swarms {
-		net := conf.I2P.CreateSession()
-		go runFunc(net, swarms[idx])
-		closers = append(closers, net)
+	for idx := range ctx.swarms {
+		go runFunc(conf.I2P, ctx.swarms[idx])
 	}
-	closers = append(closers, st)
-	sigchnl := make(chan os.Signal)
-	signal.Notify(sigchnl, os.Interrupt)
-	for {
-		sig := <-sigchnl
-		if sig == os.Interrupt {
-			running = false
-			log.Info("Interrupted")
-			for idx, cl := range closers {
-				log.Debugf("closing %d %q", idx, cl)
-				cl.Close()
-			}
-			closers = []io.Closer{}
-			return
-		} else {
-			log.Warnf("got wierd signal wtf: %s", sig)
-			continue
-		}
-	}
+	ctx.AddCloser(st)
+	go ctx.RunSignals()
+	ctx.Run()
 }

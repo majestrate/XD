@@ -335,22 +335,24 @@ func (t *Torrent) StartAnnouncing() {
 }
 
 // stop annoucing on all trackers
-func (t *Torrent) StopAnnouncing() {
+func (t *Torrent) StopAnnouncing(announce bool) {
 	if t.announceTicker != nil {
 		t.announceTicker.Stop()
 		t.announceTicker = nil
 	}
-	var wg sync.WaitGroup
-	for n := range t.Trackers {
-		wg.Add(1)
-		go func(name string) {
-			log.Debugf("%s stopping", name)
-			t.announce(name, tracker.Stopped)
-			log.Debugf("%s stopped", name)
-			wg.Add(-1)
-		}(n)
+	if announce {
+		var wg sync.WaitGroup
+		for n := range t.Trackers {
+			wg.Add(1)
+			go func(name string) {
+				log.Debugf("%s stopping", name)
+				t.announce(name, tracker.Stopped)
+				log.Debugf("%s stopped", name)
+				wg.Add(-1)
+			}(n)
+		}
+		wg.Wait()
 	}
-	wg.Wait()
 }
 
 // poll announce ticker channel and issue announces
@@ -782,7 +784,7 @@ func (t *Torrent) Stop() error {
 		return ErrAlreadyStopped
 	}
 	err := t.Close()
-	t.StopAnnouncing()
+	t.StopAnnouncing(true)
 	if t.Stopped != nil {
 		t.Stopped()
 	}
@@ -791,7 +793,7 @@ func (t *Torrent) Stop() error {
 
 func (t *Torrent) Delete() error {
 	t.Close()
-	t.StopAnnouncing()
+	t.StopAnnouncing(true)
 	err := t.st.Delete()
 	if err == nil {
 		t.RemoveSelf()

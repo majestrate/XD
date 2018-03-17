@@ -101,8 +101,7 @@ func (h *Holder) VisitTorrent(ih common.Infohash, visit func(*Torrent)) {
 	visit(h.GetTorrent(ih))
 }
 
-// implements io.Closer
-func (h *Holder) Close() (err error) {
+func (h *Holder) Close(announce bool) {
 	if h.closing {
 		return
 	}
@@ -116,7 +115,12 @@ func (h *Holder) Close() (err error) {
 		t := v.(*Torrent)
 		wg.Add(1)
 		go func() {
-			t.Stop()
+			if announce {
+				t.Stop()
+			} else {
+				t.StopAnnouncing(false)
+				t.Close()
+			}
 			h.torrents.Delete(k)
 			wg.Add(-1)
 		}()
