@@ -58,6 +58,16 @@ func tgZeroInt(f string, t *swarm.Torrent, resp *tgResp) (err error) {
 	return
 }
 
+func tgFalse(f string, t *swarm.Torrent, resp *tgResp) (err error) {
+	resp.Set(f, false)
+	return
+}
+
+func tgTrue(f string, t *swarm.Torrent, resp *tgResp) (err error) {
+	resp.Set(f, true)
+	return
+}
+
 func tgZeroStr(f string, t *swarm.Torrent, resp *tgResp) (err error) {
 	resp.Set(f, "")
 	return
@@ -112,6 +122,88 @@ func tgBytesAvail(f string, t *swarm.Torrent, resp *tgResp) (err error) {
 	return
 }
 
+type tgFile struct {
+	Completed int64  `json:"bytesCompleted"`
+	Length    int64  `json:"length"`
+	Name      string `json:"name"`
+}
+
+func tgFiles(f string, t *swarm.Torrent, resp *tgResp) (err error) {
+	stats := t.GetStatus()
+	files := make([]*tgFile, len(stats.Files))
+	for idx := range stats.Files {
+		files[idx] = &tgFile{
+			Completed: stats.Files[idx].BytesCompleted(),
+			Length:    stats.Files[idx].Length(),
+			Name:      stats.Files[idx].Name(),
+		}
+	}
+	resp.Set(f, files)
+	return
+}
+
+type tgFileStat struct {
+	Completed int64 `json:"bytesCompleted"`
+	Wanted    bool  `json:"wanted"`
+	Priority  int   `json:"priority"`
+}
+
+func tgFileStats(f string, t *swarm.Torrent, resp *tgResp) (err error) {
+	stats := t.GetStatus()
+	files := make([]*tgFileStat, len(stats.Files))
+	for idx := range stats.Files {
+		files[idx] = &tgFileStat{
+			Completed: stats.Files[idx].BytesCompleted(),
+			Wanted:    true,
+			Priority:  tr_Pri_Norm,
+		}
+	}
+	resp.Set(f, files)
+	return
+}
+
+type tgPeer struct {
+	Addr            string  `json:"address"`
+	ClientName      string  `json:"clientName"`
+	UsChoked        bool    `json:"clientIsChoked"`
+	UsInterested    bool    `json:"clientIsInterested"`
+	Flag            string  `json:"flagStr"`
+	DownloadingFrom bool    `json:"isDownloadingFrom"`
+	Encrypted       bool    `json:"isEncrypted"`
+	Inbound         bool    `json:"isIncoming"`
+	Uploading       bool    `json:"isUploadingTo"`
+	UTP             bool    `json:"isUTP"`
+	ThemChoked      bool    `json:"peerIsChoked"`
+	ThemInterested  bool    `json:"peerIsInterested"`
+	Port            int     `json:"port"`
+	Progress        float64 `json:"progress"`
+	RX              int64   `json:"rateToClient"`
+	TX              int64   `json:"rateToPeer"`
+}
+
+func tgPeers(f string, t *swarm.Torrent, resp *tgResp) (err error) {
+	stats := t.GetStatus()
+	peers := make([]*tgPeer, len(stats.Peers))
+	for idx := range stats.Peers {
+		peers[idx] = &tgPeer{
+			Addr:            stats.Peers[idx].Addr,
+			ClientName:      stats.Peers[idx].Client,
+			UsChoked:        stats.Peers[idx].ThemChoking,
+			UsInterested:    stats.Peers[idx].UsInterested,
+			Flag:            "i2p",
+			DownloadingFrom: stats.Peers[idx].Downloading,
+			Inbound:         stats.Peers[idx].Inbound,
+			Uploading:       stats.Peers[idx].Uploading,
+			ThemChoked:      stats.Peers[idx].UsChoking,
+			ThemInterested:  stats.Peers[idx].ThemInterested,
+			Progress:        stats.Peers[idx].Bitfield.Progress(),
+			RX:              int64(stats.Peers[idx].RX),
+			TX:              int64(stats.Peers[idx].TX),
+		}
+	}
+	return
+}
+
 var tgFieldHandlers = map[string]tgFieldHandler{
 	"id":                tgID,
 	"name":              tgName,
@@ -129,4 +221,13 @@ var tgFieldHandlers = map[string]tgFieldHandler{
 	"creator":           tgZeroStr, // TODO
 	"dateCreated":       tgZeroInt, // TODO
 	"desiredAvailable":  tgBytesAvail,
+	"dowwloadLimit":     tgZeroInt, // TODO
+	"downloadLimited":   tgFalse,   // TODO
+	"doneDate":          tgZeroInt, // TODO
+	"downloadedEver":    tgZeroInt, // TODO
+	"eta":               tgZeroInt, // TODO
+	"etaIdle":           tgZeroInt, // TODO
+	"files":             tgFiles,
+	"fileStats":         tgFileStats,
+	"peers":             tgPeers,
 }

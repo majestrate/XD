@@ -36,6 +36,13 @@ func (bf *Bitfield) Copy() *Bitfield {
 	return NewBitfield(bf.Length, bf.Data)
 }
 
+// CopyFrom copies state from other into itself
+func (bf *Bitfield) CopyFrom(other *Bitfield) {
+	bf.Length = other.Length
+	bf.Data = make([]byte, len(other.Data))
+	copy(bf.Data, other.Data)
+}
+
 // UnmarshalJSON implements json.Marhsaller
 func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 	var bl []int
@@ -138,9 +145,11 @@ func (bf *Bitfield) XOR(other *Bitfield) *Bitfield {
 }
 
 // Progress returns precent done as a float between 0 and 1
-func (bf *Bitfield) Progress() float64 {
-	fl := float64(bf.CountSet())
-	fl /= float64(bf.Length)
+func (bf *Bitfield) Progress() (fl float64) {
+	if bf.Length > 0 {
+		fl = float64(bf.CountSet())
+		fl /= float64(bf.Length)
+	}
 	return fl
 }
 

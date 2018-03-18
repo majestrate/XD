@@ -17,6 +17,7 @@ import (
 	"xd/lib/storage"
 	"xd/lib/sync"
 	"xd/lib/tracker"
+	"xd/lib/util"
 )
 
 // max peers peer swarm default
@@ -33,6 +34,7 @@ var defaultRates = []string{RateDownload, RateUpload}
 // single torrent tracked in a swarm
 type Torrent struct {
 	TID              int64
+	addr             net.Addr
 	Completed        func()
 	Started          func()
 	Stopped          func()
@@ -228,6 +230,11 @@ func (t *Torrent) TX() (tx int64) {
 }
 
 func (t *Torrent) GetStatus() TorrentStatus {
+
+	var addr string
+	if t.addr != nil {
+		addr = t.addr.String()
+	}
 	name := t.Name()
 	var peers []*PeerConnStats
 	t.VisitPeers(func(c *PeerConn) {
@@ -245,6 +252,13 @@ func (t *Torrent) GetStatus() TorrentStatus {
 			Infohash: t.st.Infohash().Hex(),
 			TX:       t.tx,
 			RX:       t.rx,
+			Us: PeerConnStats{
+				TX:     float64(t.TX()),
+				RX:     float64(t.RX()),
+				ID:     t.id.String(),
+				Client: util.ClientNameFromID(t.id[:]),
+				Addr:   addr,
+			},
 		}
 	}
 	if t.Done() {
@@ -309,6 +323,13 @@ func (t *Torrent) GetStatus() TorrentStatus {
 		Files:    files,
 		TX:       t.tx,
 		RX:       t.rx,
+		Us: PeerConnStats{
+			TX:     float64(t.TX()),
+			RX:     float64(t.RX()),
+			ID:     t.id.String(),
+			Client: util.ClientNameFromID(t.id[:]),
+			Addr:   addr,
+		},
 	}
 }
 
@@ -319,7 +340,7 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
 	// wait for network
-	t.Network()
+	t.addr = t.Network().Addr()
 	ev := tracker.Started
 	if t.Done() {
 		ev = tracker.Completed

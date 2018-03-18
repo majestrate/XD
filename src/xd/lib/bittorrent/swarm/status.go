@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"fmt"
+	"xd/lib/bittorrent"
 	"xd/lib/metainfo"
 	"xd/lib/util"
 )
@@ -9,6 +10,18 @@ import (
 type TorrentFileInfo struct {
 	FileInfo metainfo.FileInfo
 	Progress float64
+}
+
+func (i TorrentFileInfo) Length() int64 {
+	return int64(i.FileInfo.Length)
+}
+
+func (i TorrentFileInfo) Name() string {
+	return i.FileInfo.Path.FilePath("")
+}
+
+func (i TorrentFileInfo) BytesCompleted() int64 {
+	return int64(float64(i.FileInfo.Length) * i.Progress)
 }
 
 type TorrentPeers []*PeerConnStats
@@ -45,10 +58,19 @@ func (p *TorrentPeers) Swap(i, j int) {
 
 // connection statistics
 type PeerConnStats struct {
-	TX   float64
-	RX   float64
-	ID   string
-	Addr string
+	TX             float64
+	RX             float64
+	ID             string
+	Client         string
+	Addr           string
+	UsInterested   bool
+	UsChoking      bool
+	ThemInterested bool
+	ThemChoking    bool
+	Downloading    bool
+	Inbound        bool
+	Uploading      bool
+	Bitfield       bittorrent.Bitfield
 }
 
 func (p *PeerConnStats) Less(o *PeerConnStats) bool {
@@ -70,6 +92,7 @@ func (t TorrentState) String() string {
 type TorrentStatus struct {
 	Files    []TorrentFileInfo
 	Peers    TorrentPeers
+	Us       PeerConnStats
 	Name     string
 	State    TorrentState
 	Infohash string

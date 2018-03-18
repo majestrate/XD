@@ -40,6 +40,7 @@ type PeerConn struct {
 	close               chan bool
 	statsTicker         *time.Ticker
 	closing             bool
+	uploading           bool
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -56,6 +57,17 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	st.RX = c.rx.Mean()
 	st.Addr = c.c.RemoteAddr().String()
 	st.ID = c.id.String()
+	st.UsInterested = c.usInterested
+	st.ThemInterested = c.peerInterested
+	st.UsChoking = c.usChoke
+	st.ThemChoking = c.peerChoke
+	st.Client = util.ClientNameFromID(c.id[:])
+	st.Downloading = c.numDownloading() > 0
+	st.Inbound = c.inbound
+	st.Uploading = c.uploading
+	if c.bf != nil {
+		st.Bitfield.CopyFrom(c.bf)
+	}
 	return
 }
 
@@ -413,6 +425,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		c.markNotInterested()
 	}
 	if msgid == common.Request {
+		c.uploading = true
 		ev := msg.GetPieceRequest()
 		c.t.handlePieceRequest(c, ev)
 	}
