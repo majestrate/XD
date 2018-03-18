@@ -33,42 +33,43 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	TID              int64
-	addr             net.Addr
-	Completed        func()
-	Started          func()
-	Stopped          func()
-	RemoveSelf       func()
-	netacces         sync.Mutex
-	suspended        bool
-	Network          func() network.Network
-	Trackers         map[string]tracker.Announcer
-	announcers       map[string]*torrentAnnounce
-	announceMtx      sync.Mutex
-	announceTicker   *time.Ticker
-	id               common.PeerID
-	st               storage.Torrent
-	obconns          map[string]*PeerConn
-	ibconns          map[string]*PeerConn
-	connMtx          sync.Mutex
-	pt               *pieceTracker
-	defaultOpts      extensions.Message
-	closing          bool
-	started          bool
-	MaxRequests      int
-	MaxPeers         uint
-	pexState         PEXSwarmState
-	xdht             *dht.XDHT
-	statsTracker     *stats.Tracker
-	tx               uint64
-	rx               uint64
-	seeding          bool
-	metaInfo         []byte
-	pendingInfoBF    *bittorrent.Bitfield
-	requestingInfoBF *bittorrent.Bitfield
-	puttingMetaInfo  bool
-	addedAt          time.Time
-	peersPool        sync.Pool
+	TID               int64
+	addr              net.Addr
+	Completed         func()
+	Started           func()
+	Stopped           func()
+	RemoveSelf        func()
+	netacces          sync.Mutex
+	suspended         bool
+	Network           func() network.Network
+	Trackers          map[string]tracker.Announcer
+	announcers        map[string]*torrentAnnounce
+	announceMtx       sync.Mutex
+	announceTicker    *time.Ticker
+	id                common.PeerID
+	st                storage.Torrent
+	obconns           map[string]*PeerConn
+	ibconns           map[string]*PeerConn
+	connMtx           sync.Mutex
+	pt                *pieceTracker
+	defaultOpts       extensions.Message
+	closing           bool
+	started           bool
+	MaxRequests       int
+	MaxPeers          uint
+	pexState          PEXSwarmState
+	xdht              *dht.XDHT
+	statsTracker      *stats.Tracker
+	tx                uint64
+	rx                uint64
+	seeding           bool
+	metaInfo          []byte
+	pendingInfoBF     *bittorrent.Bitfield
+	requestingInfoBF  *bittorrent.Bitfield
+	puttingMetaInfo   bool
+	addedAt           time.Time
+	peersPool         sync.Pool
+	ephemChatRecvChnl chan chatEvent
 }
 
 func (t *Torrent) getNextPeer() *PeerConn {
@@ -117,6 +118,10 @@ func (t *Torrent) SetPieceWindow(n int) {
 	// t.pt.maxPending = n
 }
 
+func (t *Torrent) propagateChat(chat extensions.EphemChat) {
+	// TODO : implement
+}
+
 func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 	t.announceMtx.Lock()
 	a, ok := t.announcers[name]
@@ -136,19 +141,20 @@ func (t *Torrent) nextAnnounceFor(name string) (tm time.Time) {
 
 var tIDCounter = int64(0)
 
-func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
+func newTorrent(st storage.Torrent, sw *Swarm) *Torrent {
 	t := &Torrent{
-		TID:          tIDCounter,
-		Trackers:     make(map[string]tracker.Announcer),
-		announcers:   make(map[string]*torrentAnnounce),
-		st:           st,
-		Network:      getNet,
-		ibconns:      make(map[string]*PeerConn),
-		obconns:      make(map[string]*PeerConn),
-		MaxRequests:  DefaultMaxParallelRequests,
-		MaxPeers:     DefaultMaxSwarmPeers,
-		statsTracker: stats.NewTracker(),
-		addedAt:      time.Now(),
+		TID:               tIDCounter,
+		Trackers:          make(map[string]tracker.Announcer),
+		announcers:        make(map[string]*torrentAnnounce),
+		st:                st,
+		Network:           sw.Network,
+		ephemChatRecvChnl: sw.chatRecvChnl,
+		ibconns:           make(map[string]*PeerConn),
+		obconns:           make(map[string]*PeerConn),
+		MaxRequests:       DefaultMaxParallelRequests,
+		MaxPeers:          DefaultMaxSwarmPeers,
+		statsTracker:      stats.NewTracker(),
+		addedAt:           time.Now(),
 	}
 	t.peersPool.New = func() interface{} { return &PeerConn{} }
 	tIDCounter++

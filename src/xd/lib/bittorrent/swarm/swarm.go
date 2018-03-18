@@ -11,8 +11,10 @@ import (
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
 	"xd/lib/common"
+	"xd/lib/crypto"
 	"xd/lib/dht"
 	"xd/lib/gnutella"
+	"xd/lib/irc"
 	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/network"
@@ -23,18 +25,21 @@ import (
 
 // a bittorrent swarm tracking many torrents
 type Swarm struct {
-	closing  bool
-	Torrents Holder
-	id       common.PeerID
-	trackers map[string]tracker.Announcer
-	xdht     dht.XDHT
-	gnutella *gnutella.Swarm
-	active   int
-	getNet   chan network.Network
-	netDied  chan bool
-	newNet   chan network.Network
-	netError chan error
-	netDead  bool
+	closing      bool
+	Torrents     Holder
+	id           common.PeerID
+	trackers     map[string]tracker.Announcer
+	xdht         dht.XDHT
+	gnutella     *gnutella.Swarm
+	active       int
+	getNet       chan network.Network
+	netDied      chan bool
+	newNet       chan network.Network
+	netError     chan error
+	netDead      bool
+	IRCD         *irc.Server
+	chatSK       *crypto.SecretKey
+	chatRecvChnl chan chatEvent
 }
 
 func (sw *Swarm) Running() bool {
@@ -174,7 +179,7 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 
 // add a torrent to this swarm
 func (sw *Swarm) AddTorrent(t storage.Torrent) (err error) {
-	sw.Torrents.addTorrent(t, sw.Network)
+	sw.Torrents.addTorrent(t, sw)
 	tr := sw.Torrents.GetTorrent(t.Infohash())
 	go sw.startTorrent(tr)
 	return
@@ -193,6 +198,38 @@ func (sw *Swarm) getCurrentBW() (bw SwarmBandwidth) {
 	bw.Upload = util.FormatRate(tx)
 	bw.Download = util.FormatRate(rx)
 	return
+}
+
+func (sw *Swarm) chatLoop() {
+	for sw.Running() {
+		select {
+		case ev := <-sw.chatRecvChnl:
+			sw.gotChatEvent(ev)
+		default:
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+}
+func (sw *Swarm) gotChatEvent(ev chatEvent) {
+	if sw.IRCD != nil {
+		chat := ev.chat
+		recip := chat.SaneRecip(sw.IRCD.NickLen)
+		var stopPropagate bool
+		var sk *crypto.SecretKey
+		if recip != "" {
+			sk = sw.IRCD.LookupSK(recip)
+			stopPropagate = sk != nil
+		}
+		sw.IRCD.QueueS2SLine(chat.ToIRCLine("", sw.IRCD.ErrorChannel, sw.IRCD.NickLen, sw.IRCD.ChanLen, sk))
+		if stopPropagate {
+			return
+		}
+		sw.Torrents.ForEachTorrent(func(t *Torrent) {
+			if t.Infohash().Hex() != ev.from {
+				t.propagateChat(chat)
+			}
+		})
+	}
 }
 
 func (sw *Swarm) netLoop() {
@@ -261,15 +298,18 @@ func NewSwarm(storage storage.Storage, gnutella *gnutella.Swarm) *Swarm {
 		Torrents: Holder{
 			st: storage,
 		},
-		trackers: map[string]tracker.Announcer{},
-		gnutella: gnutella,
-		getNet:   make(chan network.Network),
-		newNet:   make(chan network.Network),
-		netDied:  make(chan bool),
-		netError: make(chan error),
+		chatSK:       crypto.KeyGen(),
+		chatRecvChnl: make(chan chatEvent),
+		trackers:     map[string]tracker.Announcer{},
+		gnutella:     gnutella,
+		getNet:       make(chan network.Network),
+		newNet:       make(chan network.Network),
+		netDied:      make(chan bool),
+		netError:     make(chan error),
 	}
 	go sw.acceptLoop()
 	go sw.netLoop()
+	go sw.chatLoop()
 	return sw
 }
 

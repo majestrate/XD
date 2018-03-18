@@ -15,6 +15,14 @@ func (k SecretKey) String() string {
 	return string(k[:])
 }
 
+func (k *SecretKey) Bytes() []byte {
+	return (*k)[:]
+}
+
+func (k PublicKey) Bytes() []byte {
+	return k[:]
+}
+
 func KeyGen() *SecretKey {
 	seed := RandStr(32)
 	_, sk := seedToKeyPair([]byte(seed))
@@ -37,8 +45,8 @@ func (k PublicKey) String() string {
 	return string(k[:])
 }
 
-func (sk SecretKey) ToPublic() (pk PublicKey) {
-	copy(pk[:], sk[32:])
+func (sk *SecretKey) ToPublic() (pk PublicKey) {
+	copy(pk[:], sk.Bytes()[32:])
 	return
 }
 

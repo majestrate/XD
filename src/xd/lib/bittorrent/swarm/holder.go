@@ -2,7 +2,6 @@ package swarm
 
 import (
 	"xd/lib/common"
-	"xd/lib/network"
 	"xd/lib/storage"
 	"xd/lib/sync"
 )
@@ -33,21 +32,21 @@ func (h *Holder) GetTorrentByID(id int64) (t *Torrent) {
 	return
 }
 
-func (h *Holder) addTorrent(t storage.Torrent, getNet func() network.Network) {
+func (h *Holder) addTorrent(t storage.Torrent, sw *Swarm) {
 	if h.closing {
 		return
 	}
-	tr := newTorrent(t, getNet)
+	tr := newTorrent(t, sw)
 	tr.MaxRequests = h.MaxReq
 	h.torrents.Store(t.Infohash().Hex(), tr)
 	h.torrentsByID.Store(tr.TID, tr)
 }
 
-func (h *Holder) addMagnet(ih common.Infohash, getNet func() network.Network) {
+func (h *Holder) addMagnet(ih common.Infohash, sw *Swarm) {
 	if h.closing {
 		return
 	}
-	tr := newTorrent(h.st.EmptyTorrent(ih), getNet)
+	tr := newTorrent(h.st.EmptyTorrent(ih), sw)
 	tr.MaxRequests = h.MaxReq
 	h.torrents.Store(ih.Hex(), tr)
 	h.torrentsByID.Store(tr.TID, tr)
