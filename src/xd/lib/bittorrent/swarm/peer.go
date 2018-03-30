@@ -364,7 +364,7 @@ func (c *PeerConn) metaInfoDownload() {
 			r := c.t.nextMetaInfoReq()
 			if r != nil {
 				md.Piece = *r
-				m := &extensions.Message{ID: uint8(id), Raw: md.Bytes()}
+				m := &extensions.Message{ID: uint8(id), PayloadRaw: md.Bytes()}
 				log.Debugf("asking for info piece %d", md.Piece)
 				c.Send(m.ToWireMessage())
 			} else {
@@ -461,19 +461,28 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 }
 
 // handles an inbound pex message
-func (c *PeerConn) handlePEX(msg extensions.Message) {
-	var pex extensions.PEX
-	err := msg.DecodePayload(&pex)
-	if err == nil {
-		c.handlePEXAdded(pex.Added)
+func (c *PeerConn) handlePEX(m interface{}) {
+
+	pex, ok := m.(map[string]interface{})
+	if ok {
+		var added interface{}
+		added, ok = pex["added"]
+		if ok {
+			c.handlePEXAdded(added)
+		}
+		added, ok = pex["added.f"]
+		if ok {
+			c.handlePEXAddedf(added)
+		}
 	} else {
-		log.Errorf("invalid pex message: %s", err.Error())
+		log.Errorf("invalid pex message: %q", m)
 	}
 }
 
 // handle inbound PEX message payload
-func (c *PeerConn) handlePEXAdded(msg string) {
+func (c *PeerConn) handlePEXAdded(m interface{}) {
 	var peers []common.Peer
+	msg := m.(string)
 	l := len(msg) / 32
 	for l > 0 {
 		var p common.Peer
@@ -510,7 +519,7 @@ func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
 		if ok {
 			if ext == extensions.PeerExchange.String() {
 				// this is PEX message
-				c.handlePEX(opts)
+				c.handlePEX(opts.Payload)
 			} else if ext == extensions.XDHT.String() {
 				// xdht message
 				err := c.t.xdht.HandleMessage(opts, c.id)
@@ -537,7 +546,7 @@ func (c *PeerConn) askNextMetadata(id uint8) {
 		msg.Size = 0
 		msg.Piece = *r
 		m.ID = id
-		m.Raw = msg.Bytes()
+		m.PayloadRaw = msg.Bytes()
 		log.Debugf("asking for info piece %d", msg.Piece)
 		c.Send(m.ToWireMessage())
 	} else {
@@ -546,7 +555,7 @@ func (c *PeerConn) askNextMetadata(id uint8) {
 }
 
 func (c *PeerConn) handleMetadata(m extensions.Message) {
-	msg, err := extensions.ParseMetadata(m.Raw)
+	msg, err := extensions.ParseMetadata(m.PayloadRaw)
 	if err == nil {
 		if msg.Type == extensions.UTData {
 			log.Debugf("got UTData: piece %d", msg.Piece)
@@ -575,7 +584,8 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 			} else {
 				msg.Type = extensions.UTReject
 			}
-			m.Raw = msg.Bytes()
+			m.Payload = nil
+			m.PayloadRaw = msg.Bytes()
 			c.Send(m.ToWireMessage())
 		}
 	} else {

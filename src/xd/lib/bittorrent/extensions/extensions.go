@@ -29,15 +29,9 @@ type Message struct {
 	ID           uint8             `bencode:"-"`
 	Version      string            `bencode:"v"` // handshake data
 	Extensions   map[string]uint32 `bencode:"m"` // handshake data
-	payload      interface{}       `bencode:"-"`
-	Raw          []byte            `bencode:"-"`
+	Payload      interface{}       `bencode:"-"`
+	PayloadRaw   []byte            `bencode:"-"`
 	MetainfoSize *uint32           `bencode:"metadata_size,omitempty"`
-}
-
-// DecodePayload decodes the extended message's bytes into i
-func (opts Message) DecodePayload(i interface{}) (err error) {
-	err = bencode.DecodeBytes(opts.Raw, i)
-	return
 }
 
 // PEX returns true if PEX is supported
@@ -89,12 +83,12 @@ func (opts Message) Copy() Message {
 		ID:           opts.ID,
 		Version:      opts.Version,
 		Extensions:   ext,
-		payload:      opts.payload,
+		Payload:      opts.Payload,
 		MetainfoSize: opts.MetainfoSize,
 	}
-	if opts.Raw != nil {
-		m.Raw = make([]byte, len(opts.Raw))
-		copy(m.Raw, opts.Raw)
+	if opts.PayloadRaw != nil {
+		m.PayloadRaw = make([]byte, len(opts.PayloadRaw))
+		copy(m.PayloadRaw, opts.PayloadRaw)
 	}
 	return m
 }
@@ -106,12 +100,12 @@ func (opts Message) ToWireMessage() common.WireMessage {
 		var b util.Buffer
 		bencode.NewEncoder(&b).Encode(opts)
 		body = b.Bytes()
-	} else if opts.payload != nil {
+	} else if opts.Payload != nil {
 		var b util.Buffer
-		bencode.NewEncoder(&b).Encode(opts.payload)
+		bencode.NewEncoder(&b).Encode(opts.Payload)
 		body = b.Bytes()
-	} else if opts.Raw != nil {
-		body = opts.Raw
+	} else if opts.PayloadRaw != nil {
+		body = opts.PayloadRaw
 	} else {
 		// wtf? invalid message
 		log.Errorf("cannot create invalid extended message: %q", opts)
@@ -148,7 +142,7 @@ func NewPEX(id uint8, connected, disconnected []byte) Message {
 	}
 	msg := New()
 	msg.ID = id
-	msg.payload = payload
+	msg.Payload = payload
 	return msg
 }
 
@@ -161,12 +155,16 @@ func FromWireMessage(msg common.WireMessage) (opts Message, err error) {
 		payload := msg.Payload()
 		if len(payload) > 1 {
 			opts = Message{
-				ID:  payload[0],
-				Raw: payload[1:],
+				ID:         payload[0],
+				PayloadRaw: payload[1:],
 			}
 			if opts.ID == 0 {
 				// handshake
-				bencode.DecodeBytes(opts.Raw, &opts)
+				bencode.DecodeBytes(opts.PayloadRaw, &opts)
+				// clear out raw payload because handshake
+				opts.PayloadRaw = nil
+			} else {
+				bencode.DecodeBytes(opts.PayloadRaw, &opts.Payload)
 			}
 		} else {
 			err = ErrInvalidSize
