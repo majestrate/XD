@@ -6,9 +6,9 @@ const Name = "XD"
 
 var Major = "0"
 
-var Minor = "1"
+var Minor = "2"
 
-var Patch = "0"
+var Patch = "1"
 
 var Git string
 
