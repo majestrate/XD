@@ -78,7 +78,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body.Close()
 }
 
-func New(sw *swarm.Swarm) *Server {
+func NewHandler(sw *swarm.Swarm) http.Handler {
 	return &Server{
 		sw:        sw,
 		nextToken: newToken(),

@@ -29,18 +29,19 @@ type Server struct {
 
 func NewServer(sw []*swarm.Swarm, host string) *Server {
 	fs := assets.GetAssets()
+	trpc := transmission.NewHandler(sw[0])
 	if fs == nil {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
-			trpc:         transmission.New(sw[0]),
+			trpc:         trpc,
 		}
 	} else {
 		return &Server{
 			sw:           sw,
 			expectedHost: host,
 			fileserver:   http.FileServer(fs),
-			trpc:         transmission.New(sw[0]),
+			trpc:         trpc,
 		}
 	}
 }
