@@ -68,7 +68,12 @@ var Torrent = function(data) {
 
   this.remove = function()
   {
-    this.changeTorrent("remove");
+    if (viewModel.confirmation.silent()) {
+        viewModel.deleteTorrent(this.Infohash, viewModel.confirmation.deleteFiles());
+    } else {
+        viewModel.confirmation.Infohash(this.Infohash);
+        viewModel.confirmation.show(true);
+    }
   }.bind(this);
 
   this.start = function()
@@ -134,6 +139,15 @@ var viewModel = {
             if (!data.error) _this.torrentURL("");
         });
     },
+    deleteTorrent: function(Infohash, deleteFiles)
+    {
+        var action = deleteFiles ? "delete" : "remove";
+        this._apicall({
+                method: "XD.ChangeTorrent",
+                action: action,
+                infohash: Infohash, swarm: "0"},
+            function(data){ console.log(data); });
+    },
     torrentStates: ['all', 'downloading', 'seeding'],
     globalInfo: function()
     {
@@ -152,7 +166,18 @@ var viewModel = {
             count ++;
         });
         return peers+" peers connected on "+ count+ " torrents (" + makeRatio(rtx, rrx) + " ratio) ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
-    }
+    },
+
+    // confirmation box
+    confirmation: {
+        Infohash: ko.observable(),
+        show: ko.observable(false), silent: ko.observable(false), deleteFiles: ko.observable(false),
+        close: function() { this.confirmation.Infohash(null);
+            this.confirmation.silent(false); this.confirmation.show(false); },
+        confirmed: function() {
+            this.deleteTorrent(this.confirmation.Infohash(), this.confirmation.deleteFiles());
+            this.confirmation.Infohash(null); this.confirmation.show(false); }
+    },
 };
 
 function main()
