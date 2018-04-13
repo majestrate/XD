@@ -137,6 +137,20 @@ input[type="button"].button-primary:focus {
   background-color: #00BB00 !important;
   border-color: #00BB00 !important; }
 
+.button.button-cancel:hover,
+button.button-cancel:hover,
+input[type="submit"].button-cancel:hover,
+input[type="reset"].button-cancel:hover,
+input[type="button"].button-cancel:hover,
+.button.button-cancel:focus,
+button.button-cancel:focus,
+input[type="submit"].button-cancel:focus,
+input[type="reset"].button-cancel:focus,
+input[type="button"].button-cancel:focus {
+  color: #FFF !important;
+  background-color: #CB2431 !important;
+  border-color: #CB2431 !important; }
+
 input[type="email"],
 input[type="number"],
 input[type="search"],
@@ -161,4 +175,25 @@ select:focus {
   border: 1px solid #00BB00 !important;
   color: #00BB00 !important; }
 
+/* The Modal (background) */
+.confirmation-box {
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.4);
+}
 
+/* Modal Content/Box */
+.confirmation-content {
+    background-color: #272C2D;
+    color: #D3D7CF;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+}
