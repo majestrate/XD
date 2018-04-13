@@ -1,5 +1,6 @@
 body {
-    background: #160116;
+    background: #2E3436;
+    color: #D3D7CF;
 }
 
 .base.container {
@@ -11,13 +12,17 @@ nav {
     padding-bottom: 20px;
 }
 
+nav > div.row {
+    margin: 20px 0px;
+}
+
 .speed {
-    color: #A517A5;
+    color: #D3D7CF;
 }
 
 .speed:hover {
     color: #ccc;
-    background-color: #A517A5;
+    background-color: #222;
     cursor: pointer;
 }
 
@@ -30,16 +35,16 @@ progress {
 }
 
 .button-remove {
-    color: #A517A5;
+    color: #D3D7CF;
     font-weight: bold;
     padding: 0px 10px;
     border-radius: 4px;
-    border:1px #A517A5 solid;
+    border:1px #D3D7CF solid;
 }
 
 .button-remove:hover {
     cursor: pointer;
-    background: #A517A5;
+    background: #D3D7CF;
     color: #ccc;
 }
 
@@ -60,15 +65,15 @@ progress {
 }
 
 .torrent-row:nth-child(odd) {
-    background: #222;
+    background: #272C2D;
 }
 
 .torrent-row:hover {
-    background: #353535;
+    background: #222;
 }
 
 .torrent-row-downloading {
-    color: #A517A5;
+    color: #D3D7CF;
 }
 
 .torrent-row-seeding {
@@ -85,29 +90,29 @@ progress {
     font-size: 0.7em;
     height: 38px;
     padding: 0 10px;
-    color: #A517A5;
+    color: #D3D7CF;
     text-align: center;
     line-height: 38px;
     letter-spacing: .1rem;
     text-transform: uppercase;
     text-decoration: none;
     white-space: nowrap;
-    background-color: transparent;
+    background-color: #272C2D;
     border-radius: 4px;
-    border: 1px solid #A517A5;
+    border: 1px solid #D3D7CF;
     cursor: pointer;
-    margin: 0px;
+    margin: 0px 2px;
     box-sizing: border-box;
 }
 
 .filter-buttons li.active {
-    background: #A517A5;
-    color: #DDD;
+    background: #D3D7CF;
+    color: #272C2D;
 }
 
 .filter-buttons li:hover {
-    background: #A517A5;
-    color: #DDD;
+    background: #D3D7CF;
+    color: #272C2D;
 }
 
 .button.button-primary,
@@ -115,9 +120,9 @@ button.button-primary,
 input[type="submit"].button-primary,
 input[type="reset"].button-primary,
 input[type="button"].button-primary {
-  color: #DDD !important;
-  background-color: #A517A5 !important;
-  border-color: #A517A5 !important; }
+  color: #272C2D !important;
+  background-color: #D3D7CF !important;
+  border-color: #D3D7CF !important; }
 .button.button-primary:hover,
 button.button-primary:hover,
 input[type="submit"].button-primary:hover,
@@ -141,9 +146,9 @@ input[type="url"],
 input[type="password"],
 textarea,
 select {
-  background-color: transparent !important;
-  border: 1px solid #A517A5 !important;
-  color: #A517A5 !important; }
+  background-color: #272C2D !important;
+  border: 1px solid #D3D7CF !important;
+  color: #D3D7CF !important; }
 input[type="email"]:focus,
 input[type="number"]:focus,
 input[type="search"]:focus,

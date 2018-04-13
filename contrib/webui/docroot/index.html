@@ -16,15 +16,7 @@
                 <div class="one columns logo">
                   <img src="favicon.png" />
                 </div>
-                <div class="three columns speed" data-bind="text: globalInfo()"></div>
-                <div class="five columns filter-panel">
-                  <ul data-bind="foreach: torrentStates" class="filter-buttons">
-                      <li class="four columns" data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
-                  </ul>
-                </div>
-            </div>
-            <div class="row">
-                <div class="seven columns">
+                <div class="nine columns">
                   <input class="u-full-width" type="text"
                       placeholder="Torrent location (URL or local file)"
                       data-bind="value: torrentURL"
@@ -35,6 +27,14 @@
                       data-bind="click: addTorrent"
                       value="Add">
                 </div>
+            </div>
+            <div class="row">
+                <div class="six columns filter-panel">
+                  <ul data-bind="foreach: torrentStates" class="filter-buttons">
+                      <li class="four columns" data-bind="css: { 'active': $root.torrentFilter() == $data }, text: $data, click: function (data, event) { $root.setFilter($data) }"></li>
+                  </ul>
+                </div>
+                <div class="six columns speed" data-bind="text: globalInfo()"></div>
             </div>
         </nav>
 
