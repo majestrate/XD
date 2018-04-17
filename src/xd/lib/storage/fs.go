@@ -142,6 +142,9 @@ func (t fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int,
 			break
 		}
 	}
+	if f != nil {
+		f.Close()
+	}
 	return
 }
 
