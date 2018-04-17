@@ -108,7 +108,7 @@ var Torrent = function(data) {
 }
 
 var viewModel = {
-    _url: window.location.protocol + "//" + window.location.host + "/ecksdee/api",
+    _url: "ecksdee/api",
     _apicall: function(call, cb)
     {
         $.ajax({
