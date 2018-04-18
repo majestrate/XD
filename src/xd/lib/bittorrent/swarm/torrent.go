@@ -69,6 +69,8 @@ type Torrent struct {
 	puttingMetaInfo  bool
 	addedAt          time.Time
 	peersPool        sync.Pool
+	lastPEX          time.Time
+	pexInterval      time.Duration
 }
 
 func (t *Torrent) getNextPeer() *PeerConn {
@@ -149,6 +151,7 @@ func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
 		MaxPeers:     DefaultMaxSwarmPeers,
 		statsTracker: stats.NewTracker(),
 		addedAt:      time.Now(),
+		pexInterval:  time.Minute * 2,
 	}
 	t.peersPool.New = func() interface{} { return &PeerConn{} }
 	tIDCounter++
@@ -689,13 +692,6 @@ func (t *Torrent) run() {
 	}
 	t.started = true
 	go t.runRateTicker()
-	if t.Ready() {
-		if !t.MetaInfo().IsPrivate() {
-			go t.pexBroadcastLoop()
-		}
-	} else {
-		go t.pexBroadcastLoop()
-	}
 	counter := 0
 	for !t.closing {
 		if !t.Ready() {
@@ -730,7 +726,23 @@ func (t *Torrent) run() {
 	}
 }
 
+func (t *Torrent) Private() bool {
+	info := t.MetaInfo()
+	if info == nil {
+		return false
+	}
+	return info.IsPrivate()
+}
+
 func (t *Torrent) tick() {
+	if t.Done() {
+		return
+	}
+
+	if !t.Ready() {
+		return
+	}
+
 	// expire and cancel all timed out pieces
 	t.pt.iterCached(func(cp *cachedPiece) {
 		if cp.isExpired() {
@@ -743,17 +755,17 @@ func (t *Torrent) tick() {
 	t.VisitPeers(func(conn *PeerConn) {
 		conn.tickDownload()
 	})
-}
-
-func (t *Torrent) pexBroadcastLoop() {
-	for !t.closing {
-		connected, disconnected := t.pexState.PopDestHashLists()
-		t.VisitPeers(func(p *PeerConn) {
-			if p.SupportsPEX() {
-				p.sendPEX(connected, disconnected)
-			}
-		})
-		time.Sleep(time.Second * 90)
+	if !t.Private() {
+		now := time.Now()
+		if now.Sub(t.lastPEX) > t.pexInterval {
+			connected, disconnected := t.pexState.PopDestHashLists()
+			t.VisitPeers(func(p *PeerConn) {
+				if p.SupportsPEX() {
+					p.sendPEX(connected, disconnected)
+				}
+			})
+			t.lastPEX = time.Now()
+		}
 	}
 }
 
