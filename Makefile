@@ -10,6 +10,7 @@ WEB_FILES += $(DOCROOT)/xd.min.js
 WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
+ASSETS = $(REPO)/src/xd/lib/rpc/assets/assets.go
 
 MKDIR = mkdir -p
 RM = rm -f
@@ -39,16 +40,18 @@ endif
 
 build: $(CLI)
 
+assets: $(ASSETS)
+
 $(GO_ASSETS):
 	GOPATH=$(REPO) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
-assets: $(GO_ASSETS) webui
-	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) $(WEB_FILES) > $(REPO)/src/xd/lib/rpc/assets/assets.go
+$(ASSETS): $(GO_ASSETS) webui
+	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) -o $(ASSETS) $(WEB_FILES)
 
-$(XD): assets
+$(XD): $(ASSETS)
 	GOPATH=$(REPO) $(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
-dev: assets
+dev: $(ASSETS)
 	GOPATH=$(REPO) $(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
 
 $(CLI): $(XD)
@@ -62,7 +65,13 @@ test:
 clean: webui-clean go-clean
 	$(RM) $(CLI)
 
+distclean: clean clean-assets
+
+clean-assets:
+	$(RM) $(ASSETS)
+
 webui-clean:
+	$(RM) $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI) clean
 
 go-clean:
