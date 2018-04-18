@@ -42,6 +42,7 @@ type PeerConn struct {
 	closing             bool
 	uploading           bool
 	runDownload         bool
+	nextPieceRequest    time.Time
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -624,12 +625,15 @@ func (c *PeerConn) tickDownload() {
 			log.Debugf("max parallel reached for %s", c.id.String())
 			return
 		}
-		var r common.PieceRequest
-		if c.t.pt.nextRequestForDownload(c.bf, &r) {
-			c.queueDownload(r)
-		} else {
-			log.Debugf("no next piece to download for %s", c.id.String())
-			return
+		now := time.Now()
+		if now.After(c.nextPieceRequest) {
+			var r common.PieceRequest
+			if c.t.pt.nextRequestForDownload(c.bf, &r) {
+				c.queueDownload(r)
+			} else {
+				c.nextPieceRequest = time.Now().Add(time.Second)
+				log.Debugf("no next piece to download for %s", c.id.String())
+			}
 		}
 	}
 }
