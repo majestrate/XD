@@ -631,7 +631,7 @@ func (c *PeerConn) tickDownload() {
 			if c.t.pt.nextRequestForDownload(c.bf, &r) {
 				c.queueDownload(r)
 			} else {
-				c.nextPieceRequest = time.Now().Add(time.Second)
+				c.nextPieceRequest = now.Add(time.Second)
 				log.Debugf("no next piece to download for %s", c.id.String())
 			}
 		}
