@@ -222,7 +222,23 @@ func (sw *Swarm) netLoop() {
 
 // run until error
 func (sw *Swarm) Run() error {
-	return <-sw.netError
+	ticker := time.NewTicker(time.Millisecond * 100)
+	for {
+		select {
+		case <-ticker.C:
+			sw.tick()
+		case err := <-sw.netError:
+			ticker.Stop()
+			return err
+		}
+	}
+	return nil
+}
+
+func (sw *Swarm) tick() {
+	sw.Torrents.ForEachTorrent(func(t *Torrent) {
+		t.tick()
+	})
 }
 
 func (sw *Swarm) acceptLoop() {

@@ -41,6 +41,7 @@ type PeerConn struct {
 	statsTicker         *time.Ticker
 	closing             bool
 	uploading           bool
+	runDownload         bool
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -406,7 +407,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		}
 		if isnew {
 			if c.t.Ready() {
-				go c.runDownload()
+				c.runDownload = true
 			}
 		}
 		return
@@ -601,32 +602,34 @@ func (c *PeerConn) sendKeepAlive() {
 	}
 }
 
-// run download loop
-func (c *PeerConn) runDownload() {
-
-	for !c.t.Done() && (c.usInterested || c.peerInterested) && !c.closing {
+// tick download stuff
+func (c *PeerConn) tickDownload() {
+	if !c.runDownload {
+		return
+	}
+	if c.t.Done() {
+		// done downloading
+		if c.Done != nil {
+			c.Done()
+			c.Done = nil
+		}
+	} else if (c.usInterested || c.peerInterested) && !c.closing {
 		if c.RemoteChoking() {
 			log.Debugf("will not download this tick, %s is choking", c.id.String())
-			time.Sleep(time.Second)
-			continue
+			return
 		}
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
 			log.Debugf("max parallel reached for %s", c.id.String())
-			time.Sleep(time.Second)
-			continue
+			return
 		}
 		var r common.PieceRequest
 		if c.t.pt.nextRequestForDownload(c.bf, &r) {
 			c.queueDownload(r)
 		} else {
 			log.Debugf("no next piece to download for %s", c.id.String())
-			time.Sleep(time.Second)
+			return
 		}
-	}
-	// done downloading
-	if c.Done != nil {
-		c.Done()
 	}
 }

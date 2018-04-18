@@ -725,20 +725,24 @@ func (t *Torrent) run() {
 					log.Infof("will need to redownload pieces for %s", t.Name())
 				}
 			}
-			time.Sleep(time.Second)
-		} else {
-			// expire and cancel all timed out pieces
-			t.pt.iterCached(func(cp *cachedPiece) {
-				if cp.isExpired() {
-					t.VisitPeers(func(conn *PeerConn) {
-						conn.cancelPiece(cp.index)
-					})
-					t.pt.removePiece(cp.index)
-				}
-			})
-			time.Sleep(time.Second * 5)
 		}
+		time.Sleep(time.Second)
 	}
+}
+
+func (t *Torrent) tick() {
+	// expire and cancel all timed out pieces
+	t.pt.iterCached(func(cp *cachedPiece) {
+		if cp.isExpired() {
+			t.VisitPeers(func(conn *PeerConn) {
+				conn.cancelPiece(cp.index)
+			})
+			t.pt.removePiece(cp.index)
+		}
+	})
+	t.VisitPeers(func(conn *PeerConn) {
+		conn.tickDownload()
+	})
 }
 
 func (t *Torrent) pexBroadcastLoop() {
