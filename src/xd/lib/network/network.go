@@ -8,6 +8,8 @@ import (
 type Network interface {
 	Dial(n, a string) (net.Conn, error)
 	Accept() (net.Conn, error)
+	ReadFrom([]byte) (int, net.Addr, error)
+	WriteTo([]byte, net.Addr) (int, error)
 	Open() error
 	Close() error
 	Addr() net.Addr

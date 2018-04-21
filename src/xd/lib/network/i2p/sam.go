@@ -20,6 +20,7 @@ type lookupReq struct {
 }
 
 type samSession struct {
+	style      string
 	addr       string
 	minversion string
 	maxversion string
@@ -29,6 +30,25 @@ type samSession struct {
 	c          net.Conn
 	readbuf    [1]byte
 	lookup     chan *lookupReq
+	pktconn    I2PPacketConn
+}
+
+func (s *samSession) ReadFrom(d []byte) (n int, from net.Addr, err error) {
+	if s.style != "DATAGRAM" {
+		err = errors.New("not supported")
+		return
+	}
+	n, from, err = s.pktconn.ReadFrom(d)
+	return
+}
+
+func (s *samSession) WriteTo(d []byte, to net.Addr) (n int, err error) {
+	if s.style != "DATAGRAM" {
+		err = errors.New("not supported")
+		return
+	}
+	n, err = s.pktconn.WriteTo(d, to)
+	return
 }
 
 func (s *samSession) Close() error {
@@ -37,6 +57,9 @@ func (s *samSession) Close() error {
 	}
 	s.lookup <- nil
 	err := s.c.Close()
+	if s.style == "DATAGRAM" {
+		s.pktconn.Close()
+	}
 	s.c = nil
 	return err
 }
@@ -213,7 +236,41 @@ func (s *samSession) Lookup(name, port string) (a net.Addr, err error) {
 	return
 }
 
-func (s *samSession) createStreamSession() (err error) {
+func (s *samSession) udpAddr() (string, error) {
+	host, port, err := net.SplitHostPort(s.addr)
+	if err != nil {
+		return "", err
+	}
+	var addrs []net.Addr
+	addrs, err = net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+	var srcaddr *net.IPAddr
+	srcaddr, err = net.ResolveIPAddr("ip", host)
+	if err != nil {
+		return "", err
+	}
+	for idx := range addrs {
+		var ipnet *net.IPNet
+		var srcip net.IP
+		srcip, ipnet, err = net.ParseCIDR(addrs[idx].String())
+		if err != nil {
+			return "", err
+		}
+		if ipnet.Contains(srcaddr.IP) {
+			var pint int
+			pint, err = net.LookupPort("udp", port)
+			if err != nil {
+				return "", err
+			}
+			return net.JoinHostPort(srcip.String(), fmt.Sprintf("%d", pint-1)), nil
+		}
+	}
+	return "", errors.New("unroutable address: " + host)
+}
+
+func (s *samSession) createSession() (err error) {
 	// try opening if this session isn't already open
 	optsstr := " inbound.name=XD"
 	if s.opts != nil {
@@ -221,7 +278,27 @@ func (s *samSession) createStreamSession() (err error) {
 			optsstr += fmt.Sprintf(" %s=%s", k, v)
 		}
 	}
-	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=STREAM ID=%s SIGNATURE_TYPE=%d DESTINATION=%s%s\n", s.Name(), SigType, s.keys.privkey, optsstr)
+	if s.style == "DATAGRAM" {
+		var addr string
+		addr, err = s.udpAddr()
+		if err != nil {
+			return
+		}
+		s.pktconn.c, err = net.ListenPacket("udp", addr)
+		if err != nil {
+			return
+		}
+		addr = s.pktconn.c.LocalAddr().String()
+		var host, port string
+		host, port, err = net.SplitHostPort(addr)
+		if err != nil {
+			s.pktconn.c.Close()
+			return err
+		}
+		optsstr += fmt.Sprintf(" HOST=%s PORT=%s", host, port)
+	}
+
+	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=%s ID=%s SIGNATURE_TYPE=%d DESTINATION=%s%s\n", s.style, s.Name(), SigType, s.keys.privkey, optsstr)
 	if err == nil {
 		// read response line
 		var line string
@@ -256,13 +333,14 @@ func (s *samSession) Open() (err error) {
 		err = s.keys.ensure(s.c)
 	}
 	if err == nil {
-		err = s.createStreamSession()
+		err = s.createSession()
 		if err == nil {
 			go s.runLookups()
 			var a I2PAddr
 			a, err = s.LookupI2P("ME")
 			if err == nil {
 				s.keys.pubkey = a.String()
+				s.pktconn.laddr = a
 			}
 		}
 	}

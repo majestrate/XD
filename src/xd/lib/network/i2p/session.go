@@ -19,6 +19,9 @@ type Session interface {
 	// implements network.Network
 	Addr() net.Addr
 
+	ReadFrom([]byte) (int, net.Addr, error)
+	WriteTo([]byte, net.Addr) (int, error)
+
 	// implements network.Network
 	Accept() (net.Conn, error)
 
@@ -36,6 +39,7 @@ type Session interface {
 
 	// open the session, generate keys, start up destination etc
 	Open() error
+
 	// close the session
 	Close() error
 }
@@ -43,6 +47,20 @@ type Session interface {
 // create a new i2p session
 func NewSession(name, addr, keyfile string, opts map[string]string) Session {
 	return &samSession{
+		style:      "STREAM",
+		name:       name,
+		addr:       addr,
+		minversion: "3.0",
+		maxversion: "3.0",
+		keys:       NewKeyfile(keyfile),
+		opts:       opts,
+		lookup:     make(chan *lookupReq, 18),
+	}
+}
+
+func NewPacketSession(name, addr, keyfile string, opts map[string]string) Session {
+	return &samSession{
+		style:      "DATAGRAM",
 		name:       name,
 		addr:       addr,
 		minversion: "3.0",

@@ -7,6 +7,7 @@ import (
 type Session struct {
 	LocalAddr net.Addr
 	serv      net.Listener
+	packet    net.PacketConn
 }
 
 func (s *Session) Dial(n, a string) (net.Conn, error) {
@@ -19,6 +20,14 @@ func (s *Session) Accept() (net.Conn, error) {
 
 func (s *Session) Open() (err error) {
 	s.serv, err = net.Listen(s.LocalAddr.Network(), s.LocalAddr.String())
+	return
+}
+
+func (s *Session) ReadFrom(d []byte) (n int, from net.Addr, err error) {
+	return
+}
+
+func (s *Session) WriteTo(d []byte, to net.Addr) (n int, err error) {
 	return
 }
 
