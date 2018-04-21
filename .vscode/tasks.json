@@ -4,12 +4,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "taskName": "build",
+            "label": "build",
             "type": "shell",
             "command": "make"
         },
         {
-            "taskName": "clean",
+            "label": "clean",
             "type": "shell",
             "command": "make clean"
         }

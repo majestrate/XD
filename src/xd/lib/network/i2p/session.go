@@ -19,7 +19,10 @@ type Session interface {
 	// implements network.Network
 	Addr() net.Addr
 
+	// implements network.Network
 	ReadFrom([]byte) (int, net.Addr, error)
+
+	// implements network.Network
 	WriteTo([]byte, net.Addr) (int, error)
 
 	// implements network.Network

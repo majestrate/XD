@@ -236,38 +236,38 @@ func (s *samSession) Lookup(name, port string) (a net.Addr, err error) {
 	return
 }
 
-func (s *samSession) udpAddr() (string, error) {
+func (s *samSession) udpAddr() (string, string, error) {
 	host, port, err := net.SplitHostPort(s.addr)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var addrs []net.Addr
 	addrs, err = net.InterfaceAddrs()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var srcaddr *net.IPAddr
 	srcaddr, err = net.ResolveIPAddr("ip", host)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for idx := range addrs {
 		var ipnet *net.IPNet
 		var srcip net.IP
 		srcip, ipnet, err = net.ParseCIDR(addrs[idx].String())
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if ipnet.Contains(srcaddr.IP) {
 			var pint int
 			pint, err = net.LookupPort("udp", port)
 			if err != nil {
-				return "", err
+				return "", "", err
 			}
-			return net.JoinHostPort(srcip.String(), fmt.Sprintf("%d", pint-1)), nil
+			return net.JoinHostPort(host, fmt.Sprintf("%d", pint-1)), net.JoinHostPort(srcip.String(), "0"), nil
 		}
 	}
-	return "", errors.New("unroutable address: " + host)
+	return "", "", errors.New("unroutable address: " + host)
 }
 
 func (s *samSession) createSession() (err error) {
@@ -279,16 +279,20 @@ func (s *samSession) createSession() (err error) {
 		}
 	}
 	if s.style == "DATAGRAM" {
-		var addr string
-		addr, err = s.udpAddr()
+		var daddr, saddr string
+		daddr, saddr, err = s.udpAddr()
 		if err != nil {
 			return
 		}
-		s.pktconn.c, err = net.ListenPacket("udp", addr)
+		s.pktconn.c, err = net.ListenPacket("udp", saddr)
 		if err != nil {
 			return
 		}
-		addr = s.pktconn.c.LocalAddr().String()
+		s.pktconn.samaddr, err = net.ResolveUDPAddr("udp", daddr)
+		if err != nil {
+			return
+		}
+		addr := s.pktconn.c.LocalAddr().String()
 		var host, port string
 		host, port, err = net.SplitHostPort(addr)
 		if err != nil {
