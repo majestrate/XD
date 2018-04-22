@@ -120,6 +120,7 @@ func (c *PeerConn) run() {
 				continue
 			}
 			if msg.Len() > 1000 {
+				c.flushSend()
 				// write big messages right away
 				c.doSend(msg)
 			} else {
