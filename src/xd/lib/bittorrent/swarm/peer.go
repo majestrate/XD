@@ -607,8 +607,10 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {
 				idx := msg.Piece * (16 * 1024)
-				pieces := c.t.metaInfo
-				if uint32(len(pieces)) >= idx+(32*1024) {
+				pieces := c.t.getMetaInfo()
+				if pieces == nil {
+					msg.Type = extensions.UTReject
+				} else if uint32(len(pieces)) >= idx+(32*1024) {
 					msg.Type = extensions.UTReject
 				} else if uint32(len(pieces)) >= idx+(16*1024) {
 					msg.Type = extensions.UTData

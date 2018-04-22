@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"xd/lib/common"
 	"xd/lib/log"
+	"xd/lib/util"
 )
 
 type FilePath []string
@@ -47,6 +48,12 @@ type Info struct {
 	Length uint64 `bencode:"length,omitempty"`
 	// md5sum
 	Sum []byte `bencode:"md5sum,omitempty"`
+}
+
+func (i Info) Bytes() []byte {
+	var buff util.Buffer
+	bencode.NewEncoder(&buff).Encode(i)
+	return buff.Bytes()
 }
 
 // get fileinfos from this info section

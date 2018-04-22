@@ -514,6 +514,16 @@ func (t *Torrent) hasAllPendingInfo() bool {
 	return t.pendingInfoBF.Completed()
 }
 
+func (t *Torrent) getMetaInfo() []byte {
+	if t.metaInfo == nil {
+		info := t.st.MetaInfo()
+		if info != nil {
+			t.metaInfo = info.Info.Bytes()
+		}
+	}
+	return t.metaInfo
+}
+
 func (t *Torrent) resetPendingInfo() {
 	t.requestingInfoBF = bittorrent.NewBitfield(t.requestingInfoBF.Length, nil)
 	t.pendingInfoBF = bittorrent.NewBitfield(t.pendingInfoBF.Length, nil)
