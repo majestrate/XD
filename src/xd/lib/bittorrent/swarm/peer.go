@@ -15,8 +15,7 @@ const DefaultMaxParallelRequests = 4
 
 // a peer connection
 type PeerConn struct {
-	writeIdx            int
-	writeBuff           [8]common.WireMessage
+	writeBuff           util.Buffer
 	readBuff            [common.MaxWireMessageSize + 4]byte
 	sendPieceBuff       [BlockSize]byte
 	inbound             bool
@@ -95,11 +94,13 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 }
 
 func (c *PeerConn) appendSend(msg common.WireMessage) {
-	if c.writeIdx == cap(c.writeBuff) {
-		c.flushSend()
+	if c.writeBuff.Len() > 1000 {
+		if c.flushSend() != nil {
+			c.doClose()
+			return
+		}
 	}
-	c.writeBuff[c.writeIdx] = msg
-	c.writeIdx++
+	c.processWrite(c.writeBuff, msg)
 }
 
 func (c *PeerConn) run() {
@@ -120,9 +121,12 @@ func (c *PeerConn) run() {
 				continue
 			}
 			if msg.Len() > 1000 {
-				c.flushSend()
-				// write big messages right away
-				c.doSend(msg)
+				if c.flushSend() == nil {
+					// write big messages right away
+					c.processWrite(c.c, msg)
+				} else {
+					c.doClose()
+				}
 			} else {
 				c.appendSend(msg)
 			}
@@ -135,18 +139,13 @@ func (c *PeerConn) start() {
 	go c.runReader()
 }
 
-func (c *PeerConn) flushSend() {
-	if c.writeIdx == 0 {
-		return
-	}
-	for idx := range c.writeBuff {
-		c.doSend(c.writeBuff[idx])
-		c.writeBuff[idx] = nil
-	}
-	c.writeIdx = 0
+func (c *PeerConn) flushSend() error {
+	_, err := io.Copy(c.c, c.writeBuff)
+	c.writeBuff.Reset()
+	return err
 }
 
-func (c *PeerConn) doSend(msg common.WireMessage) {
+func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) {
 	if msg != nil {
 		now := time.Now()
 		c.lastSend = now
@@ -157,7 +156,7 @@ func (c *PeerConn) doSend(msg common.WireMessage) {
 			return
 		}
 		log.Debugf("writing %d bytes", msg.Len())
-		err := util.WriteFull(c.c, msg)
+		err := util.WriteFull(w, msg)
 		if err == nil {
 			if msg.MessageID() == common.Piece {
 				n := uint64(msg.Len())

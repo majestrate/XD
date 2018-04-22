@@ -144,6 +144,7 @@ func (s *samSession) DialI2P(addr Addr) (c net.Conn, err error) {
 					// we are connected
 					nc.(*net.TCPConn).SetNoDelay(false)
 					nc.(*net.TCPConn).SetWriteBuffer(2400)
+					nc.(*net.TCPConn).SetLinger(0)
 					c = &I2PConn{
 						c:     nc,
 						laddr: s.keys.Addr(),
