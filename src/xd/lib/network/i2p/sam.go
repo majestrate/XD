@@ -142,7 +142,7 @@ func (s *samSession) DialI2P(addr Addr) (c net.Conn, err error) {
 				}
 				if upper == "RESULT=OK" {
 					// we are connected
-					err = nc.(*net.TCPConn).SetKeepAlive(false)
+					//err = nc.(*net.TCPConn).SetKeepAlive(false)
 					c = &I2PConn{
 						c:     nc,
 						laddr: s.keys.Addr(),
@@ -151,9 +151,9 @@ func (s *samSession) DialI2P(addr Addr) (c net.Conn, err error) {
 					return
 				}
 				err = errors.New(line)
-				nc.Close()
 			}
 		}
+		nc.Close()
 	}
 	return
 }

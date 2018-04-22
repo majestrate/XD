@@ -15,6 +15,8 @@ const DefaultMaxParallelRequests = 4
 
 // a peer connection
 type PeerConn struct {
+	writeIdx            int
+	writeBuff           [8]common.WireMessage
 	readBuff            [common.MaxWireMessageSize + 4]byte
 	sendPieceBuff       [BlockSize]byte
 	inbound             bool
@@ -38,7 +40,8 @@ type PeerConn struct {
 	MaxParalellRequests int
 	access              sync.Mutex
 	close               chan bool
-	statsTicker         *time.Ticker
+	ticker              *time.Ticker
+	tickstats           bool
 	closing             bool
 	uploading           bool
 	runDownload         bool
@@ -79,7 +82,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.t = t
 	p.tx = util.NewRate(10)
 	p.rx = util.NewRate(10)
-	p.statsTicker = time.NewTicker(time.Second)
+	p.ticker = time.NewTicker(time.Millisecond * 500)
 	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
@@ -91,17 +94,29 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	return p
 }
 
+func (c *PeerConn) appendSend(msg common.WireMessage) {
+	if c.writeIdx == cap(c.writeBuff) {
+		c.flushSend()
+	}
+	c.writeBuff[c.writeIdx] = msg
+	c.writeIdx++
+}
+
 func (c *PeerConn) run() {
 	for {
 		select {
-		case <-c.statsTicker.C:
-			c.tx.Tick()
-			c.rx.Tick()
+		case <-c.ticker.C:
+			c.flushSend()
+			if c.tickstats {
+				c.tx.Tick()
+				c.rx.Tick()
+			}
+			c.tickstats = !c.tickstats
 		case <-c.close:
 			c.doClose()
 			return
 		case msg := <-c.send:
-			c.doSend(msg)
+			c.appendSend(msg)
 		}
 	}
 }
@@ -109,6 +124,17 @@ func (c *PeerConn) run() {
 func (c *PeerConn) start() {
 	go c.run()
 	go c.runReader()
+}
+
+func (c *PeerConn) flushSend() {
+	if c.writeIdx == 0 {
+		return
+	}
+	for idx := range c.writeBuff {
+		c.doSend(c.writeBuff[idx])
+		c.writeBuff[idx] = nil
+	}
+	c.writeIdx = 0
 }
 
 func (c *PeerConn) doSend(msg common.WireMessage) {
@@ -303,6 +329,7 @@ func (c *PeerConn) doClose() {
 	} else {
 		c.t.removeOBConn(c)
 	}
+	c.ticker.Stop()
 	c.c.Close()
 }
 
