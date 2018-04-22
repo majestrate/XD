@@ -2,21 +2,40 @@ package i2p
 
 import (
 	"crypto/sha256"
+	"net"
+	"strings"
 )
 
 // implements net.Addr
-type I2PAddr string
+type Addr struct {
+	addr string
+	port string
+}
 
-func (a I2PAddr) Network() string {
+func (a Addr) Network() string {
 	return "i2p"
 }
 
-func (a I2PAddr) String() string {
-	return string(a)
+func (a Addr) String() string {
+	return net.JoinHostPort(a.addr, a.port)
+}
+
+func I2PAddr(addr string) Addr {
+	if strings.Count(addr, ":") > 0 {
+		a, p, _ := net.SplitHostPort(addr)
+		return Addr{
+			addr: a,
+			port: p,
+		}
+	}
+	return Addr{
+		addr: addr,
+	}
 }
 
 // compute base32 address
-func (a I2PAddr) Base32Addr() (b32 Base32Addr) {
+func (addr Addr) Base32Addr() (b32 Base32Addr) {
+	a := addr.addr
 	buf := make([]byte, i2pB64enc.DecodedLen(len(a)))
 	if _, err := i2pB64enc.Decode(buf, []byte(a)); err != nil {
 		return

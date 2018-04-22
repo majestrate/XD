@@ -11,9 +11,9 @@ type I2PConn struct {
 	// underlying connection
 	c net.Conn
 	// our local address
-	laddr I2PAddr
+	laddr Addr
 	// remote peer's address
-	raddr I2PAddr
+	raddr Addr
 }
 
 // implements net.Conn

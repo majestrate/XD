@@ -58,7 +58,7 @@ func (k *Keyfile) read(r io.Reader) (err error) {
 	return
 }
 
-func (k *Keyfile) Addr() I2PAddr {
+func (k *Keyfile) Addr() Addr {
 	return I2PAddr(k.pubkey)
 }
 

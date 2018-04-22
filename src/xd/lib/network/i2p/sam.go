@@ -10,7 +10,7 @@ import (
 )
 
 type lookupResp struct {
-	addr I2PAddr
+	addr Addr
 	err  error
 }
 
@@ -20,7 +20,6 @@ type lookupReq struct {
 }
 
 type samSession struct {
-	style      string
 	addr       string
 	minversion string
 	maxversion string
@@ -34,21 +33,17 @@ type samSession struct {
 }
 
 func (s *samSession) ReadFrom(d []byte) (n int, from net.Addr, err error) {
-	if s.style != "DATAGRAM" {
-		err = errors.New("not supported")
-		return
-	}
 	n, from, err = s.pktconn.ReadFrom(d)
 	return
 }
 
 func (s *samSession) WriteTo(d []byte, to net.Addr) (n int, err error) {
-	if s.style != "DATAGRAM" {
-		err = errors.New("not supported")
-		return
-	}
 	n, err = s.pktconn.WriteTo(d, to)
 	return
+}
+
+func (s *samSession) LocalAddr() net.Addr {
+	return s.keys.Addr()
 }
 
 func (s *samSession) Close() error {
@@ -57,9 +52,7 @@ func (s *samSession) Close() error {
 	}
 	s.lookup <- nil
 	err := s.c.Close()
-	if s.style == "DATAGRAM" {
-		s.pktconn.Close()
-	}
+	s.pktconn.Close()
 	s.c = nil
 	return err
 }
@@ -115,13 +108,22 @@ func (s *samSession) OpenControlSocket() (n net.Conn, err error) {
 	return
 }
 
-func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
+func (s *samSession) DialI2P(addr Addr) (c net.Conn, err error) {
 	readbuf := make([]byte, 1)
 	var nc net.Conn
 	nc, err = s.OpenControlSocket()
 	if err == nil {
 		// send connect
-		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s SILENT=false\n", s.Name(), addr.String())
+		port := ""
+		if len(addr.port) > 0 {
+			var nport int
+			nport, err = net.LookupPort("tcp", addr.port)
+			if err != nil {
+				return
+			}
+			port += fmt.Sprintf(" PORT=%d", nport)
+		}
+		_, err = fmt.Fprintf(nc, "STREAM CONNECT ID=%s DESTINATION=%s%s SILENT=false\n", s.Name(), addr.addr, port)
 		var line string
 		// read reply
 		line, err = readLine(nc, readbuf)
@@ -157,7 +159,7 @@ func (s *samSession) DialI2P(addr I2PAddr) (c net.Conn, err error) {
 }
 
 func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
-	var addr I2PAddr
+	var addr Addr
 	addr, err = s.LookupI2P(a)
 	if err == nil {
 		c, err = s.DialI2P(addr)
@@ -165,9 +167,9 @@ func (s *samSession) Dial(n, a string) (c net.Conn, err error) {
 	return
 }
 
-func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
-	var n string
-	n, _, err = net.SplitHostPort(name)
+func (s *samSession) LookupI2P(name string) (a Addr, err error) {
+	var n, port string
+	n, port, err = net.SplitHostPort(name)
 	if err == nil {
 		name = n
 	}
@@ -178,6 +180,9 @@ func (s *samSession) LookupI2P(name string) (a I2PAddr, err error) {
 	s.lookup <- &req
 	repl := <-req.replyChnl
 	a, err = repl.addr, repl.err
+	if err == nil {
+		a.port = port
+	}
 	return
 }
 
@@ -270,7 +275,7 @@ func (s *samSession) udpAddr() (string, string, error) {
 	return "", "", errors.New("unroutable address: " + host)
 }
 
-func (s *samSession) createSession() (err error) {
+func (s *samSession) createSession(style string) (err error) {
 	// try opening if this session isn't already open
 	optsstr := " inbound.name=XD"
 	if s.opts != nil {
@@ -278,7 +283,7 @@ func (s *samSession) createSession() (err error) {
 			optsstr += fmt.Sprintf(" %s=%s", k, v)
 		}
 	}
-	if s.style == "DATAGRAM" {
+	if style == "DATAGRAM" {
 		var daddr, saddr string
 		daddr, saddr, err = s.udpAddr()
 		if err != nil {
@@ -302,7 +307,7 @@ func (s *samSession) createSession() (err error) {
 		optsstr += fmt.Sprintf(" HOST=%s PORT=%s", host, port)
 	}
 
-	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=%s ID=%s SIGNATURE_TYPE=%d DESTINATION=%s%s\n", s.style, s.Name(), SigType, s.keys.privkey, optsstr)
+	_, err = fmt.Fprintf(s.c, "SESSION CREATE STYLE=%s ID=%s SIGNATURE_TYPE=%d DESTINATION=%s%s\n", style, s.Name(), SigType, s.keys.privkey, optsstr)
 	if err == nil {
 		// read response line
 		var line string
@@ -337,10 +342,10 @@ func (s *samSession) Open() (err error) {
 		err = s.keys.ensure(s.c)
 	}
 	if err == nil {
-		err = s.createSession()
+		err = s.createSession("STREAM")
 		if err == nil {
 			go s.runLookups()
-			var a I2PAddr
+			var a Addr
 			a, err = s.LookupI2P("ME")
 			if err == nil {
 				s.keys.pubkey = a.String()

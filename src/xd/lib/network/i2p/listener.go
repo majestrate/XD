@@ -12,7 +12,7 @@ type i2pListener struct {
 	// parent session
 	session Session
 	// local address
-	laddr I2PAddr
+	laddr Addr
 }
 
 // implements net.Listener

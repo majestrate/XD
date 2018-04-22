@@ -12,7 +12,7 @@ type I2PPacketConn struct {
 	// underlying connection
 	c net.PacketConn
 	// our local address
-	laddr I2PAddr
+	laddr Addr
 	// remote sam addr
 	samaddr net.Addr
 	// sam version
@@ -39,7 +39,9 @@ func (c *I2PPacketConn) ReadFrom(d []byte) (n int, from net.Addr, err error) {
 				// drop silent because invalid format
 				continue
 			}
-			from = I2PAddr(parts[1])
+			parts = bytes.Split(parts[1], []byte{' '})
+
+			from = I2PAddr(string(parts[len(parts)-1]))
 			data := buff[idx+1 : n]
 			n -= 1 + idx
 			if len(d) < n {
@@ -71,6 +73,9 @@ func (c *I2PPacketConn) WriteTo(d []byte, to net.Addr) (n int, err error) {
 
 // implements net.PacketConn
 func (c *I2PPacketConn) Close() error {
+	if c.c == nil {
+		return nil
+	}
 	return c.c.Close()
 }
 

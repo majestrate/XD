@@ -19,6 +19,9 @@ type Session interface {
 	// implements network.Network
 	Addr() net.Addr
 
+	// implements net.PacketConn
+	LocalAddr() net.Addr
+
 	// implements network.Network
 	ReadFrom([]byte) (int, net.Addr, error)
 
@@ -32,13 +35,13 @@ type Session interface {
 	Lookup(name, port string) (net.Addr, error)
 
 	// lookup an i2p address
-	LookupI2P(name string) (I2PAddr, error)
+	LookupI2P(name string) (Addr, error)
 
 	// implements network.Network
 	Dial(n, a string) (net.Conn, error)
 
 	// dial out to a remote destination
-	DialI2P(a I2PAddr) (net.Conn, error)
+	DialI2P(a Addr) (net.Conn, error)
 
 	// open the session, generate keys, start up destination etc
 	Open() error
@@ -50,20 +53,6 @@ type Session interface {
 // create a new i2p session
 func NewSession(name, addr, keyfile string, opts map[string]string) Session {
 	return &samSession{
-		style:      "STREAM",
-		name:       name,
-		addr:       addr,
-		minversion: "3.0",
-		maxversion: "3.0",
-		keys:       NewKeyfile(keyfile),
-		opts:       opts,
-		lookup:     make(chan *lookupReq, 18),
-	}
-}
-
-func NewPacketSession(name, addr, keyfile string, opts map[string]string) Session {
-	return &samSession{
-		style:      "DATAGRAM",
 		name:       name,
 		addr:       addr,
 		minversion: "3.0",
