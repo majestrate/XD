@@ -1,6 +1,7 @@
 package swarm
 
 import (
+	"io"
 	"net"
 	"time"
 	"xd/lib/bittorrent"
@@ -100,7 +101,7 @@ func (c *PeerConn) appendSend(msg common.WireMessage) {
 			return
 		}
 	}
-	c.processWrite(c.writeBuff, msg)
+	c.processWrite(&c.writeBuff, msg)
 }
 
 func (c *PeerConn) run() {
@@ -140,7 +141,7 @@ func (c *PeerConn) start() {
 }
 
 func (c *PeerConn) flushSend() error {
-	_, err := io.Copy(c.c, c.writeBuff)
+	_, err := io.Copy(c.c, &c.writeBuff)
 	c.writeBuff.Reset()
 	return err
 }
