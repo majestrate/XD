@@ -35,15 +35,14 @@ func I2PAddr(addr string) Addr {
 
 // compute base32 address
 func (addr Addr) Base32Addr() (b32 Base32Addr) {
-	a := addr.addr
+	a := []byte(addr.addr)
 	buf := make([]byte, i2pB64enc.DecodedLen(len(a)))
-	if _, err := i2pB64enc.Decode(buf, []byte(a)); err != nil {
+	n, err := i2pB64enc.Decode(buf, a)
+	if err != nil {
 		return
 	}
-	h := sha256.New()
-	h.Write(buf)
-	d := h.Sum(nil)
-	copy(b32[:], d)
+	h := sha256.Sum256(buf[:n])
+	copy(b32[:], h[:])
 	return
 }
 
