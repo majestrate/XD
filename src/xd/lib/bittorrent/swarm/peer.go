@@ -116,7 +116,15 @@ func (c *PeerConn) run() {
 			c.doClose()
 			return
 		case msg := <-c.send:
-			c.appendSend(msg)
+			if msg == nil {
+				continue
+			}
+			if msg.Len() > 1000 {
+				// write big messages right away
+				c.doSend(msg)
+			} else {
+				c.appendSend(msg)
+			}
 		}
 	}
 }
