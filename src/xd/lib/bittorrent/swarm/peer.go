@@ -97,6 +97,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 func (c *PeerConn) appendSend(msg common.WireMessage) {
 	if c.writeBuff.Len() > 1000 {
 		if c.flushSend() != nil {
+			c.closing = true
 			c.doClose()
 			return
 		}
@@ -126,7 +127,9 @@ func (c *PeerConn) run() {
 					// write big messages right away
 					c.processWrite(c.c, msg)
 				} else {
+					c.closing = true
 					c.doClose()
+					return
 				}
 			} else {
 				c.appendSend(msg)
