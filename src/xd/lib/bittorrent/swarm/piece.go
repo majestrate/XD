@@ -172,7 +172,7 @@ func (cp *cachedPiece) isExpired() (expired bool) {
 	return
 }
 
-func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest) bool {
+func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest, requestNew bool) bool {
 	var r *common.PieceRequest
 	idx, old := pt.pendingPiece(remote)
 	if old {
@@ -180,7 +180,7 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req 
 			r = cp.nextRequest()
 		})
 	}
-	if r == nil {
+	if r == nil && requestNew {
 		var exclude []uint32
 		for k := range pt.requests {
 			exclude = append(exclude, k)

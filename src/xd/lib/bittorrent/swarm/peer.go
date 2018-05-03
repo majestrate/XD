@@ -683,10 +683,10 @@ func (c *PeerConn) tickDownload() {
 		now := time.Now()
 		if now.After(c.nextPieceRequest) {
 			var r common.PieceRequest
-			if c.t.pt.nextRequestForDownload(c.bf, &r) {
+			if c.t.pt.nextRequestForDownload(c.bf, &r, p < (c.MaxParalellRequests / 2)) {
 				c.queueDownload(r)
 			} else {
-				c.nextPieceRequest = now.Add(time.Second)
+				c.nextPieceRequest = now.Add(time.Second / 4)
 				log.Debugf("no next piece to download for %s", c.id.String())
 			}
 		}
