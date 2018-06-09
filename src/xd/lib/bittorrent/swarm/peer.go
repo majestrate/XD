@@ -109,7 +109,11 @@ func (c *PeerConn) run() {
 	for {
 		select {
 		case <-c.ticker.C:
-			c.flushSend()
+			if c.flushSend() != nil {
+				c.closing = true
+				c.doClose()
+				return
+			}
 			if c.tickstats {
 				c.tx.Tick()
 				c.rx.Tick()
@@ -125,7 +129,11 @@ func (c *PeerConn) run() {
 			if msg.Len() > 1000 {
 				if c.flushSend() == nil {
 					// write big messages right away
-					c.processWrite(c.c, msg)
+					if c.processWrite(c.c, msg) != nil {
+						c.closing = true
+						c.doClose()
+						return
+					}
 				} else {
 					c.closing = true
 					c.doClose()
@@ -149,7 +157,7 @@ func (c *PeerConn) flushSend() error {
 	return err
 }
 
-func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) {
+func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) (err error) {
 	if msg != nil {
 		now := time.Now()
 		c.lastSend = now
@@ -160,18 +168,16 @@ func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) {
 			return
 		}
 		log.Debugf("writing %d bytes", msg.Len())
-		err := util.WriteFull(w, msg)
+		err = util.WriteFull(w, msg)
 		if err == nil {
 			if msg.MessageID() == common.Piece {
 				n := uint64(msg.Len())
 				c.tx.AddSample(n)
 				c.t.statsTracker.AddSample(RateUpload, n)
 			}
-		} else {
-			log.Debugf("write error: %s", err.Error())
-			c.doClose()
 		}
 	}
+	return
 }
 
 // queue a send of a bittorrent wire message to this peer
@@ -677,10 +683,10 @@ func (c *PeerConn) tickDownload() {
 		now := time.Now()
 		if now.After(c.nextPieceRequest) {
 			var r common.PieceRequest
-			if c.t.pt.nextRequestForDownload(c.bf, &r) {
+			if c.t.pt.nextRequestForDownload(c.bf, &r, p < (c.MaxParalellRequests / 2)) {
 				c.queueDownload(r)
 			} else {
-				c.nextPieceRequest = now.Add(time.Second)
+				c.nextPieceRequest = now.Add(time.Second / 4)
 				log.Debugf("no next piece to download for %s", c.id.String())
 			}
 		}

@@ -52,7 +52,7 @@ type Handshake struct {
 	PeerID   common.PeerID
 }
 
-// FromBytes parses bittorrent handshake from bytes
+// FromBytes parses bittorrent handshake from byteslice
 func (h *Handshake) FromBytes(data []byte) (err error) {
 	if len(data) < 68 {
 		err = ErrInvalidHandshake
