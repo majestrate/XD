@@ -341,6 +341,20 @@ func (t *Torrent) Bitfield() *bittorrent.Bitfield {
 	return t.st.Bitfield()
 }
 
+// manually announce as seed to all trackers
+// blocks until done
+func (t *Torrent) AnnounceSeed() {
+	var wg sync.WaitGroup
+	for name := range t.Trackers {
+		wg.Add(1)
+		go func() {
+			t.announce(name, tracker.Completed)
+			wg.Add(-1)
+		}()
+	}
+	wg.Wait()
+}
+
 // start annoucing on all trackers
 func (t *Torrent) StartAnnouncing() {
 	// wait for network
@@ -726,6 +740,7 @@ func (t *Torrent) run() {
 				t.seeding, err = t.st.Seed()
 				if t.seeding {
 					log.Infof("%s is seeding", t.Name())
+					t.AnnounceSeed()
 				} else if err != nil {
 					log.Errorf("failed to begin seeding: %s", err.Error())
 				} else {
