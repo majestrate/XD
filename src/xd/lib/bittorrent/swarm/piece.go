@@ -44,6 +44,9 @@ func (p *cachedPiece) put(offset uint32, l uint32) {
 // cancel a slice
 func (p *cachedPiece) cancel(offset, length uint32) {
 	idx := offset / BlockSize
+	if length != BlockSize {
+		idx++
+	}
 	p.pending.Unset(idx)
 	p.lastActive = time.Now()
 }
