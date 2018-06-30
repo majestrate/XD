@@ -31,6 +31,10 @@ func (p *cachedPiece) done() bool {
 func (p *cachedPiece) put(offset uint32, l uint32) {
 	// set obtained
 	idx := offset / BlockSize
+
+	if l != BlockSize {
+		idx++
+	}
 	p.obtained.Set(idx)
 	p.pending.Unset(idx)
 	p.lastActive = time.Now()
