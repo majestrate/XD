@@ -37,6 +37,10 @@ type Swarm struct {
 	netDead  bool
 }
 
+func (sw *Swarm) IsOnline() bool {
+	return !sw.netDead
+}
+
 func (sw *Swarm) Running() bool {
 	return !sw.closing
 }

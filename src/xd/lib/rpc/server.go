@@ -127,7 +127,14 @@ func (r *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 					}
 				}
 				if swarmidx < len(r.sw) {
-					rr.ProcessRequest(r.sw[swarmidx], rw)
+					if r.sw[swarmidx].IsOnline() {
+						rr.ProcessRequest(r.sw[swarmidx], rw)
+					} else {
+						rr = &rpcError{
+							message: "swarm offline",
+						}
+						rr.ProcessRequest(nil, rw)
+					}
 				} else {
 					rr = &rpcError{
 						message: "no such swarm",
