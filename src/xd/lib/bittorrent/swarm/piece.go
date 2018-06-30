@@ -31,13 +31,8 @@ func (p *cachedPiece) done() bool {
 func (p *cachedPiece) put(offset uint32, l uint32) {
 	// set obtained
 	idx := offset / BlockSize
-	if l != BlockSize {
-		// last block of last piece
-		idx++
-	}
 	p.obtained.Set(idx)
 	p.pending.Unset(idx)
-
 	p.lastActive = time.Now()
 	log.Debugf("put idx=%d offset=%d bit=%d", p.index, offset, idx)
 }
@@ -68,7 +63,7 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 
 	if r.Begin+r.Length > l {
 		// is this probably the last piece ?
-		if (r.Begin+r.Length)-l >= BlockSize {
+		if BlockSize == p.length {
 			// no, let's just say there are no more blocks left
 			log.Debugf("no next piece request for idx=%d", r.Index)
 			r = nil
