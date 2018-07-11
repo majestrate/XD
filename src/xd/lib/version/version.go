@@ -8,7 +8,7 @@ var Major = "0"
 
 var Minor = "3"
 
-var Patch = "0"
+var Patch = "1"
 
 var Git string
 
