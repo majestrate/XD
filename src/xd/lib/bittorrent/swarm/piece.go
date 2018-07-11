@@ -22,19 +22,25 @@ type cachedPiece struct {
 	mtx        sync.Mutex
 }
 
+// should we accept a piece data with offset and length ?
+func (p *cachedPiece) accept(offset, length uint32) bool {
+	return offset+length <= p.length
+}
+
 // is this piece done downloading ?
 func (p *cachedPiece) done() bool {
 	return p.obtained.Completed()
 }
 
-// mark slice of data at offset as obtained
-func (p *cachedPiece) put(offset uint32, l uint32) {
-	// set obtained
-	idx := offset / BlockSize
+// calculate bitfield index for offset
+func (p *cachedPiece) bitfieldIndex(offset uint32) uint32 {
+	return offset / BlockSize
+}
 
-	if l != BlockSize {
-		idx++
-	}
+// mark slice of data at offset as obtained
+func (p *cachedPiece) put(offset uint32) {
+	// set obtained
+	idx := p.bitfieldIndex(offset)
 	p.obtained.Set(idx)
 	p.pending.Unset(idx)
 	p.lastActive = time.Now()
@@ -42,11 +48,8 @@ func (p *cachedPiece) put(offset uint32, l uint32) {
 }
 
 // cancel a slice
-func (p *cachedPiece) cancel(offset, length uint32) {
-	idx := offset / BlockSize
-	if length != BlockSize {
-		idx++
-	}
+func (p *cachedPiece) cancel(offset uint32) {
+	idx := p.bitfieldIndex(offset)
 	p.pending.Unset(idx)
 	p.lastActive = time.Now()
 }
@@ -58,11 +61,10 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 	r = new(common.PieceRequest)
 	r.Index = p.index
 	r.Length = BlockSize
-	idx := uint32(0)
 	for r.Begin < l {
+		idx := p.bitfieldIndex(r.Begin)
 		if p.pending.Has(idx) || p.obtained.Has(idx) {
 			r.Begin += BlockSize
-			idx++
 		} else {
 			break
 		}
@@ -70,18 +72,23 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 
 	if r.Begin+r.Length > l {
 		// is this probably the last piece ?
-		if BlockSize == p.length {
+		if (r.Begin+r.Length)-l >= BlockSize {
 			// no, let's just say there are no more blocks left
 			log.Debugf("no next piece request for idx=%d", r.Index)
 			r = nil
 			return
 		} else {
 			// yes so let's correct the size
+			if p.pending.Has(p.bitfieldIndex(r.Begin)) {
+				log.Debugf("no next piece request for idx=%d", r.Index)
+				r = nil
+				return
+			}
 			r.Length = l - r.Begin
 		}
 	}
 	log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
-	p.pending.Set(idx)
+	p.pending.Set(p.bitfieldIndex(r.Begin))
 	return
 }
 
@@ -126,6 +133,9 @@ func (pt *pieceTracker) newPiece(piece uint32) bool {
 
 	sz := info.LengthOfPiece(piece)
 	bits := sz / BlockSize
+	if bits == 0 {
+		bits++
+	}
 	log.Debugf("new piece idx=%d len=%d bits=%d", piece, sz, bits)
 	pt.requests[piece] = &cachedPiece{
 		pending:    bittorrent.NewBitfield(bits, nil),
@@ -210,18 +220,20 @@ func (pt *pieceTracker) canceledRequest(r common.PieceRequest) {
 		return
 	}
 	pt.visitCached(r.Index, func(pc *cachedPiece) {
-		pc.cancel(r.Begin, r.Length)
+		pc.cancel(r.Begin)
 	})
 }
 
 func (pt *pieceTracker) handlePieceData(d common.PieceData) {
 	idx := d.Index
 	pt.visitCached(idx, func(pc *cachedPiece) {
-		begin := d.Begin
-		l := uint32(len(d.Data))
-		err := pt.st.PutChunk(idx, begin, d.Data)
+		if !pc.accept(d.Begin, uint32(len(d.Data))) {
+			log.Errorf("invalid piece data: index=%d offset=%d length=%d", d.Index, d.Begin, len(d.Data))
+			return
+		}
+		err := pt.st.PutChunk(idx, d.Begin, d.Data)
 		if err == nil {
-			pc.put(begin, l)
+			pc.put(d.Begin)
 		} else {
 			log.Errorf("failed to put chunk %d: %s", idx, err.Error())
 		}
