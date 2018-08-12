@@ -52,8 +52,16 @@ func SetLevel(l string) {
 	l = strings.ToLower(l)
 	if l == "debug" {
 		level = debug
-	} else {
+	} else if l == "info"{
 		level = info
+	} else if l == "warn"{
+		level = warn
+	} else if l == "err"{
+		level = err
+	} else if l == "fatal"{
+		level = fatal
+	} else {
+		panic(fmt.Sprintf("invalid log level: '%s'", l))
 	}
 }
 
