@@ -5,6 +5,7 @@ import (
 )
 
 type Config struct {
+	LokiNet    LokiNetConfig
 	I2P        I2PConfig
 	Storage    StorageConfig
 	RPC        RPCConfig
@@ -23,6 +24,7 @@ type Configurable interface {
 // Load loads a config from file by filename
 func (cfg *Config) Load(fname string) (err error) {
 	sects := map[string]Configurable{
+		"lokinet":    &cfg.LokiNet,
 		"i2p":        &cfg.I2P,
 		"storage":    &cfg.Storage,
 		"rpc":        &cfg.RPC,
@@ -50,6 +52,7 @@ func (cfg *Config) Load(fname string) (err error) {
 // Save saves a loaded config to file by filename
 func (cfg *Config) Save(fname string) (err error) {
 	sects := map[string]Configurable{
+		"lokinet":    &cfg.LokiNet,
 		"i2p":        &cfg.I2P,
 		"storage":    &cfg.Storage,
 		"rpc":        &cfg.RPC,

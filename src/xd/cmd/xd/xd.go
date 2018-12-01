@@ -99,6 +99,10 @@ func (c *Context) AddCloser(cl io.Closer) int {
 	return c.numClosers
 }
 
+func (c *Context) RemoveCloser(id int) {
+	c.closers.Delete(id)
+}
+
 func (c *Context) ReplaceCloser(id int, cl io.Closer) {
 	c.closers.Store(id, cl)
 }
@@ -268,7 +272,38 @@ func Run() {
 		}
 	}
 
-	runFunc := func(netConf config.I2PConfig, sw *swarm.Swarm) {
+	runLokiNetFunc := func(netConf config.LokiNetConfig, sw *swarm.Swarm) {
+		for sw.Running() {
+			n, err := netConf.CreateSession()
+			if err != nil {
+				log.Infof("failed to create lokinet session: %s", err.Error())
+				time.Sleep(time.Second)
+				continue
+			}
+			id := ctx.AddCloser(n)
+			log.Info("opening lokinet session")
+			err = n.Open()
+			if err == nil {
+				log.Infof("we up at %s", n.LocalName())
+				sw.ObtainedNetwork(n)
+				ctx.netlost = false
+				err = sw.Run()
+				if err != nil {
+					ctx.netlost = true
+					log.Errorf("lost lokinet session: %s", err)
+					sw.LostNetwork()
+					ctx.RemoveCloser(id)
+				}
+			} else {
+				ctx.netlost = true
+				ctx.RemoveCloser(id)
+				log.Errorf("failed to open lokinet session: %s", err)
+				time.Sleep(time.Second)
+			}
+		}
+	}
+
+	runI2PFunc := func(netConf config.I2PConfig, sw *swarm.Swarm) {
 		n := netConf.CreateSession()
 		id := ctx.AddCloser(n)
 		for sw.Running() {
@@ -297,7 +332,13 @@ func Run() {
 	}
 
 	for idx := range ctx.swarms {
-		go runFunc(conf.I2P, ctx.swarms[idx])
+		if conf.I2P.Disabled {
+			if !conf.LokiNet.Disabled {
+				go runLokiNetFunc(conf.LokiNet, ctx.swarms[idx])
+			}
+		} else {
+			go runI2PFunc(conf.I2P, ctx.swarms[idx])
+		}
 	}
 	ctx.AddCloser(st)
 	go ctx.RunSignals()

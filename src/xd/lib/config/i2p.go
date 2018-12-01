@@ -14,6 +14,7 @@ type I2PConfig struct {
 	Name            string
 	nameWasProvided bool
 	I2CPOptions     map[string]string
+	Disabled        bool
 }
 
 func (cfg *I2PConfig) Load(section *configparser.Section) error {
@@ -23,6 +24,7 @@ func (cfg *I2PConfig) Load(section *configparser.Section) error {
 		cfg.Keyfile = ""
 		cfg.Name = util.RandStr(5)
 	} else {
+		cfg.Disabled = section.Get("disabled", "") == "1"
 		cfg.Addr = section.Get("address", i2p.DEFAULT_ADDRESS)
 		cfg.Keyfile = section.Get("keyfile", "")
 		gen := util.RandStr(5)
@@ -30,7 +32,7 @@ func (cfg *I2PConfig) Load(section *configparser.Section) error {
 		cfg.nameWasProvided = cfg.Name != gen
 		opts := section.Options()
 		for k, v := range opts {
-			if k == "address" || k == "keyfile" || k == "session" {
+			if k == "address" || k == "keyfile" || k == "session" || k == "disabled" {
 				continue
 			}
 			cfg.I2CPOptions[k] = v
@@ -52,6 +54,9 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 	}
 	if cfg.nameWasProvided {
 		opts["session"] = cfg.Name
+	}
+	if cfg.Disabled {
+		opts["disabled"] = "1"
 	}
 	for k := range opts {
 		s.Add(k, opts[k])

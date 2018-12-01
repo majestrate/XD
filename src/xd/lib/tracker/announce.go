@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"net/url"
-	"strings"
 	"time"
 	"xd/lib/common"
 	"xd/lib/network"
@@ -52,7 +51,7 @@ type Announcer interface {
 func FromURL(str string) Announcer {
 	u, err := url.Parse(str)
 	if err == nil {
-		if u.Scheme == "http" && strings.HasSuffix(u.Host, ".i2p") {
+		if u.Scheme == "http" {
 			return NewHttpTracker(u)
 		}
 	}

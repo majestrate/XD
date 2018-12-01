@@ -100,8 +100,10 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		n := req.GetNetwork()
 		a := n.Addr()
 		host, _, _ := net.SplitHostPort(a.String())
-		addr := host + ".i2p"
-		v.Add("ip", addr)
+		if a.Network() == "i2p" {
+			host += ".i2p"
+		}
+		v.Add("ip", host)
 		v.Add("info_hash", string(req.Infohash.Bytes()))
 		v.Add("peer_id", string(req.PeerID.Bytes()))
 		v.Add("port", fmt.Sprintf("%d", req.Port))
