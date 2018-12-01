@@ -9,6 +9,7 @@ import (
 	"strings"
 	"xd/lib/network"
 	"xd/lib/network/i2p"
+	"xd/lib/network/inet"
 	"xd/lib/version"
 )
 
@@ -44,13 +45,19 @@ type Peer struct {
 
 // Resolve resolves network address of peer
 func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
-	if len(p.IP) > 0 {
-		// prefer ip
-		parts := strings.Split(p.IP, ".i2p")
-		a = i2p.I2PAddr(parts[0])
+	la := n.Addr()
+	if la.Network() == "i2p" {
+		if len(p.IP) > 0 {
+			// prefer ip
+			parts := strings.Split(p.IP, ".i2p")
+			a = i2p.I2PAddr(parts[0])
+
+		} else {
+			// try compact
+			a, err = n.Lookup(p.Compact.String(), fmt.Sprintf("%d", p.Port))
+		}
 	} else {
-		// try compact
-		a, err = n.Lookup(p.Compact.String(), fmt.Sprintf("%d", p.Port))
+		a = inet.NewAddr(p.IP, fmt.Sprintf("%d", p.Port))
 	}
 	return
 }

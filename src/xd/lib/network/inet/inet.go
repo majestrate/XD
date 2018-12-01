@@ -121,6 +121,30 @@ func (s *Session) wrapConn(c net.Conn) (*Conn, error) {
 	}, nil
 }
 
+type Listener struct {
+	l     net.Listener
+	laddr *Addr
+}
+
+func (l *Listener) Addr() net.Addr {
+	return l.laddr
+}
+
+func (l *Listener) Close() error {
+	return l.l.Close()
+}
+
+func (l *Listener) Accept() (net.Conn, error) {
+	return l.l.Accept()
+}
+
+func NewAddr(n, p string) *Addr {
+	return &Addr{
+		name: n,
+		port: p,
+	}
+}
+
 type Addr struct {
 	name string
 	port string
@@ -190,9 +214,23 @@ func (s *Session) Accept() (net.Conn, error) {
 	return s.wrapConn(c)
 }
 
-func (s *Session) Open() (err error) {
-	s.serv, err = net.Listen("tcp", s.localAddr)
-	return
+func (s *Session) Open() error {
+	l, err := net.Listen("tcp", s.localAddr)
+	if err != nil {
+		return err
+	}
+	_, port, err := net.SplitHostPort(l.Addr().String())
+	if err != nil {
+		return err
+	}
+	s.serv = &Listener{
+		l: l,
+		laddr: &Addr{
+			name: s.name,
+			port: port,
+		},
+	}
+	return nil
 }
 
 func (s *Session) ReadFrom(d []byte) (n int, from net.Addr, err error) {
