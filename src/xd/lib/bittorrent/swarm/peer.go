@@ -3,6 +3,7 @@ package swarm
 import (
 	"io"
 	"net"
+	"strconv"
 	"time"
 	"xd/lib/bittorrent"
 	"xd/lib/bittorrent/extensions"
@@ -155,6 +156,14 @@ func (c *PeerConn) flushSend() error {
 	_, err := io.Copy(c.c, &c.writeBuff)
 	c.writeBuff.Reset()
 	return err
+}
+
+func (c *PeerConn) btPeer() (p common.Peer) {
+	h, prt, _ := net.SplitHostPort(c.c.RemoteAddr().String())
+	copy(p.ID[:], c.id[:])
+	p.IP = h
+	p.Port, _ = strconv.Atoi(prt)
+	return
 }
 
 func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) (err error) {
@@ -507,8 +516,58 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	return
 }
 
+func (c *PeerConn) handleLNPEX(m interface{}) {
+	var peers []common.Peer
+	pex, ok := m.(map[string]interface{})
+	if ok {
+		added, ok := pex["addedln"]
+		if ok {
+			l, ok := added.([]interface{})
+			if ok {
+				for idx := range l {
+					p, ok := l[idx].(map[string]interface{})
+					if ok {
+						var peer common.Peer
+						v, ok := p["ip"]
+						if !ok {
+							continue
+						}
+						peer.IP, ok = v.(string)
+						if !ok {
+							continue
+						}
+						v, ok = p["port"]
+						if !ok {
+							continue
+						}
+						port, ok := v.(int64)
+						if !ok {
+							continue
+						}
+						peer.Port = int(port)
+						v, ok = p["peer id"]
+						if !ok {
+							continue
+						}
+						pid, ok := v.(string)
+						if ok && len(pid) == 20 {
+							copy(peer.ID[:], pid[:])
+						} else {
+							continue
+						}
+						peers = append(peers, peer)
+					}
+				}
+			}
+		}
+		c.t.addPeers(peers)
+	} else {
+		log.Errorf("invalid pex message: %q", m)
+	}
+}
+
 // handles an inbound pex message
-func (c *PeerConn) handlePEX(m interface{}) {
+func (c *PeerConn) handleI2PPEX(m interface{}) {
 
 	pex, ok := m.(map[string]interface{})
 	if ok {
@@ -545,13 +604,23 @@ func (c *PeerConn) handlePEXAddedf(m interface{}) {
 	// TODO: implement this
 }
 
-func (c *PeerConn) SupportsPEX() bool {
-	return c.theirOpts.PEX()
+func (c *PeerConn) SupportsI2PPEX() bool {
+	return c.theirOpts.I2PPEX()
 }
 
-func (c *PeerConn) sendPEX(connected, disconnected []byte) {
-	id := c.theirOpts.Extensions[extensions.PeerExchange.String()]
-	msg := extensions.NewPEX(uint8(id), connected, disconnected)
+func (c *PeerConn) SupportsLNPEX() bool {
+	return c.theirOpts.LNPEX()
+}
+
+func (c *PeerConn) sendI2PPEX(connected, disconnected []byte) {
+	id := c.theirOpts.Extensions[extensions.I2PPeerExchange.String()]
+	msg := extensions.NewI2PPEX(uint8(id), connected, disconnected)
+	c.Send(msg.ToWireMessage())
+}
+
+func (c *PeerConn) sendLNPEX(connected, disconnected []common.Peer) {
+	id := c.theirOpts.Extensions[extensions.LokinetPeerExchange.String()]
+	msg := extensions.NewLNPEX(uint8(id), connected, disconnected)
 	c.Send(msg.ToWireMessage())
 }
 
@@ -564,9 +633,10 @@ func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
 		// lookup the extension number
 		ext, ok := c.ourOpts.Lookup(opts.ID)
 		if ok {
-			if ext == extensions.PeerExchange.String() {
-				// this is PEX message
-				c.handlePEX(opts.Payload)
+			if ext == extensions.I2PPeerExchange.String() {
+				c.handleI2PPEX(opts.Payload)
+			} else if ext == extensions.LokinetPeerExchange.String() {
+				c.handleLNPEX(opts.Payload)
 			} else if ext == extensions.XDHT.String() {
 				// xdht message
 				err := c.t.xdht.HandleMessage(opts, c.id)
@@ -683,7 +753,7 @@ func (c *PeerConn) tickDownload() {
 		now := time.Now()
 		if now.After(c.nextPieceRequest) {
 			var r common.PieceRequest
-			if c.t.pt.nextRequestForDownload(c.bf, &r, p < (c.MaxParalellRequests / 2)) {
+			if c.t.pt.nextRequestForDownload(c.bf, &r, p < (c.MaxParalellRequests/2)) {
 				c.queueDownload(r)
 			} else {
 				c.nextPieceRequest = now.Add(time.Second / 4)

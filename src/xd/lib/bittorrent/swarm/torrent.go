@@ -770,12 +770,27 @@ func (t *Torrent) tick() {
 	if !t.Private() {
 		now := time.Now()
 		if now.Sub(t.lastPEX) > t.pexInterval {
-			connected, disconnected := t.pexState.PopDestHashLists()
-			t.VisitPeers(func(p *PeerConn) {
-				if p.SupportsPEX() {
-					p.sendPEX(connected, disconnected)
-				}
-			})
+			la := t.Network().Addr()
+			if la.Network() == "i2p" {
+				connected, disconnected := t.pexState.PopDestHashLists()
+				t.VisitPeers(func(p *PeerConn) {
+					if p.SupportsI2PPEX() {
+						p.sendI2PPEX(connected, disconnected)
+					}
+				})
+			} else {
+				var connected []common.Peer
+				t.VisitPeers(func(p *PeerConn) {
+					if len(connected) < 15 {
+						connected = append(connected, p.btPeer())
+					}
+				})
+				t.VisitPeers(func(p *PeerConn) {
+					if p.SupportsLNPEX() {
+						p.sendLNPEX(connected, []common.Peer{})
+					}
+				})
+			}
 			t.lastPEX = now
 		}
 	}

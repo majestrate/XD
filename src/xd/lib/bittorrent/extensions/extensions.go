@@ -13,10 +13,7 @@ import (
 type Extension string
 
 var extensionDefaults = map[string]uint32{
-	//I2PDHT:       1,
-	PeerExchange.String(): 2,
-	XDHT.String():         3,
-	UTMetaData.String():   4,
+	UTMetaData.String(): 1,
 }
 
 // String gets extension as string
@@ -34,9 +31,13 @@ type Message struct {
 	MetainfoSize *uint32           `bencode:"metadata_size,omitempty"`
 }
 
-// PEX returns true if PEX is supported
-func (opts Message) PEX() bool {
-	return opts.IsSupported(PeerExchange.String())
+// PEX returns true if i2p PEX is supported
+func (opts Message) I2PPEX() bool {
+	return opts.IsSupported(I2PPeerExchange.String())
+}
+
+func (opts Message) LNPEX() bool {
+	return opts.IsSupported(LokinetPeerExchange.String())
 }
 
 // XDHT returns true if XHDT is supported
@@ -134,8 +135,20 @@ func NewOur(sz uint32) Message {
 	return m
 }
 
-// NewPEX creates a new PEX message for i2p peers
-func NewPEX(id uint8, connected, disconnected []byte) Message {
+// NewI2PPEX creates a new PEX message for i2p peers
+func NewI2PPEX(id uint8, connected, disconnected []byte) Message {
+	payload := map[string]interface{}{
+		"added":   connected,
+		"dropped": disconnected,
+	}
+	msg := New()
+	msg.ID = id
+	msg.Payload = payload
+	return msg
+}
+
+// NewLNPex creates a new PEX message for lokinet peers
+func NewLNPEX(id uint8, connected, disconnected []common.Peer) Message {
 	payload := map[string]interface{}{
 		"added":   connected,
 		"dropped": disconnected,
