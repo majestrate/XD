@@ -1,6 +1,8 @@
 package swarm
 
 import (
+	"net"
+	"strconv"
 	"time"
 	"xd/lib/sync"
 	"xd/lib/tracker"
@@ -20,14 +22,26 @@ type torrentAnnounce struct {
 func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 	a.access.Lock()
 	if time.Now().After(a.next) {
+		la := a.t.Network().Addr()
+		if la.Network() == "i2p" {
+		}
 		req := &tracker.Request{
 			Infohash:   a.t.st.Infohash(),
 			PeerID:     a.t.id,
-			Port:       DefaultAnnouncePort,
 			Event:      ev,
 			NumWant:    DefaultAnnounceNumWant,
 			Left:       a.t.st.DownloadRemaining(),
 			GetNetwork: a.t.Network,
+		}
+		if la.Network() == "i2p" {
+			req.Port = DefaultAnnouncePort
+		} else {
+			var port string
+			_, port, err = net.SplitHostPort(la.String())
+			req.Port, err = strconv.Atoi(port)
+			if err != nil {
+				return
+			}
 		}
 		if ev == tracker.Stopped {
 			req.NumWant = 0
