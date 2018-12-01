@@ -155,6 +155,10 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 								if ok {
 									var p common.Peer
 									p.IP = fmt.Sprintf("%s", peer["ip"])
+									port, ok := peer["port"].(int64)
+									if ok {
+										p.Port = int(port)
+									}
 									resp.Peers = append(resp.Peers, p)
 								}
 							}

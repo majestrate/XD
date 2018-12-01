@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"xd/lib/log"
 	"xd/lib/network"
 	"xd/lib/network/i2p"
 	"xd/lib/network/inet"
@@ -40,7 +41,7 @@ type Peer struct {
 	Compact i2p.Base32Addr `bencode:"-"`
 	IP      string         `bencode:"ip"`
 	Port    int            `bencode:"port"`
-	ID      PeerID         `bencode:"id"`
+	ID      PeerID         `bencode:"peer id"`
 }
 
 // Resolve resolves network address of peer
@@ -57,6 +58,7 @@ func (p *Peer) Resolve(n network.Network) (a net.Addr, err error) {
 			a, err = n.Lookup(p.Compact.String(), fmt.Sprintf("%d", p.Port))
 		}
 	} else {
+		log.Debugf("%q", p)
 		a = inet.NewAddr(p.IP, fmt.Sprintf("%d", p.Port))
 	}
 	return

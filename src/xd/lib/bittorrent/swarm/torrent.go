@@ -619,6 +619,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 		return nil
 	}
 	ih := t.st.Infohash()
+	log.Debugf("%s %s ", a.String(), a.Network())
 	c, err := t.Network().Dial(a.Network(), a.String())
 	if err == nil {
 		// connected
