@@ -13,8 +13,6 @@ import (
 	"xd/lib/util"
 )
 
-const DefaultMaxParallelRequests = 4
-
 // a peer connection
 type PeerConn struct {
 	writeBuff           util.Buffer
