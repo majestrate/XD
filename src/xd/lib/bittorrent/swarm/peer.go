@@ -30,6 +30,7 @@ type PeerConn struct {
 	peerInterested      bool
 	usChoke             bool
 	usInterested        bool
+	sentInterested      bool
 	Done                func()
 	lastSend            time.Time
 	tx                  *util.Rate
@@ -385,13 +386,15 @@ func (c *PeerConn) cancelPiece(idx uint32) {
 
 func (c *PeerConn) checkInterested() {
 	bf := c.t.Bitfield()
-	if c.bf.XOR(bf).CountSet() > 0 {
+	if bf == nil || c.bf == nil || c.bf.XOR(bf).CountSet() > 0 {
 		c.usInterested = true
 		m := common.NewInterested()
 		c.Send(m)
+		c.sentInterested = true
 	} else {
 		c.usInterested = false
 		m := common.NewNotInterested()
+		c.sentInterested = true
 		c.Send(m)
 	}
 }
@@ -476,9 +479,16 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Interested {
 		c.markInterested()
+		if !c.sentInterested {
+			c.checkInterested()
+			c.Unchoke()
+		}
 	}
 	if msgid == common.NotInterested {
 		c.markNotInterested()
+		if !c.sentInterested {
+			c.checkInterested()
+		}
 	}
 	if msgid == common.Request {
 		c.uploading = true
