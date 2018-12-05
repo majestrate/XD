@@ -19,7 +19,7 @@ func (cfg *LokiNetConfig) Load(section *configparser.Section) error {
 		cfg.DNSAddr = inet.DefaultDNSAddr
 		cfg.IfName = inet.DefaultIfName
 		cfg.Port = inet.DefaultPort
-		cfg.Disabled = true
+		cfg.Disabled = DisableLokinetByDefault
 	} else {
 		cfg.Disabled = section.Get("disabled", "") == "1"
 		cfg.IfName = section.Get("ifname", inet.DefaultIfName)

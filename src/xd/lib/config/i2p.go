@@ -23,6 +23,7 @@ func (cfg *I2PConfig) Load(section *configparser.Section) error {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
 		cfg.Keyfile = ""
 		cfg.Name = util.RandStr(5)
+		cfg.Disabled = DisableI2PByDefault
 	} else {
 		cfg.Disabled = section.Get("disabled", "") == "1"
 		cfg.Addr = section.Get("address", i2p.DEFAULT_ADDRESS)

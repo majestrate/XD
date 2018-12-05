@@ -12,6 +12,12 @@ WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
 ASSETS = $(REPO)/src/xd/lib/rpc/assets/assets.go
 
+TAGS ?= webui
+LOKINET ?= 0
+ifeq ($(LOKINET),1)
+	TAGS += lokinet
+endif
+
 MKDIR = mkdir -p
 RM = rm -f
 CP = cp
@@ -49,10 +55,10 @@ $(ASSETS): $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) -o $(ASSETS) $(WEB_FILES)
 
 $(XD): $(ASSETS)
-	GOPATH=$(REPO) $(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
 dev: $(ASSETS)
-	GOPATH=$(REPO) $(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags webui -o $(XD)
+	GOPATH=$(REPO) $(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
 $(CLI): $(XD)
 	$(RM) $(CLI)
