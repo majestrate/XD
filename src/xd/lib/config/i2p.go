@@ -57,6 +57,8 @@ func (cfg *I2PConfig) Save(s *configparser.Section) error {
 	}
 	if cfg.Disabled {
 		opts["disabled"] = "1"
+	} else {
+		opts["disabled"] = "0"
 	}
 	for k := range opts {
 		s.Add(k, opts[k])
