@@ -8,9 +8,9 @@ import (
 	"time"
 )
 
-const DefaultIfName = "loki0"
+const DefaultIfName = "lokitun0"
 const DefaultPort = "0"
-const DefaultDNSAddr = "127.0.0.1:1153"
+const DefaultDNSAddr = "127.0.0.1:53"
 
 type Session struct {
 	localIP   net.IP
