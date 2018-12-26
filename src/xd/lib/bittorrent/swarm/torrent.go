@@ -168,6 +168,10 @@ func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
 	} else {
 		t.defaultOpts = extensions.NewOur(0)
 	}
+	// set default pex dialect supported
+	t.defaultOpts.SetSupported(DefaultPEXDialect)
+	// set ut_metadata supported
+	t.defaultOpts.SetSupported(extensions.UTMetaData)
 	t.pt = createPieceTracker(st, t.getRarestPiece)
 	t.pt.have = t.broadcastHave
 	return t

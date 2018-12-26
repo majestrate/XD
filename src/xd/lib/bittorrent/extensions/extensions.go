@@ -12,10 +12,6 @@ import (
 // Extension is a bittorrent extenension string
 type Extension string
 
-var extensionDefaults = map[string]uint32{
-	UTMetaData.String(): 1,
-}
-
 // String gets extension as string
 func (ex Extension) String() string {
 	return string(ex)
@@ -31,11 +27,12 @@ type Message struct {
 	MetainfoSize *uint32           `bencode:"metadata_size,omitempty"`
 }
 
-// PEX returns true if i2p PEX is supported
+// I2PPEX returns true if i2p PEX is supported
 func (opts Message) I2PPEX() bool {
 	return opts.IsSupported(I2PPeerExchange.String())
 }
 
+// LNPEX returns true if we support lokinet pex
 func (opts Message) LNPEX() bool {
 	return opts.IsSupported(LokinetPeerExchange.String())
 }
@@ -52,8 +49,19 @@ func (opts Message) MetaData() bool {
 
 // SetSupported sets a bittorrent extension as supported
 func (opts *Message) SetSupported(ext Extension) {
-	// TODO: this will error if we do not support this extension
-	opts.Extensions[ext.String()] = extensionDefaults[ext.String()]
+	// get max id
+	max := uint32(1)
+	for k := range opts.Extensions {
+		if opts.Extensions[k] > max {
+			max = opts.Extensions[k]
+		}
+		// already supported
+		if k == ext.String() {
+			return
+		}
+	}
+	// set supported
+	opts.Extensions[ext.String()] = max
 }
 
 // IsSupported returns true if an extension by its name is supported
@@ -127,7 +135,7 @@ func New() Message {
 func NewOur(sz uint32) Message {
 	m := Message{
 		Version:    version.Version(),
-		Extensions: extensionDefaults,
+		Extensions: make(map[string]uint32),
 	}
 	if sz > 0 {
 		m.MetainfoSize = &sz
