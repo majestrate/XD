@@ -46,7 +46,7 @@ func NewSession(ifname, port, dns string) (s *Session, err error) {
 		localIP:   localIP,
 		localAddr: net.JoinHostPort(localIP.String(), port),
 		resolver: net.Resolver{
-			Dial: func(ctx context.Context, n, a string) (net.Conn, error) {
+			Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
 				var d net.Dialer
 				return d.DialContext(ctx, "udp", dns)
 			},
