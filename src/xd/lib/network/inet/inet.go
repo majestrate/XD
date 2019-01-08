@@ -19,7 +19,6 @@ type Session struct {
 	serv      net.Listener
 	packet    net.PacketConn
 	resolver  net.Resolver
-	dialer    net.Dialer
 }
 
 func NewSession(ifname, port, dns string) (s *Session, err error) {
@@ -42,11 +41,6 @@ func NewSession(ifname, port, dns string) (s *Session, err error) {
 	if err != nil {
 		return
 	}
-	var laddr *net.TCPAddr
-	laddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(localIP.String(), "0"))
-	if err != nil {
-		return
-	}
 	ss := &Session{
 		port:      port,
 		localIP:   localIP,
@@ -56,9 +50,6 @@ func NewSession(ifname, port, dns string) (s *Session, err error) {
 				var d net.Dialer
 				return d.DialContext(ctx, "udp", dns)
 			},
-		},
-		dialer: net.Dialer{
-			LocalAddr: laddr,
 		},
 	}
 	var names []string
@@ -74,7 +65,6 @@ func NewSession(ifname, port, dns string) (s *Session, err error) {
 	}
 	ss.name = strings.TrimSuffix(names[0], ".")
 	s = ss
-	s.dialer.Resolver = &s.resolver
 	return
 }
 
@@ -82,11 +72,20 @@ func (s *Session) LocalName() string {
 	return s.name
 }
 
-func (s *Session) Dial(n, a string) (net.Conn, error) {
-	if s.dialer.LocalAddr == nil {
-		return nil, fmt.Errorf("connection not ready")
+func (s *Session) Dial(_, a string) (net.Conn, error) {
+	h, p, err := net.SplitHostPort(a)
+	if err != nil {
+		return nil, err
 	}
-	c, err := s.dialer.Dial(n, a)
+	raddr, err := s.lookupTCP(h, p)
+	if err != nil {
+		return nil, err
+	}
+	laddr, err := net.ResolveTCPAddr("tcp4", s.localAddr)
+	if err != nil {
+		return nil, err
+	}
+	c, err := net.DialTCP("tcp4", laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +251,10 @@ func (s *Session) Addr() net.Addr {
 }
 
 func (s *Session) Lookup(name, port string) (addr net.Addr, err error) {
+	return s.lookupTCP(name, port)
+}
+
+func (s *Session) lookupTCP(name, port string) (addr *net.TCPAddr, err error) {
 	var ips []net.IPAddr
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
