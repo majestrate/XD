@@ -4,6 +4,7 @@ import (
 	"net"
 	"strconv"
 	"time"
+	"xd/lib/log"
 	"xd/lib/sync"
 	"xd/lib/tracker"
 )
@@ -47,6 +48,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			req.NumWant = 0
 		}
 		var resp *tracker.Response
+		log.Infof("announcing to %s", a.announce.Name())
 		resp, err = a.announce.Announce(req)
 		backoff := a.fails * time.Minute
 		a.next = resp.NextAnnounce.Add(backoff)
