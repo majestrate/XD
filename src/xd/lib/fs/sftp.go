@@ -192,26 +192,26 @@ func (fs *sftpFS) FileExists(fname string) bool {
 	return err == nil
 }
 
-func (fs *sftpFS) OpenFileReadOnly(fname string) (r ReadFile, err error) {
-	r, err = fs.OpenFile(fname, os.O_RDONLY, 0600)
-	return
-}
-
-func (fs *sftpFS) OpenFileWriteOnly(fname string) (w WriteFile, err error) {
-	w, err = fs.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0600)
-	return
-}
-
-func (fs *sftpFS) OpenFile(fname string, mode int, perm os.FileMode) (f *sftpFile, err error) {
+func (fs *sftpFS) OpenFileReadOnly(fname string) (f ReadFile, err error) {
 	err = fs.ensureConn(func(c *sftp.Client) error {
 		var e error
 		var osf *sftp.File
-		osf, e = c.OpenFile(fname, mode)
+		osf, e = c.Open(fname)
 		if e == nil {
-			e = osf.Chmod(perm)
-			if e == nil {
-				f = &sftpFile{osf}
-			}
+			f = &sftpFile{osf}
+		}
+		return e
+	})
+	return
+}
+
+func (fs *sftpFS) OpenFileWriteOnly(fname string) (f WriteFile, err error) {
+	err = fs.ensureConn(func(c *sftp.Client) error {
+		var e error
+		var osf *sftp.File
+		osf, e = c.Create(fname)
+		if e == nil {
+			f = &sftpFile{osf}
 		}
 		return e
 	})
