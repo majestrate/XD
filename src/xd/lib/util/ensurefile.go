@@ -18,7 +18,7 @@ func EnsureFile(fpath string, size uint64) (err error) {
 		if os.IsNotExist(err) {
 			log.Debugf("create file %s", fpath)
 			var f *os.File
-			f, err = os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY, 0600)
+			f, err = os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY, 0666)
 			if err == nil {
 				// fill with zeros
 				if size > 0 {
