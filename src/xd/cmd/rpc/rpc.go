@@ -210,7 +210,7 @@ func listTorrents(c *rpc.Client) {
 	}
 	fmt.Println()
 	tx, rx := st.TotalSpeed()
-	fmt.Printf("%s: tx=%s rx=%s (%.2f ratio)\n", t.TN("%d torrent", "%d torrents", torrents.Len()), formatRate(tx), formatRate(rx), st.Ratio())
+	fmt.Printf("%s: tx=%s rx=%s (%.2f ratio)\n", t.TN("%d torrent", "%d torrents", torrents.Len(), torrents.Len()), formatRate(tx), formatRate(rx), st.Ratio())
 	fmt.Println()
 	fmt.Println()
 }
