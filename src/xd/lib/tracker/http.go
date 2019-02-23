@@ -102,6 +102,7 @@ func (t *HttpTracker) Announce(req *Request) (resp *Response, err error) {
 		host, _, _ := net.SplitHostPort(a.String())
 		if a.Network() == "i2p" {
 			host += ".i2p"
+			req.Compact = true
 		}
 		v.Add("ip", host)
 		v.Add("info_hash", string(req.Infohash.Bytes()))
