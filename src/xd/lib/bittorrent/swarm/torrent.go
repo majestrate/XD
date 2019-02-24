@@ -816,14 +816,14 @@ func (t *Torrent) tick() {
 	})
 }
 
-func (t *Torrent) handlePieceRequest(c *PeerConn, r common.PieceRequest) {
+func (t *Torrent) handlePieceRequest(c *PeerConn, r *common.PieceRequest) {
 
 	if r.Length > 0 {
 		var pc common.PieceData
 		log.Debugf("%s asked for piece %d %d-%d", c.id.String(), r.Index, r.Begin, r.Begin+r.Length)
 		if r.Length <= uint32(cap(c.sendPieceBuff)) {
 			pc.Data = c.sendPieceBuff[:r.Length]
-			err := t.st.GetPiece(r, &pc)
+			err := t.st.GetPiece(*r, &pc)
 			if err == nil {
 				// have the piece, send it
 				c.Send(pc.ToWireMessage())

@@ -104,6 +104,13 @@ type pieceTracker struct {
 	nextPiece PiecePicker
 }
 
+// get number of pending pieces we are requesting
+func (pt *pieceTracker) NumPending() int {
+	pt.mtx.Lock()
+	defer pt.mtx.Unlock()
+	return len(pt.requests)
+}
+
 func (pt *pieceTracker) visitCached(idx uint32, v func(*cachedPiece)) {
 	pt.mtx.Lock()
 	_, has := pt.requests[idx]
@@ -184,6 +191,40 @@ func (cp *cachedPiece) isExpired() (expired bool) {
 	return
 }
 
+func (pt *pieceTracker) PendingPieces() (exclude []uint32) {
+	pt.mtx.Lock()
+	for k := range pt.requests {
+		exclude = append(exclude, k)
+	}
+	pt.mtx.Unlock()
+	return
+}
+
+func (pt *pieceTracker) NextRequest(remote *bittorrent.Bitfield, lastReq *common.PieceRequest) (r *common.PieceRequest) {
+	if lastReq != nil {
+		pt.visitCached(lastReq.Index, func(cp *cachedPiece) {
+			r = cp.nextRequest()
+		})
+	}
+	if r != nil {
+		return
+	}
+	// no last request or no more requests for last request
+	// pick new piece
+	exclude := pt.PendingPieces()
+	idx, has := pt.nextPiece(remote, exclude)
+	if !has {
+		// no next piece
+		return
+	}
+	// get next requset for this newly created piece
+	pt.visitCached(idx, func(cp *cachedPiece) {
+		r = cp.nextRequest()
+	})
+	return
+}
+
+// deprceated
 func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest, requestNew bool) bool {
 	var r *common.PieceRequest
 	idx, old := pt.pendingPiece(remote)
@@ -215,7 +256,7 @@ func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req 
 }
 
 // cancel previously requested piece request
-func (pt *pieceTracker) canceledRequest(r common.PieceRequest) {
+func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
 	if r.Length == 0 {
 		return
 	}
@@ -242,7 +283,7 @@ func (pt *pieceTracker) handlePieceData(d common.PieceData) {
 			if err == nil {
 				pt.st.Flush()
 				if pt.have != nil {
-					pt.have(d.Index)
+					pt.have(idx)
 				}
 			} else {
 				log.Warnf("put piece %d failed: %s", idx, err.Error())

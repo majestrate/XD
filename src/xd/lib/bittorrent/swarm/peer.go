@@ -34,7 +34,8 @@ type PeerConn struct {
 	tx                  *util.Rate
 	lastRecv            time.Time
 	rx                  *util.Rate
-	downloading         []common.PieceRequest
+	downloading         []*common.PieceRequest
+	lastRequest         *common.PieceRequest
 	ourOpts             extensions.Message
 	theirOpts           extensions.Message
 	MaxParalellRequests int
@@ -89,7 +90,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.usInterested = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
-	p.downloading = []common.PieceRequest{}
+	p.downloading = []*common.PieceRequest{}
 	p.send = make(chan common.WireMessage, 128)
 	return p
 }
@@ -229,7 +230,7 @@ func (c *PeerConn) Unchoke() {
 
 func (c *PeerConn) gotDownload(p common.PieceData) {
 	c.access.Lock()
-	var downloading []common.PieceRequest
+	var downloading []*common.PieceRequest
 	for idx := range c.downloading {
 		if c.downloading[idx].Matches(&p) {
 			c.t.pt.handlePieceData(p)
@@ -241,11 +242,11 @@ func (c *PeerConn) gotDownload(p common.PieceData) {
 	c.access.Unlock()
 }
 
-func (c *PeerConn) cancelDownload(req common.PieceRequest) {
+func (c *PeerConn) cancelDownload(req *common.PieceRequest) {
 	c.access.Lock()
-	var downloading []common.PieceRequest
+	var downloading []*common.PieceRequest
 	for _, r := range c.downloading {
-		if r.Equals(&req) {
+		if r.Equals(req) {
 			c.t.pt.canceledRequest(r)
 		} else {
 			downloading = append(downloading, r)
@@ -262,7 +263,8 @@ func (c *PeerConn) numDownloading() int {
 	return i
 }
 
-func (c *PeerConn) queueDownload(req common.PieceRequest) {
+func (c *PeerConn) queueDownload(req *common.PieceRequest) {
+	c.lastRequest = req
 	c.access.Lock()
 	c.downloading = append(c.downloading, req)
 	c.access.Unlock()
@@ -276,7 +278,7 @@ func (c *PeerConn) clearDownloading() {
 		c.Send(r.Cancel())
 		c.t.pt.canceledRequest(r)
 	}
-	c.downloading = []common.PieceRequest{}
+	c.downloading = []*common.PieceRequest{}
 	c.access.Unlock()
 }
 
@@ -321,7 +323,7 @@ func (c *PeerConn) cancelPendingDownloads() {
 		c.t.pt.canceledRequest(r)
 		c.Send(r.Cancel())
 	}
-	c.downloading = []common.PieceRequest{}
+	c.downloading = []*common.PieceRequest{}
 	c.access.Unlock()
 }
 
@@ -371,7 +373,7 @@ func (c *PeerConn) runReader() {
 func (c *PeerConn) cancelPiece(idx uint32) {
 	c.access.Lock()
 	downloading := c.downloading
-	c.downloading = []common.PieceRequest{}
+	c.downloading = []*common.PieceRequest{}
 	for _, r := range downloading {
 		if r.Index == idx {
 			c.Send(r.Cancel())
@@ -491,7 +493,9 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	if msgid == common.Request {
 		c.uploading = true
 		ev := msg.GetPieceRequest()
-		c.t.handlePieceRequest(c, ev)
+		if ev != nil {
+			c.t.handlePieceRequest(c, ev)
+		}
 	}
 	if msgid == common.Piece {
 		msg.VisitPieceData(c.gotDownload)
@@ -755,13 +759,13 @@ func (c *PeerConn) tickDownload() {
 		// pending request
 		p := c.numDownloading()
 		if p >= c.MaxParalellRequests {
-			log.Debugf("max parallel reached for %s", c.id.String())
+			//log.Debugf("max parallel reached for %s", c.id.String())
 			return
 		}
 		now := time.Now()
 		if now.After(c.nextPieceRequest) {
-			var r common.PieceRequest
-			if c.t.pt.nextRequestForDownload(c.bf, &r, p < (c.MaxParalellRequests/2)) {
+			r := c.t.pt.NextRequest(c.bf, c.lastRequest)
+			if r != nil {
 				c.queueDownload(r)
 			} else {
 				c.nextPieceRequest = now.Add(time.Second / 4)

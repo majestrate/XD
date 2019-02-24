@@ -199,6 +199,9 @@ func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
 		}
 		n1, err = f.WriteAt(p[:n1], off)
 		f.Close()
+		if err == io.ErrUnexpectedEOF {
+			err = nil
+		}
 		if err != nil {
 			return
 		}
@@ -325,6 +328,7 @@ func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err e
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 	var pc common.PieceData
 	err = t.verifyPiece(idx, &pc)
+	t.Flush()
 	return
 }
 
@@ -337,9 +341,9 @@ func (t *fsTorrent) verifyPiece(idx uint32, pc *common.PieceData) (err error) {
 	err = t.GetPiece(r, pc)
 	if err == nil {
 		if t.meta.Info.CheckPiece(pc) {
-			t.bf.Set(pc.Index)
+			t.bf.Set(idx)
 		} else {
-			t.bf.Unset(pc.Index)
+			t.bf.Unset(idx)
 			err = common.ErrInvalidPiece
 		}
 	}

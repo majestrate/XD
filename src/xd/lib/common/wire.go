@@ -201,10 +201,11 @@ func (msg WireMessage) VisitPieceData(v func(PieceData)) {
 }
 
 // GetPieceRequest gets piece request from wire message
-func (msg WireMessage) GetPieceRequest() (req PieceRequest) {
+func (msg WireMessage) GetPieceRequest() (req *PieceRequest) {
 	if msg.MessageID() == Request {
 		data := msg.Payload()
 		if len(data) == 12 {
+			req = new(PieceRequest)
 			req.Index = binary.BigEndian.Uint32(data[:])
 			req.Begin = binary.BigEndian.Uint32(data[4:])
 			req.Length = binary.BigEndian.Uint32(data[8:])
