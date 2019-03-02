@@ -149,7 +149,7 @@ func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int
 }
 
 func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
-	l := len(b)
+
 	files := t.meta.Info.GetFiles()
 	// from github.com/anacrolix/torrent
 	for _, fi := range files {
