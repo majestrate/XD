@@ -67,3 +67,7 @@ func (f stdFs) Split(path string) (base, file string) {
 	base, file = filepath.Split(path)
 	return
 }
+
+func (f stdFs) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/zeebo/bencode"
 	"xd/lib/common"
-	"xd/lib/log"
 	"xd/lib/util"
 	"xd/lib/version"
 )
@@ -117,7 +116,6 @@ func (opts Message) ToWireMessage() common.WireMessage {
 		body = opts.PayloadRaw
 	} else {
 		// wtf? invalid message
-		log.Errorf("cannot create invalid extended message: %q", opts)
 		return nil
 	}
 	return common.NewWireMessage(common.Extended, []byte{opts.ID}, body)

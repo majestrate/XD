@@ -228,11 +228,11 @@ func (c *PeerConn) Unchoke() {
 	}
 }
 
-func (c *PeerConn) gotDownload(p common.PieceData) {
+func (c *PeerConn) gotDownload(p *common.PieceData) {
 	c.access.Lock()
 	var downloading []*common.PieceRequest
 	for idx := range c.downloading {
-		if c.downloading[idx].Matches(&p) {
+		if c.downloading[idx].Matches(p) {
 			c.t.pt.handlePieceData(p)
 		} else {
 			downloading = append(downloading, c.downloading[idx])
@@ -413,8 +413,6 @@ func (c *PeerConn) metaInfoDownload() {
 			} else {
 				log.Debugf("metainfo len=%d", len(c.t.metaInfo))
 			}
-		} else {
-			log.Debugf("no metainfo size: %q", c.theirOpts)
 		}
 		id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
 		if ok {
@@ -637,7 +635,6 @@ func (c *PeerConn) sendLNPEX(connected, disconnected []common.Peer) {
 }
 
 func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
-	log.Debugf("got extended opts from %s: %q", c.id.String(), opts)
 	if opts.ID == 0 {
 		// handshake
 		c.theirOpts = opts.Copy()
@@ -753,7 +750,7 @@ func (c *PeerConn) tickDownload() {
 		}
 	} else if (c.usInterested || c.peerInterested) && !c.closing {
 		if c.RemoteChoking() {
-			log.Debugf("will not download this tick, %s is choking", c.id.String())
+			//log.Debugf("will not download this tick, %s is choking", c.id.String())
 			return
 		}
 		// pending request

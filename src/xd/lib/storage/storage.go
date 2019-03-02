@@ -23,8 +23,8 @@ type Torrent interface {
 	// return true if we are currently doing a deep check
 	Checking() bool
 
-	// put a chunk of data at index and offset
-	PutChunk(idx, offset uint32, data []byte) error
+	// put a chunk of data 
+	PutChunk(pc *common.PieceData) error
 
 	// visit a piece from storage
 	GetPiece(r common.PieceRequest, pc *common.PieceData) error

@@ -2,6 +2,7 @@ package fs
 
 import (
 	"io"
+	"os"
 )
 
 type ReadFile interface {
@@ -12,6 +13,7 @@ type ReadFile interface {
 type WriteFile interface {
 	io.WriteCloser
 	io.WriterAt
+	Sync() error
 }
 
 type Driver interface {
@@ -40,4 +42,6 @@ type Driver interface {
 	Move(oldPath, newPath string) error
 	// split path into dirname, basename
 	Split(path string) (string, string)
+	// call stat()
+	Stat(path string) (os.FileInfo, error)
 }

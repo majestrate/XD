@@ -832,7 +832,7 @@ func (t *Torrent) handlePieceRequest(c *PeerConn, r *common.PieceRequest) {
 				c.Close()
 			}
 		} else {
-			log.Infof("%s asked for oversized piece bytes=%d", r.Length)
+			log.Infof("%s asked for oversized piece bytes=%d", c.id.String(), r.Length)
 			c.Close()
 		}
 	} else {

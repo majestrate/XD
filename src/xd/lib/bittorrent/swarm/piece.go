@@ -265,14 +265,14 @@ func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
 	})
 }
 
-func (pt *pieceTracker) handlePieceData(d common.PieceData) {
+func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 	idx := d.Index
 	pt.visitCached(idx, func(pc *cachedPiece) {
 		if !pc.accept(d.Begin, uint32(len(d.Data))) {
 			log.Errorf("invalid piece data: index=%d offset=%d length=%d", d.Index, d.Begin, len(d.Data))
 			return
 		}
-		err := pt.st.PutChunk(idx, d.Begin, d.Data)
+		err := pt.st.PutChunk(d)
 		if err == nil {
 			pc.put(d.Begin)
 		} else {

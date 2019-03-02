@@ -3,6 +3,7 @@ package metainfo
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/hex"
 	"github.com/zeebo/bencode"
 	"io"
 	"path/filepath"
@@ -76,7 +77,11 @@ func (i Info) CheckPiece(p *common.PieceData) bool {
 	if i.NumPieces() > p.Index {
 		h := sha1.Sum(p.Data)
 		expected := i.Pieces[idx : idx+20]
-		return bytes.Equal(h[:], expected)
+		if bytes.Equal(h[:], expected) {
+			return true
+		}
+		log.Warnf("piece missmatch: %s != %s", hex.EncodeToString(h[:]), hex.EncodeToString(expected))
+		return false
 	}
 	log.Error("piece index out of bounds")
 	return false

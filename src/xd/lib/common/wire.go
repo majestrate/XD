@@ -185,7 +185,7 @@ func (req PieceRequest) ToWireMessage() WireMessage {
 }
 
 // VisitPieceData gets this wire message as a PieceData if applicable
-func (msg WireMessage) VisitPieceData(v func(PieceData)) {
+func (msg WireMessage) VisitPieceData(v func(*PieceData)) {
 
 	if msg.MessageID() == Piece {
 		data := msg.Payload()
@@ -194,7 +194,7 @@ func (msg WireMessage) VisitPieceData(v func(PieceData)) {
 			p.Index = binary.BigEndian.Uint32(data[:])
 			p.Begin = binary.BigEndian.Uint32(data[4:])
 			p.Data = data[8:]
-			v(p)
+			v(&p)
 		}
 	}
 	return

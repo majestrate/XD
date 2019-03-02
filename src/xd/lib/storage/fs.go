@@ -198,6 +198,7 @@ func (t *fsTorrent) WriteAt(p []byte, off int64) (n int, err error) {
 			return
 		}
 		n1, err = f.WriteAt(p[:n1], off)
+		f.Sync()
 		f.Close()
 		if err == io.ErrUnexpectedEOF {
 			err = nil
@@ -382,7 +383,12 @@ func (t *fsTorrent) VerifyAll() (err error) {
 	return
 }
 
-func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
+func (t *fsTorrent) PutChunk(d *common.PieceData) (err error) {
+	err = t.putChunk(d.Index, d.Begin, d.Data)
+	return
+}
+
+func (t *fsTorrent) putChunk(idx, offset uint32, data []byte) (err error) {
 	if t.meta == nil {
 		err = ErrNoMetaInfo
 		return
@@ -390,6 +396,7 @@ func (t *fsTorrent) PutChunk(idx, offset uint32, data []byte) (err error) {
 	t.access.Lock()
 	sz := int64(t.meta.Info.PieceLength)
 	off := (sz * int64(idx)) + int64(offset)
+	log.Debugf("put chunk idx=%d off=%d globaloff=%d len=%d", idx, offset, off, len(data))
 	if t.st.pooledIO() {
 		iop := writeIOP{
 			data:      data,

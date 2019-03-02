@@ -23,6 +23,10 @@ func (f *sftpFile) Write(data []byte) (int, error) {
 	return f.f.Write(data)
 }
 
+func (f *sftpFile) Sync() error {
+	return nil
+}
+
 func (f *sftpFile) Read(data []byte) (int, error) {
 	return f.f.Read(data)
 }
@@ -301,6 +305,14 @@ func (fs *sftpFS) Remove(fpath string) error {
 	return fs.ensureConn(func(c *sftp.Client) error {
 		return c.Remove(fpath)
 	})
+}
+
+func (fs *sftpFS) Stat(fpath string) (fi os.FileInfo, err error) {
+	err = fs.ensureConn(func(c *sftp.Client) error {
+		fi, err = c.Stat(fpath)
+		return err
+	})
+	return
 }
 
 func (fs *sftpFS) RemoveAll(fpath string) error {
