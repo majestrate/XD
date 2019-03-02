@@ -39,7 +39,7 @@ func (f stdFs) OpenFileReadOnly(fname string) (ReadFile, error) {
 }
 
 func (f stdFs) OpenFileWriteOnly(fname string) (WriteFile, error) {
-	return os.Create(fname)
+	return os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0755)
 }
 
 func (f stdFs) RemoveAll(fname string) error {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"xd/lib/common"
 	"xd/lib/fs"
+	"xd/lib/log"
 	"xd/lib/metainfo"
 	"xd/lib/mktorrent"
 )
@@ -25,6 +26,8 @@ func createRandomTorrent(testFname string) (*metainfo.TorrentFile, error) {
 }
 
 func TestStorage(t *testing.T) {
+
+	log.SetLevel("debug")
 
 	st := &FsStorage{
 		MetaDir:    "storage",
@@ -61,24 +64,30 @@ func TestStorage(t *testing.T) {
 	}
 	var pc common.PieceData
 	err = torrent.GetPiece(common.PieceRequest{
-		Index:  0,
+		Index:  1,
 		Begin:  0,
 		Length: 16384,
 	}, &pc)
 
 	if err != nil {
+		t.Log(err.Error())
 		t.Fail()
 		return
 	}
+
+	log.Infof("put chunk: idx=%d offset=%d", pc.Index, pc.Begin)
 
 	err = torrent.PutChunk(&pc)
 	if err != nil {
+		t.Log(err.Error())
 		t.Fail()
 		return
 	}
 
-	err = torrent.VerifyPiece(0)
+	log.Infof("verify piece 1")
+	err = torrent.VerifyPiece(1)
 	if err != nil {
+		t.Log(err.Error())
 		t.Fail()
 		return
 	}

@@ -100,7 +100,7 @@ func (t *fsTorrent) Allocate() (err error) {
 	return
 }
 
-func (t fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
+func (t *fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
 		fname = t.FilePath()
@@ -111,7 +111,7 @@ func (t fsTorrent) openfileRead(i metainfo.FileInfo) (f fs.ReadFile, err error) 
 	return
 }
 
-func (t fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
+func (t *fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error) {
 	var fname string
 	if t.meta.IsSingleFile() {
 		fname = t.FilePath()
@@ -122,7 +122,7 @@ func (t fsTorrent) openfileWrite(i metainfo.FileInfo) (f fs.WriteFile, err error
 	return
 }
 
-func (t fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
+func (t *fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int, err error) {
 
 	// from github.com/anacrolix/torrent
 	var f fs.ReadFile
@@ -149,6 +149,7 @@ func (t fsTorrent) readFileAt(fi metainfo.FileInfo, b []byte, off int64) (n int,
 }
 
 func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
+	l := len(b)
 	files := t.meta.Info.GetFiles()
 	// from github.com/anacrolix/torrent
 	for _, fi := range files {
@@ -158,6 +159,7 @@ func (t *fsTorrent) ReadAt(b []byte, off int64) (n int, err error) {
 			n += n1
 			off += int64(n1)
 			b = b[n1:]
+
 			if len(b) == 0 {
 				// Got what we need.
 				return
@@ -302,9 +304,8 @@ func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err e
 	t.access.Lock()
 	sz := t.meta.Info.PieceLength
 	offset := int64(r.Begin) + (int64(sz) * int64(r.Index))
-	if pc.Data == nil || uint32(len(pc.Data)) != r.Length {
-		pc.Data = make([]byte, r.Length)
-	}
+	pc.Data = make([]byte, r.Length)
+	log.Debugf("get piece %d offset=%d len=%d", r.Index, r.Begin, r.Length)
 	if t.st.pooledIO() {
 		iop := readIOP{
 			offset:    offset,
@@ -327,21 +328,17 @@ func (t *fsTorrent) GetPiece(r common.PieceRequest, pc *common.PieceData) (err e
 }
 
 func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
-	var pc common.PieceData
-	err = t.verifyPiece(idx, &pc)
-	t.Flush()
-	return
-}
-
-func (t *fsTorrent) verifyPiece(idx uint32, pc *common.PieceData) (err error) {
 	l := t.meta.LengthOfPiece(idx)
 	r := common.PieceRequest{
 		Index:  idx,
 		Length: l,
 	}
-	err = t.GetPiece(r, pc)
+	var pc common.PieceData
+	pc.Data = make([]byte, l)
+	pc.Index = idx
+	err = t.GetPiece(r, &pc)
 	if err == nil {
-		if t.meta.Info.CheckPiece(pc) {
+		if t.meta.Info.CheckPiece(&pc) {
 			t.bf.Set(idx)
 		} else {
 			t.bf.Unset(idx)
@@ -356,18 +353,15 @@ func (t *fsTorrent) VerifyAll() (err error) {
 		err = ErrNoMetaInfo
 		return
 	}
-	var pc common.PieceData
 	t.bfmtx.Lock()
 	t.checking = true
 	log.Infof("checking local data for %s", t.Name())
 	t.ensureBitfield()
 	info := t.MetaInfo().Info
 	sz := info.NumPieces()
-	pc.Data = make([]byte, info.PieceLength)
 	idx := uint32(0)
 	for idx < sz {
-		t := t
-		err = t.verifyPiece(uint32(idx), &pc)
+		err = t.VerifyPiece(uint32(idx))
 		if err == common.ErrInvalidPiece {
 			err = nil
 		} else if err != nil {

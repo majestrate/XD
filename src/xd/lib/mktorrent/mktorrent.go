@@ -26,10 +26,12 @@ func mkTorrentSingle(f fs.Driver, fpath string, pieceLength uint32) (*metainfo.T
 			err = nil
 			d := sha1.Sum(buff[0:n])
 			info.Pieces = append(info.Pieces, d[:]...)
+			info.Length += uint64(n)
 			break
 		} else if err == nil {
 			d := sha1.Sum(buff)
 			info.Pieces = append(info.Pieces, d[:]...)
+			info.Length += uint64(n)
 		} else {
 			return nil, err
 		}
