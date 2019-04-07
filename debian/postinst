@@ -11,7 +11,6 @@ fi
 
 if [ ! -e "${XDHOME}/xd.ini" ]; then
     cd $XDHOME && sudo -u $XDUSER XD --genconf ${XDHOME}/xd.ini
-    chown ${XDUSER}:${XDUSER} ${XDHOME}/xd.ini ${XDHOME}/trackers.ini
 fi
 
 #DEBHELPER#
