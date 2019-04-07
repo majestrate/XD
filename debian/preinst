@@ -19,6 +19,7 @@ xdadduser() {
           --shell /bin/false \
           $XDUSER >/dev/null
     fi
+    install --directory --group=$XDUSER --owner=$XDUSER /var/run/XD -m644
 }
 
 case "$1" in

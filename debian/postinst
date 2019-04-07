@@ -10,8 +10,7 @@ if [ "$1" != "configure" ]; then
 fi
 
 if [ ! -e "${XDHOME}/xd.ini" ]; then
-    cd $XDHOME && XD --genconf ${XDHOME}/xd.ini
-    chown -R ${XDUSER}:${XDUSER} ${XDHOME}
+    cd $XDHOME && su -p $XDUSER -c "XD --genconf ${XDHOME}/xd.ini"
 fi
 
 #DEBHELPER#
