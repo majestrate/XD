@@ -10,8 +10,8 @@ if [ "$1" != "configure" ]; then
 fi
 
 if [ ! -e "${XDHOME}/xd.ini" ]; then
-    cd $XDHOME && XD --genconf ${XDHOME}/xd.ini
-    chown -R ${XDUSER}:${XDUSER} ${XDHOME}
+    cd $XDHOME && sudo -u $XDUSER XD --genconf ${XDHOME}/xd.ini
+    chown ${XDUSER}:${XDUSER} ${XDHOME}/xd.ini ${XDHOME}/trackers.ini
 fi
 
 #DEBHELPER#
