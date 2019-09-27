@@ -9,6 +9,8 @@ WEB_FILES = $(DOCROOT)/index.html
 WEB_FILES += $(DOCROOT)/xd.min.js
 WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
+WEBUI_CORE  = $(DOCROOT)/xd.min.js
+WEBUI_CORE += $(DOCROOT)/xd.css
 WEBUI_PREFIX = /contrib/webui/docroot
 ASSETS = $(REPO)/lib/rpc/assets/assets.go
 
@@ -51,7 +53,7 @@ assets: $(ASSETS)
 $(GO_ASSETS):
 	$(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
-$(ASSETS): $(GO_ASSETS) webui
+$(ASSETS): $(GO_ASSETS) $(WEBUI_CORE)
 	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) -o $(ASSETS) $(WEB_FILES)
 
 $(XD): $(ASSETS)
@@ -86,8 +88,10 @@ go-clean:
 $(WEBUI_LOGO):
 	$(CP) $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
 
-webui: $(WEBUI_LOGO)
-	$(MAKE) -C $(WEBUI)	
+$(WEBUI_CORE): $(WEBUI_LOGO)
+	$(MAKE) -C $(WEBUI)
+
+webui: $(WEBUI_CORE)
 
 no-webui:
 	$(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -o $(XD)
