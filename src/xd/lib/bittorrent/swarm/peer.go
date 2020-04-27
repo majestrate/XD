@@ -386,7 +386,7 @@ func (c *PeerConn) cancelPiece(idx uint32) {
 
 func (c *PeerConn) checkInterested() {
 	bf := c.t.Bitfield()
-	if bf == nil || c.bf == nil || c.bf.XOR(bf).CountSet() > 0 {
+	if bf != nil && c.bf != nil && c.bf.XOR(bf).CountSet() > 0 {
 		c.usInterested = true
 		m := common.NewInterested()
 		c.Send(m)
@@ -507,7 +507,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.checkInterested()
 		} else {
 			// default to interested if we have no bitfield yet
-			c.Send(common.NewInterested())
+			c.Send(common.NewNotInterested())
 		}
 	}
 	if msgid == common.Cancel {
