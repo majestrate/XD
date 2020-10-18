@@ -10,7 +10,7 @@ WEB_FILES += $(DOCROOT)/xd.min.js
 WEB_FILES += $(DOCROOT)/xd.css
 WEB_FILES += $(WEBUI_LOGO)
 WEBUI_PREFIX = /contrib/webui/docroot
-ASSETS = $(REPO)/src/xd/lib/rpc/assets/assets.go
+ASSETS = $(REPO)/lib/rpc/assets/assets.go
 
 TAGS ?= webui
 LOKINET ?= 0
@@ -49,16 +49,16 @@ build: $(CLI)
 assets: $(ASSETS)
 
 $(GO_ASSETS):
-	GOPATH=$(REPO) $(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
+	$(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
 
 $(ASSETS): $(GO_ASSETS) webui
 	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) -o $(ASSETS) $(WEB_FILES)
 
 $(XD): $(ASSETS)
-	GOPATH=$(REPO) $(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
+	$(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
 dev: $(ASSETS)
-	GOPATH=$(REPO) $(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
+	$(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
 $(CLI): $(XD)
 	$(RM) $(CLI)
@@ -66,7 +66,7 @@ $(CLI): $(XD)
 	$(CHMOD) 755 $(CLI)
 
 test:
-	GOPATH=$(REPO) $(GO) test xd/...
+	$(GO) test xd/...
 
 clean: webui-clean go-clean
 	$(RM) $(CLI)
@@ -81,7 +81,7 @@ webui-clean:
 	$(MAKE) -C $(WEBUI) clean
 
 go-clean:
-	GOPATH=$(REPO) $(GO) clean
+	$(GO) clean
 
 $(WEBUI_LOGO):
 	$(CP) $(LOGOS)/xd_logo.png $(WEBUI_LOGO)
@@ -90,7 +90,7 @@ webui: $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI)	
 
 no-webui:
-	GOPATH=$(REPO) $(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -o $(XD)
+	$(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -o $(XD)
 
 install: $(XD) $(CLI)
 	$(MKDIR) $(PREFIX)/bin
