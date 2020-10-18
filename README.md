@@ -56,6 +56,10 @@ to compile XD to use [lokinet](https://github.com/loki-project/loki-network) by 
 
     $ make LOKINET=1
 
+or use `go get`:
+
+    $ go get -tags lokinet,webui github.com/majestrate/XD
+
 ### cross compile for Raspberry PI
 
 Set `GOARCH` and `GOOS` when building with make:
@@ -72,7 +76,7 @@ after started put torrent files into `./storage/downloads/` to start downloading
 
 to seed torrents put data files into `./storage/downloads/` first then add torrent files
 
-if you compiled with web ui it will be up at http://127.0.0.1:1488/
+if you compiled with web ui it will be up at http://127.0.0.1:1776/
 
 To use the RPC Tool symlink `XD` to `XD-CLI`
 

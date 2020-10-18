@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"xd/cmd/rpc"
-	"xd/cmd/xd"
+	"github.com/majestrate/XD/cmd/rpc"
+	"github.com/majestrate/XD/cmd/xd"
 )
 
 func main() {
