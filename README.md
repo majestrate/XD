@@ -58,7 +58,7 @@ to compile XD to use [lokinet](https://github.com/loki-project/loki-network) by 
 
 or use `go get`:
 
-    $ go get -u -v -tags lokinet,webui github.com/majestrate/XD
+    $ go get -u -v -tags lokinet github.com/majestrate/XD
 
 ### cross compile for Raspberry PI
 
