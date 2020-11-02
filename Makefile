@@ -68,7 +68,7 @@ $(CLI): $(XD)
 	$(CHMOD) 755 $(CLI)
 
 test:
-	$(GO) test xd/...
+	$(GO) test ./...
 
 clean: webui-clean go-clean
 	$(RM) $(CLI)

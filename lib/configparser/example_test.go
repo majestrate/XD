@@ -3,7 +3,7 @@ package configparser_test
 import (
 	"fmt"
 	"log"
-	"xd/lib/configparser"
+	"github.com/majestrate/XD/lib/configparser"
 )
 
 // Read and modify a configuration file
