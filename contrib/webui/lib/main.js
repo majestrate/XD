@@ -54,7 +54,7 @@ var Torrent = function(data) {
       }
       return bytesToSize(total_size);
     };
-    this.Progress = data.Progress * 100;
+    this.Progress = formatFloat(data.Progress * 100);
     this.Ratio = function() {
       return "("+makeRatio(data.TX, data.RX) + " ratio)";
     };

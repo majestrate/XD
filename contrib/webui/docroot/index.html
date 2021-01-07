@@ -63,7 +63,7 @@
                       <div>
                           <span data-bind="text: Name"></span>
                       </div>
-                      <div><span data-bind="text: $data.TotalSize()"></span> <span data-bind="text: $data.State"></span></div>
+                      <div><span data-bind="text: $data.TotalSize()"></span> <span data-bind="text: $data.State"></span> - <span data-bind="text: $data.Progress"></span>%</div>
                       <div><progress data-bind="value: $data.Progress" max="100"></progress></div>
                       <div><span data-bind="text: $data.Peers()"></span> peers connected. <span data-bind="text: $data.Ratio()"></span><span data-bind="text: $data.Speed()"></span></div>
                   </div>
