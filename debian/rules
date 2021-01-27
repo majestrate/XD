@@ -8,5 +8,8 @@ PREFIX=/usr
 %:
 	dh $@
 
-override_dh_auto_install:  
-	@
+override_dh_auto_install:
+	mkdir -p debian/xd/etc/apparmor.d
+	cp contrib/apparmor/usr.bin.XD debian/xd/etc/apparmor.d/usr.bin.XD
+	dh_apparmor --profile-name=usr.bin.XD -pxd
+	dh_auto_install
