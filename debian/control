@@ -3,6 +3,7 @@ Section: net
 Priority: optional
 Maintainer: r4sas <r4sas@i2pmail.org>
 Build-Depends: debhelper (>= 9~),
+               dh-apparmor,
                dpkg-dev (>= 1.16.1~),
                lsb-release,
                golang-go (>= 1.6) | golang-1.7-go | golang-1.6-go
@@ -14,7 +15,7 @@ Vcs-Browser: https://github.com/majestrate/XD
 Package: xd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, lsb-base (>= 3.0-6), adduser
-Suggests: i2pd
+Suggests: i2pd, apparmor
 Description: I2P BitTorrent Client written in GO
  .
  This package provides the daemon.
