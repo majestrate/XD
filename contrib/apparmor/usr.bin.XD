@@ -6,11 +6,11 @@ profile XD /usr/bin/{XD,XD-cli} {
   #include <abstractions/user-download>
 
   @{sys}/kernel/mm/transparent_hugepage/hpage_pmd_size r,
-  @{PROC}/sys/net/core/somaxcon
+  @{PROC}/sys/net/core/somaxconn r,
   /etc/mime.types r,
-
-  owner @{HOME}/.cache/XD/** r,
+  
   owner @{HOME}/.config/XD/** r,
+  owner @{HOME}/.cache/XD/{**,} rw,
   owner @{HOME}/.config/XD/metadata/{**,} rw,
 
   #include if exists <local/usr.bin.XD>
