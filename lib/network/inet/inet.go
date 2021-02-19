@@ -9,7 +9,7 @@ import (
 )
 
 const DefaultIfName = "lokitun0"
-const DefaultPort = "0"
+const DefaultPort = "6888"
 
 type Session struct {
 	localIP   net.IP
