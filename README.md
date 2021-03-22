@@ -31,7 +31,7 @@ Eventually:
 ## Dependencies
 
 * GNU Make
-* GO 1.8 or higher
+* GO 1.16 or higher
 
 
 ## Building
