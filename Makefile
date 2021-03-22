@@ -48,18 +48,11 @@ endif
 
 build: $(CLI)
 
-assets: $(ASSETS)
 
-$(GO_ASSETS):
-	$(GO) build -o $(GO_ASSETS) -v github.com/jessevdk/go-assets-builder
-
-$(ASSETS): $(GO_ASSETS) $(WEBUI_CORE)
-	$(GO_ASSETS) -p assets -s $(WEBUI_PREFIX) -o $(ASSETS) $(WEB_FILES)
-
-$(XD): $(ASSETS)
+$(XD): webui
 	$(GO) build -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
-dev: $(ASSETS)
+dev: webui
 	$(GO) build -race -v -a -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -tags='$(TAGS)' -o $(XD)
 
 $(CLI): $(XD)
@@ -92,6 +85,7 @@ $(WEBUI_CORE): $(WEBUI_LOGO)
 	$(MAKE) -C $(WEBUI)
 
 webui: $(WEBUI_CORE)
+	$(CP) $(WEB_FILES) $(REPO)/lib/rpc/assets/
 
 no-webui:
 	$(GO) build -ldflags "-X xd/lib/version.Git=$(GIT_VERSION)" -o $(XD)

@@ -4,8 +4,16 @@ package assets
 
 import (
 	"net/http"
+	"embed"
 )
 
+// content holds our static web server content.
+//go:embed favicon.png
+//go:embed xd.min.js
+//go:embed xd.css
+//go:embed index.html
+var content embed.FS
+
 func GetAssets() http.FileSystem {
-	return Assets
+	return http.FS(content)
 }
