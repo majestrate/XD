@@ -18,7 +18,7 @@ function makeRatio(tx, rx) {
       r = "" + formatFloat(tx / rx);
     }
 	} else if ( tx > 0 ) {
-		r = "∞";
+		r = "\u221E";
 	}
   return r;
 }
@@ -32,7 +32,7 @@ var Torrent = function(data) {
         var tx = 0, rx = 0;
         if (data.Peers)
             data.Peers.forEach(function(p){tx += p.TX; rx += p.RX;});
-        return "↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+        return "\u2191 " + bytesToSize(tx) +"/s \u2193 " + bytesToSize(rx) + "/s";
     };
     this.RX = function() {
       var rx = 0;
@@ -103,11 +103,11 @@ var Torrent = function(data) {
   {
     if (this.Stopped())
     {
-      return "▶";
+      return "\u25BA";
     }
     else
     {
-      return "⏸";
+      return "\u275A\u275A";
     }
   };
 }
@@ -165,7 +165,7 @@ var viewModel = {
             peers += t.Peers();
             count ++;
         });
-        return peers+" peers connected on "+ count+ " torrents (" + makeRatio(rtx, rrx) + " ratio) ↑ " + bytesToSize(tx) +"/s ↓ " + bytesToSize(rx) + "/s";
+        return peers+" peers connected on "+ count+ " torrents (" + makeRatio(rtx, rrx) + " ratio) \u2191 " + bytesToSize(tx) +"/s \u2193 " + bytesToSize(rx) + "/s";
     },
 
     // confirmation box
