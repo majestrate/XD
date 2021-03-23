@@ -876,6 +876,8 @@ func (t *Torrent) Stop() error {
 	if t.Stopped != nil {
 		t.Stopped()
 	}
+	t.RemoveSelf()
+	log.Info("stopped")
 	return err
 }
 
