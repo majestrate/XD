@@ -2,7 +2,6 @@
 
 version="$1"
 git clean -xdf
-make assets
 GIT_VERSION="" GOOS=windows GOARCH=386 make clean build && mv XD.exe XD-$version-win32.exe && gpg --sign --detach XD-$version-win32.exe
 GIT_VERSION="" GOOS=windows GOARCH=amd64 make clean build && mv XD.exe XD-$version-win64.exe && gpg --sign --detach XD-$version-win64.exe
 GIT_VERSION="" GOOS=darwin GOARCH=amd64 make clean build && mv XD XD-$version-darwin && gpg --sign --detach XD-$version-darwin
