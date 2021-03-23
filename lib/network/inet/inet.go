@@ -81,7 +81,8 @@ func (s *Session) Dial(_, a string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	laddr, err := net.ResolveTCPAddr("tcp4", s.localAddr)
+	localAddr := net.JoinHostPort(s.localIP.String(), "0")
+	laddr, err := net.ResolveTCPAddr("tcp4", localAddr)
 	if err != nil {
 		return nil, err
 	}
