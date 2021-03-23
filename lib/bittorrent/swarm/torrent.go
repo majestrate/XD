@@ -73,6 +73,10 @@ type Torrent struct {
 	pexInterval      time.Duration
 }
 
+func (t *Torrent) ShouldAcceptNewPeer() bool {
+	return !t.closing
+}
+
 func (t *Torrent) getNextPeer() *PeerConn {
 	p := t.peersPool.Get()
 	return p.(*PeerConn)

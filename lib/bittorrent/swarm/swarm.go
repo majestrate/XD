@@ -130,6 +130,11 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 			c.Close()
 			return
 		}
+		// check if we should accept this new peer or not
+		if !t.ShouldAcceptNewPeer() {
+			c.Close()
+			return
+		}
 		var opts extensions.Message
 		if h.Reserved.Has(bittorrent.Extension) {
 			if t.Ready() {
