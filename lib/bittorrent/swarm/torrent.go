@@ -869,9 +869,10 @@ func (t *Torrent) Stop() error {
 	if t.closing {
 		return ErrAlreadyStopped
 	}
+	log.Info("stopping...")
 	err := t.Close()
 	log.Info("stopping announce")
-	t.StopAnnouncing(false)
+	t.StopAnnouncing(true)
 	log.Info("stoped announce...")
 	if t.Stopped != nil {
 		t.Stopped()
