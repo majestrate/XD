@@ -105,9 +105,6 @@ func (t *Torrent) Close() error {
 	t.VisitPeers(func(c *PeerConn) {
 		c.Close()
 	})
-	for t.NumPeers() > 0 {
-		time.Sleep(time.Millisecond)
-	}
 	t.saveStats()
 	return t.st.Flush()
 }
@@ -873,7 +870,9 @@ func (t *Torrent) Stop() error {
 		return ErrAlreadyStopped
 	}
 	err := t.Close()
-	t.StopAnnouncing(true)
+	log.Info("stopping announce")
+	t.StopAnnouncing(false)
+	log.Info("stoped announce...")
 	if t.Stopped != nil {
 		t.Stopped()
 	}
