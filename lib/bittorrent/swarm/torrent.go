@@ -74,7 +74,8 @@ type Torrent struct {
 }
 
 func (t *Torrent) ShouldAcceptNewPeer() bool {
-	return !t.closing
+	state := t.GetStatus().State
+	return state == Downloading || state == Seeding
 }
 
 func (t *Torrent) getNextPeer() *PeerConn {
