@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-version="$1"
+version="$(git describe)"
 git clean -xdf
 GIT_VERSION="" GOOS=windows GOARCH=386 make clean build && mv XD.exe XD-$version-win32.exe && gpg --sign --detach XD-$version-win32.exe
 GIT_VERSION="" GOOS=windows GOARCH=amd64 make clean build && mv XD.exe XD-$version-win64.exe && gpg --sign --detach XD-$version-win64.exe
