@@ -113,7 +113,7 @@ func (c *PeerConn) run() {
 			if c.flushSend() != nil {
 				c.closing = true
 				c.doClose()
-				return
+				continue
 			}
 			if c.tickstats {
 				c.tx.Tick()
@@ -133,12 +133,12 @@ func (c *PeerConn) run() {
 					if c.processWrite(c.c, msg) != nil {
 						c.closing = true
 						c.doClose()
-						return
+						continue
 					}
 				} else {
 					c.closing = true
 					c.doClose()
-					return
+					continue
 				}
 			} else {
 				c.appendSend(msg)
