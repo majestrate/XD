@@ -36,15 +36,8 @@ else
 	GO = $(shell which go)
 endif
 
-ifeq ($(GOOS),windows)
-	XD := XD.exe
-	CLI := XD-cli.exe
-	PREFIX ?= /usr/local # FIXME
-else
-	XD := XD
-	CLI := XD-cli
-	PREFIX ?= /usr/local
-endif
+XD ?= XD
+CLI ?= XD-CLI
 
 build: $(CLI)
 
