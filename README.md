@@ -1,6 +1,6 @@
 # XD
 
-I2P BitTorrent Client written in GO
+I2P BitTorrent Client written in GO (as a joke)
 
 ![XD](contrib/logos/xd_logo_256x256.png)
 
@@ -18,6 +18,7 @@ Current:
 * i2p only, no chances of cross network contamination, aka no way to leak IP.
 * works with [i2pd](https://github.com/purplei2p/i2pd) and Java I2P using the SAM api
 * Magnet URIs
+* memes
 
 Soon:
 
