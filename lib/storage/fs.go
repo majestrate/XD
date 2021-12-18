@@ -238,13 +238,26 @@ func (t *fsTorrent) ensureBitfield() {
 	}
 }
 
+func (t *fsTorrent) DownloadedSize() (r uint64) {
+        if t.meta == nil {
+                return
+        }
+        bf := t.Bitfield()
+        r = uint64(bf.CountSet()) * uint64(t.meta.Info.PieceLength)
+        return
+}
+
 func (t *fsTorrent) DownloadRemaining() (r uint64) {
 	if t.meta == nil {
 		return
 	}
 	bf := t.Bitfield()
 	have := uint64(bf.CountSet()) * uint64(t.meta.Info.PieceLength)
-	r = t.meta.TotalSize() - have
+	if have > t.meta.TotalSize() {
+		r = 0
+	} else {
+		r = t.meta.TotalSize() - have
+	}
 	return
 }
 

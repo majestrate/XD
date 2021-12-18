@@ -31,6 +31,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			PeerID:     a.t.id,
 			Event:      ev,
 			NumWant:    DefaultAnnounceNumWant,
+			Downloaded: a.t.st.DownloadedSize(),
 			Left:       a.t.st.DownloadRemaining(),
 			GetNetwork: a.t.Network,
 		}

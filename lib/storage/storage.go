@@ -41,6 +41,9 @@ type Torrent interface {
 	// get bitfield, if cached return cache otherwise compute and cache
 	Bitfield() *bittorrent.Bitfield
 
+	// get number of bytes we already downloaded
+	DownloadedSize() uint64
+
 	// get number of bytes remaining we need to download
 	DownloadRemaining() uint64
 
