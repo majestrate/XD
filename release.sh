@@ -54,6 +54,11 @@ mv $build/README.txt.asc $build/README.txt
 tar -cJvf XD-$version.tar.xz $build
 gpg --sign --detach XD-$version.tar.xz
 
+# make preformatted release notes
+echo '```' >> notes-$version
+cat $build/README.txt >> notes-$version
+echo '```' >> notes-$version
+
 # verify sig and upload release
-gpg --verify XD-$version.tar.xz.sig && gh release create --notes "XD $version" -R majestrate/XD -F $build/README.txt $version XD-$version.tar.xz{,.sig}
+gpg --verify XD-$version.tar.xz.sig && gh release create --notes "XD $version" -R majestrate/XD -F notes-$version $version XD-$version.tar.xz{,.sig}
 
