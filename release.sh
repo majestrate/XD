@@ -55,5 +55,5 @@ tar -cJvf XD-$version.tar.xz $build
 gpg --sign --detach XD-$version.tar.xz
 
 # verify sig and upload release
-gpg --verify XD-$version.tar.xz.sig && gh release create --notes "XD $version" -F $build/README.txt $version XD-$version.tar.xz{,.sig}
+gpg --verify XD-$version.tar.xz.sig && gh release create --notes "XD $version" -R majestrate/XD -F $build/README.txt $version XD-$version.tar.xz{,.sig}
 
