@@ -2,13 +2,13 @@ package storage
 
 import (
 	"crypto/rand"
-	"io"
-	"testing"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/fs"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/metainfo"
 	"github.com/majestrate/XD/lib/mktorrent"
+	"io"
+	"testing"
 )
 
 const testPieceLen = 65536

@@ -2,11 +2,11 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"github.com/majestrate/XD/lib/configparser"
 	"github.com/majestrate/XD/lib/fs"
 	"github.com/majestrate/XD/lib/storage"
+	"os"
+	"path/filepath"
 )
 
 // EnvRootDir is the name of the environmental variable to set the root storage directory at runtime

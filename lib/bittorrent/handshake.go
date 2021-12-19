@@ -3,9 +3,9 @@ package bittorrent
 import (
 	"bytes"
 	"errors"
-	"io"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/util"
+	"io"
 )
 
 const handshakeV1 = "BitTorrent protocol"

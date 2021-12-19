@@ -1,9 +1,9 @@
 package stats
 
 import (
+	"github.com/majestrate/XD/lib/util"
 	"github.com/zeebo/bencode"
 	"io"
-	"github.com/majestrate/XD/lib/util"
 )
 
 type Tracker struct {

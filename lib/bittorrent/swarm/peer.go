@@ -1,16 +1,16 @@
 package swarm
 
 import (
-	"io"
-	"net"
-	"strconv"
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/util"
+	"io"
+	"net"
+	"strconv"
+	"time"
 )
 
 // a peer connection

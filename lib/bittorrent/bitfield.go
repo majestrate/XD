@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"github.com/majestrate/XD/lib/common"
+	"io"
 
 	"github.com/zeebo/bencode"
 )

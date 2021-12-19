@@ -1,12 +1,12 @@
 package swarm
 
 import (
-	"net"
-	"strconv"
-	"time"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/tracker"
+	"net"
+	"strconv"
+	"time"
 )
 
 const DefaultAnnounceNumWant = 10

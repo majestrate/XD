@@ -1,10 +1,10 @@
 package config
 
 import (
-	"os"
 	"github.com/majestrate/XD/lib/configparser"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/network/inet"
+	"os"
 )
 
 type LokiNetConfig struct {

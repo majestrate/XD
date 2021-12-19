@@ -2,9 +2,9 @@ package dht
 
 import (
 	"bytes"
-	"github.com/zeebo/bencode"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
+	"github.com/zeebo/bencode"
 )
 
 type XDHT struct {

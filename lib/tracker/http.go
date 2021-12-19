@@ -3,15 +3,15 @@ package tracker
 import (
 	"errors"
 	"fmt"
+	"github.com/majestrate/XD/lib/common"
+	"github.com/majestrate/XD/lib/log"
+	"github.com/majestrate/XD/lib/sync"
 	"github.com/zeebo/bencode"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-	"github.com/majestrate/XD/lib/common"
-	"github.com/majestrate/XD/lib/log"
-	"github.com/majestrate/XD/lib/sync"
 )
 
 // http tracker

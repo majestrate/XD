@@ -1,9 +1,9 @@
 package fs
 
 import (
+	"github.com/majestrate/XD/lib/util"
 	"os"
 	"path/filepath"
-	"github.com/majestrate/XD/lib/util"
 )
 
 type stdFs struct{}

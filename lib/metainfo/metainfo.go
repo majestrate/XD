@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"github.com/zeebo/bencode"
-	"io"
-	"path/filepath"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/util"
+	"github.com/zeebo/bencode"
+	"io"
+	"path/filepath"
 )
 
 type FilePath []string

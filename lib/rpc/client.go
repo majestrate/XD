@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/majestrate/XD/lib/bittorrent/swarm"
+	t "github.com/majestrate/XD/lib/translate"
 	"io"
 	"net"
 	"net/http"
 	"strings"
-	"github.com/majestrate/XD/lib/bittorrent/swarm"
-	t "github.com/majestrate/XD/lib/translate"
 )
 
 type Client struct {

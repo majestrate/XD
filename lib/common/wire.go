@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/util"
+	"io"
 )
 
 // WireMessageType is type for wire message id

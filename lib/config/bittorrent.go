@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
 	"github.com/majestrate/XD/lib/configparser"
 	"github.com/majestrate/XD/lib/gnutella"
 	"github.com/majestrate/XD/lib/storage"
 	"github.com/majestrate/XD/lib/util"
+	"os"
+	"strconv"
 )
 
 const DefaultTorrentQueueSize = 0

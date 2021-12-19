@@ -1,10 +1,10 @@
 package tracker
 
 import (
-	"net/url"
-	"time"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/network"
+	"net/url"
+	"time"
 )
 
 type Event string

@@ -2,12 +2,6 @@ package swarm
 
 import (
 	"bytes"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
@@ -19,6 +13,12 @@ import (
 	"github.com/majestrate/XD/lib/storage"
 	"github.com/majestrate/XD/lib/tracker"
 	"github.com/majestrate/XD/lib/util"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
 )
 
 // a bittorrent swarm tracking many torrents

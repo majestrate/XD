@@ -1,11 +1,11 @@
 package config
 
 import (
-	"os"
 	"github.com/majestrate/XD/lib/configparser"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/network/i2p"
 	"github.com/majestrate/XD/lib/util"
+	"os"
 )
 
 type I2PConfig struct {

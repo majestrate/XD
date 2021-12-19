@@ -1,9 +1,9 @@
 package swarm
 
 import (
-	"net"
 	"github.com/majestrate/XD/lib/network/i2p"
 	"github.com/majestrate/XD/lib/sync"
+	"net"
 )
 
 // PEXSwarmState manages PeerExchange state on a bittorrent swarm

@@ -2,11 +2,6 @@ package rpc
 
 import (
 	"fmt"
-	"net/url"
-	"os"
-	"sort"
-	"strconv"
-	"strings"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
 	"github.com/majestrate/XD/lib/config"
 	"github.com/majestrate/XD/lib/log"
@@ -14,6 +9,11 @@ import (
 	t "github.com/majestrate/XD/lib/translate"
 	"github.com/majestrate/XD/lib/util"
 	"github.com/majestrate/XD/lib/version"
+	"net/url"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 func formatRate(r float64) string {

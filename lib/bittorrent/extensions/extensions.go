@@ -2,10 +2,10 @@ package extensions
 
 import (
 	"errors"
-	"github.com/zeebo/bencode"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/util"
 	"github.com/majestrate/XD/lib/version"
+	"github.com/zeebo/bencode"
 )
 
 // Extension is a bittorrent extenension string

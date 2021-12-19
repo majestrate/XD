@@ -1,8 +1,8 @@
 package transmission
 
 import (
-	"time"
 	"github.com/majestrate/XD/lib/util"
+	"time"
 )
 
 type xsrfToken struct {

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
-	"strconv"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
 	"github.com/majestrate/XD/lib/rpc/assets"
 	"github.com/majestrate/XD/lib/rpc/transmission"
+	"net"
+	"net/http"
+	"strconv"
 )
 
 const ParamMethod = "method"

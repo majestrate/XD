@@ -2,8 +2,8 @@ package extensions
 
 import (
 	"bytes"
-	"github.com/zeebo/bencode"
 	"github.com/majestrate/XD/lib/util"
+	"github.com/zeebo/bencode"
 )
 
 // UTMetaData is the bittorrent extension for ut_metadata

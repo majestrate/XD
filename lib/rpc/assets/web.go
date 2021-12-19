@@ -3,8 +3,8 @@
 package assets
 
 import (
-	"net/http"
 	"embed"
+	"net/http"
 )
 
 // content holds our static web server content.

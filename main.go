@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/majestrate/XD/cmd/rpc"
+	"github.com/majestrate/XD/cmd/xd"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/majestrate/XD/cmd/rpc"
-	"github.com/majestrate/XD/cmd/xd"
 )
 
 func main() {

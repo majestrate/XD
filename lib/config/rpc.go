@@ -1,8 +1,8 @@
 package config
 
 import (
-	"os"
 	"github.com/majestrate/XD/lib/configparser"
+	"os"
 )
 
 type RPCConfig struct {

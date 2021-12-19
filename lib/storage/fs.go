@@ -2,7 +2,6 @@ package storage
 
 import (
 	"errors"
-	"io"
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/fs"
@@ -10,6 +9,7 @@ import (
 	"github.com/majestrate/XD/lib/metainfo"
 	"github.com/majestrate/XD/lib/stats"
 	"github.com/majestrate/XD/lib/sync"
+	"io"
 )
 
 // filesystem based storrent storage session
@@ -239,12 +239,12 @@ func (t *fsTorrent) ensureBitfield() {
 }
 
 func (t *fsTorrent) DownloadedSize() (r uint64) {
-        if t.meta == nil {
-                return
-        }
-        bf := t.Bitfield()
-        r = uint64(bf.CountSet()) * uint64(t.meta.Info.PieceLength)
-        return
+	if t.meta == nil {
+		return
+	}
+	bf := t.Bitfield()
+	r = uint64(bf.CountSet()) * uint64(t.meta.Info.PieceLength)
+	return
 }
 
 func (t *fsTorrent) DownloadRemaining() (r uint64) {

@@ -1,8 +1,8 @@
 package util
 
 import (
-	"io"
 	"github.com/majestrate/XD/lib/log"
+	"io"
 )
 
 // ensure a byteslices is written in full

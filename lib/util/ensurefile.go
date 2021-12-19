@@ -1,10 +1,10 @@
 package util
 
 import (
+	"github.com/majestrate/XD/lib/log"
 	"io"
 	"os"
 	"path/filepath"
-	"github.com/majestrate/XD/lib/log"
 )
 
 // ensure a file and its parent directory exists

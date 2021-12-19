@@ -2,14 +2,6 @@ package xd
 
 import (
 	"bufio"
-	"io"
-	"net"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"strings"
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
 	"github.com/majestrate/XD/lib/config"
 	"github.com/majestrate/XD/lib/log"
@@ -18,6 +10,14 @@ import (
 	t "github.com/majestrate/XD/lib/translate"
 	"github.com/majestrate/XD/lib/util"
 	"github.com/majestrate/XD/lib/version"
+	"io"
+	"net"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"strings"
+	"time"
 )
 
 type httpRPC struct {

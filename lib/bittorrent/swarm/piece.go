@@ -1,12 +1,12 @@
 package swarm
 
 import (
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/storage"
 	"github.com/majestrate/XD/lib/sync"
+	"time"
 )
 
 // how big should we download pieces at a time (bytes)?

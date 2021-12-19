@@ -3,6 +3,8 @@ package fs
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/majestrate/XD/lib/log"
+	"github.com/majestrate/XD/lib/util"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -11,8 +13,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"github.com/majestrate/XD/lib/log"
-	"github.com/majestrate/XD/lib/util"
 )
 
 type sftpFile struct {

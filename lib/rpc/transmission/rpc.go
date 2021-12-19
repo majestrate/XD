@@ -3,13 +3,13 @@ package transmission
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/util"
+	"io"
+	"net"
+	"net/http"
 )
 
 type Server struct {

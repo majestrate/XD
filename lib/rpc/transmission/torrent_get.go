@@ -1,8 +1,8 @@
 package transmission
 
 import (
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent/swarm"
+	"time"
 )
 
 type tgResp map[string]interface{}

@@ -2,11 +2,11 @@ package log
 
 import (
 	"fmt"
+	"github.com/majestrate/XD/lib/sync"
 	"io"
 	"os"
 	"strings"
 	"time"
-	"github.com/majestrate/XD/lib/sync"
 	//t "github.com/majestrate/XD/lib/translate"
 )
 
@@ -52,13 +52,13 @@ func SetLevel(l string) {
 	l = strings.ToLower(l)
 	if l == "debug" {
 		level = debug
-	} else if l == "info"{
+	} else if l == "info" {
 		level = info
-	} else if l == "warn"{
+	} else if l == "warn" {
 		level = warn
-	} else if l == "err"{
+	} else if l == "err" {
 		level = err
-	} else if l == "fatal"{
+	} else if l == "fatal" {
 		level = fatal
 	} else {
 		panic(fmt.Sprintf("invalid log level: '%s'", l))

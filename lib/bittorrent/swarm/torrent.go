@@ -3,9 +3,6 @@ package swarm
 import (
 	"bytes"
 	"errors"
-	"github.com/zeebo/bencode"
-	"net"
-	"time"
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
@@ -18,6 +15,9 @@ import (
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/tracker"
 	"github.com/majestrate/XD/lib/util"
+	"github.com/zeebo/bencode"
+	"net"
+	"time"
 )
 
 // max peers peer swarm default

@@ -23,7 +23,7 @@ type Torrent interface {
 	// return true if we are currently doing a deep check
 	Checking() bool
 
-	// put a chunk of data 
+	// put a chunk of data
 	PutChunk(pc *common.PieceData) error
 
 	// visit a piece from storage

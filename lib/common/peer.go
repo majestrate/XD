@@ -3,15 +3,15 @@ package common
 import (
 	"crypto/rand"
 	"fmt"
-	"io"
-	"net"
-	"net/url"
-	"strings"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/network"
 	"github.com/majestrate/XD/lib/network/i2p"
 	"github.com/majestrate/XD/lib/network/inet"
 	"github.com/majestrate/XD/lib/version"
+	"io"
+	"net"
+	"net/url"
+	"strings"
 )
 
 // PeerID is a buffer for bittorrent peerid
