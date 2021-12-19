@@ -33,6 +33,7 @@ func (a *torrentAnnounce) tryAnnounce(ev tracker.Event) (err error) {
 			NumWant:    DefaultAnnounceNumWant,
 			Downloaded: a.t.st.DownloadedSize(),
 			Left:       a.t.st.DownloadRemaining(),
+			Uploaded:   a.t.tx,
 			GetNetwork: a.t.Network,
 		}
 		if la.Network() == "i2p" {
