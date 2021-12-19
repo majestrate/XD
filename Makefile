@@ -20,13 +20,17 @@ ifeq ($(LOKINET),1)
 	TAGS += lokinet
 endif
 
+ifeq ($(GOOS),windows)
+	BINEXT = .exe
+endif
+
 MKDIR = mkdir -p
 RM = rm -f
 CP = cp
 CPLINK = cp -P
 INSTALL = install
 LINK = ln -s
-CHMOD = chmod 
+CHMOD = chmod
 
 GIT_VERSION ?= $(shell test -e .git && git rev-parse --short HEAD || true)
 
@@ -36,8 +40,8 @@ else
 	GO = $(shell which go)
 endif
 
-XD ?= XD
-CLI ?= XD-CLI
+XD ?= XD$(BINEXT)
+CLI ?= XD-CLI$(BINEXT)
 
 build: $(CLI)
 
