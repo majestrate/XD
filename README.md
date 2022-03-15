@@ -100,3 +100,9 @@ Or your home directory, make sure `$HOME/bin` is in your $PATH
 
     $ make install PREFIX=$HOME
 
+Tunnel length and quanity along with all other i2cp options are set in the i2p section of the configuration:
+```
+[i2p]
+inbound.length=1
+outbound.length=1
+```
