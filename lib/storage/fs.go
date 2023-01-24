@@ -12,6 +12,12 @@ import (
 	"io"
 )
 
+/* Mutex used in fsTorrent.VerifyAll to ensure that the integrity of each
+ * torrent is checked one after the other (sequential check) instead of
+ * concurrently before seeding. This makes the check about six times faster (at
+ * least on spinning hard disks). */
+var seqck *sync.Mutex = &sync.Mutex{}
+
 // filesystem based storrent storage session
 type fsTorrent struct {
 	// parent storage
@@ -362,6 +368,8 @@ func (t *fsTorrent) VerifyPiece(idx uint32) (err error) {
 }
 
 func (t *fsTorrent) VerifyAll() (err error) {
+	seqck.Lock() // Ensures sequential check
+	defer seqck.Unlock()
 	if t.meta == nil {
 		err = ErrNoMetaInfo
 		return
