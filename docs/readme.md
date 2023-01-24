@@ -2,4 +2,6 @@
 
 * [English](en/)
 
+* [French](fr/)
+
 * [Russian](ru/)
