@@ -34,11 +34,7 @@ CHMOD = chmod
 
 GIT_VERSION ?= $(shell test -e .git && git rev-parse --short HEAD || true)
 
-ifdef GOROOT
-	GO = $(GOROOT)/bin/go
-else
-	GO = $(shell which go)
-endif
+GO = go
 
 XD ?= XD$(BINEXT)
 CLI ?= XD-CLI$(BINEXT)
