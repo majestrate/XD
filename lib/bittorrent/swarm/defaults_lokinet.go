@@ -1,3 +1,4 @@
+//go:build lokinet
 // +build lokinet
 
 package swarm

@@ -1,3 +1,4 @@
+//go:build !webui
 // +build !webui
 
 package assets

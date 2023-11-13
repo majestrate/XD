@@ -1,3 +1,4 @@
+//go:build webui
 // +build webui
 
 package assets
@@ -8,6 +9,7 @@ import (
 )
 
 // content holds our static web server content.
+//
 //go:embed favicon.png
 //go:embed xd.min.js
 //go:embed xd.css

@@ -325,11 +325,11 @@ func (sw *Swarm) AddRemoteTorrent(remote string) (err error) {
 	var u *url.URL
 	u, err = url.Parse(remote)
 	if err == nil {
-		scheme := strings.ToLower(u.Scheme)
+		scheme, path := util.SchemePath(u)
 		if scheme == "magnet" {
 			err = sw.AddMagnet(remote)
 		} else if scheme == "file" || scheme == "" {
-			err = sw.addFileTorrent(u.Path)
+			err = sw.addFileTorrent(path)
 		} else {
 			err = sw.addHTTPTorrent(u.String())
 		}

@@ -29,13 +29,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Supports reading/writing the INI file format in addition to:
 //
-//  - Reading/writing duplicate section names (ex: MySQL NDB engine's config.ini)
-//  - Options without values (ex: can be used to group a set of hostnames)
-//  - Options without a named section (ex: a simple option=value file)
-//  - Find sections with regexp pattern matching on section names, ex: dc1.east.webservers where regex is '.webservers'
-//  - # or ; as comment delimiter
-//  - = or : as value delimiter
-//
+//   - Reading/writing duplicate section names (ex: MySQL NDB engine's config.ini)
+//   - Options without values (ex: can be used to group a set of hostnames)
+//   - Options without a named section (ex: a simple option=value file)
+//   - Find sections with regexp pattern matching on section names, ex: dc1.east.webservers where regex is '.webservers'
+//   - # or ; as comment delimiter
+//   - = or : as value delimiter
 package configparser
 
 import (
