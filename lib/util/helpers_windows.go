@@ -4,7 +4,6 @@ package util
 
 import (
 	"net/url"
-	"os/path"
 	"strings"
 )
 
@@ -14,7 +13,6 @@ func urlSchemePath(u *url.URL, scheme, path *string) {
 		// something like C:/wahtever
 		sch = "file"
 	}
-	*outPath = u.Path
-	*outSceme = sch
-
+	*path = u.String()
+	*scheme = sch
 }
