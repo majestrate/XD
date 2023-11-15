@@ -589,7 +589,7 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 				})
 			} else {
 				t.puttingMetaInfo = false
-				log.Errorf("failed to get meta info %s", err.Error())
+				log.Errorf("failed to get meta info: %s", err.Error())
 				t.resetPendingInfo()
 			}
 		} else {

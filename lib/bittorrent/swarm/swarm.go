@@ -374,6 +374,7 @@ func (sw *Swarm) addFileTorrent(path string) (err error) {
 		err = info.BDecode(f)
 		f.Close()
 		if err == nil {
+			log.Infof("fetched torrent from %s, starting allocation", path)
 			var t storage.Torrent
 			t, err = sw.Torrents.st.OpenTorrent(&info)
 			if err == nil {
