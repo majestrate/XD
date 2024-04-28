@@ -24,16 +24,16 @@ type cachedPiece struct {
 
 // should we accept a piece data with offset and length ?
 func (p *cachedPiece) accept(offset, length uint32) bool {
-	if offset % BlockSize != 0 {
+	if offset%BlockSize != 0 {
 		log.Errorf("Rejecting chunk where piece offset=%d % BlockSize=%d != 0", offset, BlockSize)
 		return false
 	}
 
-	if offset + length > p.length {
-		log.Errorf("Rejecting chunk where piece ending offset=%d > piece length=%d", offset + length, p.length)
+	if offset+length > p.length {
+		log.Errorf("Rejecting chunk where piece ending offset=%d > piece length=%d", offset+length, p.length)
 		return false
-	} 
-	
+	}
+
 	if p.bitfieldIndex(offset) == p.finalChunkBitfieldIndex() {
 		// last piece
 		if length != p.finalChunkLen() {
@@ -158,7 +158,7 @@ func (pt *pieceTracker) newPiece(piece uint32) bool {
 
 	sz := info.LengthOfPiece(piece)
 	bits := sz / BlockSize
-	if sz % BlockSize != 0 {
+	if sz%BlockSize != 0 {
 		bits++
 	}
 	log.Debugf("new piece idx=%d len=%d bits=%d", piece, sz, bits)
