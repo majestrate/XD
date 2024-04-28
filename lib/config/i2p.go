@@ -19,6 +19,7 @@ type I2PConfig struct {
 
 func (cfg *I2PConfig) Load(section *configparser.Section) error {
 	cfg.I2CPOptions = make(map[string]string)
+	cfg.I2CPOptions["i2cp.leaseSetEncType"] = "4,0"
 	if section == nil {
 		cfg.Addr = i2p.DEFAULT_ADDRESS
 		cfg.Keyfile = ""
