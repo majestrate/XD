@@ -24,7 +24,44 @@ type cachedPiece struct {
 
 // should we accept a piece data with offset and length ?
 func (p *cachedPiece) accept(offset, length uint32) bool {
-	return offset+length <= p.length
+	if offset % BlockSize != 0 {
+		log.Errorf("Rejecting chunk where piece offset=%d % BlockSize=%d != 0", offset, BlockSize)
+		return false
+	}
+
+	if offset + length > p.length {
+		log.Errorf("Rejecting chunk where piece ending offset=%d > piece length=%d", offset + length, p.length)
+		return false
+	} 
+	
+	if p.bitfieldIndex(offset) == p.finalChunkBitfieldIndex() {
+		// last piece
+		if length != p.finalChunkLen() {
+			log.Errorf("Rejecting final chunk of piece where length=%d != finalChunkLen=%d", length, p.finalChunkLen())
+			return false
+		}
+	} else {
+		if length != BlockSize {
+			log.Errorf("Rejecting non-final chunk of piece where length=%d != BlockSize=%d", length, BlockSize)
+			return false
+		}
+	}
+
+	return true
+}
+
+func (p *cachedPiece) finalChunkBitfieldIndex() uint32 {
+	return p.bitfieldIndex(p.length - 1)
+}
+
+func (p *cachedPiece) finalChunkLen() uint32 {
+	rem := p.length % BlockSize
+
+	if rem == 0 {
+		return BlockSize
+	} else {
+		return rem
+	}
 }
 
 // is this piece done downloading ?
@@ -66,29 +103,17 @@ func (p *cachedPiece) nextRequest() (r *common.PieceRequest) {
 		if p.pending.Has(idx) || p.obtained.Has(idx) {
 			r.Begin += BlockSize
 		} else {
-			break
+			if idx == p.finalChunkBitfieldIndex() {
+				r.Length = p.finalChunkLen()
+			}
+			log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
+			p.pending.Set(idx)
+			return
 		}
 	}
 
-	if r.Begin+r.Length > l {
-		// is this probably the last piece ?
-		if (r.Begin+r.Length)-l >= BlockSize {
-			// no, let's just say there are no more blocks left
-			log.Debugf("no next piece request for idx=%d", r.Index)
-			r = nil
-			return
-		} else {
-			// yes so let's correct the size
-			if p.pending.Has(p.bitfieldIndex(r.Begin)) {
-				log.Debugf("no next piece request for idx=%d", r.Index)
-				r = nil
-				return
-			}
-			r.Length = l - r.Begin
-		}
-	}
-	log.Debugf("next piece request made: idx=%d offset=%d len=%d total=%d", r.Index, r.Begin, r.Length, l)
-	p.pending.Set(p.bitfieldIndex(r.Begin))
+	log.Debugf("no next piece request for idx=%d", r.Index)
+	r = nil
 	return
 }
 
@@ -102,13 +127,6 @@ type pieceTracker struct {
 	st        storage.Torrent
 	have      func(uint32)
 	nextPiece PiecePicker
-}
-
-// get number of pending pieces we are requesting
-func (pt *pieceTracker) NumPending() int {
-	pt.mtx.Lock()
-	defer pt.mtx.Unlock()
-	return len(pt.requests)
 }
 
 func (pt *pieceTracker) visitCached(idx uint32, v func(*cachedPiece)) {
@@ -140,7 +158,7 @@ func (pt *pieceTracker) newPiece(piece uint32) bool {
 
 	sz := info.LengthOfPiece(piece)
 	bits := sz / BlockSize
-	if bits == 0 {
+	if sz % BlockSize != 0 {
 		bits++
 	}
 	log.Debugf("new piece idx=%d len=%d bits=%d", piece, sz, bits)
@@ -160,19 +178,6 @@ func (pt *pieceTracker) removePiece(piece uint32) {
 	pt.mtx.Unlock()
 }
 
-func (pt *pieceTracker) pendingPiece(remote *bittorrent.Bitfield) (idx uint32, old bool) {
-	pt.mtx.Lock()
-	for k := range pt.requests {
-		if remote.Has(k) {
-			idx = k
-			old = true
-			break
-		}
-	}
-	pt.mtx.Unlock()
-	return
-}
-
 func (pt *pieceTracker) iterCached(v func(*cachedPiece)) {
 	pieces := []uint32{}
 	pt.mtx.Lock()
@@ -187,14 +192,16 @@ func (pt *pieceTracker) iterCached(v func(*cachedPiece)) {
 
 func (cp *cachedPiece) isExpired() (expired bool) {
 	now := time.Now()
-	expired = now.Sub(cp.lastActive) > time.Second*30
+	expired = now.Sub(cp.lastActive) > time.Minute*5
 	return
 }
 
 func (pt *pieceTracker) PendingPieces() (exclude []uint32) {
 	pt.mtx.Lock()
-	for k := range pt.requests {
-		exclude = append(exclude, k)
+	for k, cp := range pt.requests {
+		if cp.pending.CountSet() > 0 {
+			exclude = append(exclude, k)
+		}
 	}
 	pt.mtx.Unlock()
 	return
@@ -224,37 +231,6 @@ func (pt *pieceTracker) NextRequest(remote *bittorrent.Bitfield, lastReq *common
 	return
 }
 
-// deprceated
-func (pt *pieceTracker) nextRequestForDownload(remote *bittorrent.Bitfield, req *common.PieceRequest, requestNew bool) bool {
-	var r *common.PieceRequest
-	idx, old := pt.pendingPiece(remote)
-	if old {
-		pt.visitCached(idx, func(cp *cachedPiece) {
-			r = cp.nextRequest()
-		})
-	}
-	if r == nil && requestNew {
-		var exclude []uint32
-		for k := range pt.requests {
-			exclude = append(exclude, k)
-		}
-		log.Debugf("get next piece excluding %d", exclude)
-		var has bool
-		idx, has = pt.nextPiece(remote, exclude)
-		if has {
-			pt.visitCached(idx, func(cp *cachedPiece) {
-				r = cp.nextRequest()
-			})
-		}
-	}
-	if r != nil && r.Length > 0 {
-		req.Copy(r)
-	} else {
-		return false
-	}
-	return true
-}
-
 // cancel previously requested piece request
 func (pt *pieceTracker) canceledRequest(r *common.PieceRequest) {
 	if r.Length == 0 {
@@ -276,6 +252,7 @@ func (pt *pieceTracker) handlePieceData(d *common.PieceData) {
 		if err == nil {
 			pc.put(d.Begin)
 		} else {
+			pc.cancel(d.Begin)
 			log.Errorf("failed to put chunk %d: %s", idx, err.Error())
 		}
 		if pc.done() {

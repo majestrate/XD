@@ -807,10 +807,14 @@ func (t *Torrent) tick() {
 	// expire and cancel all timed out pieces
 	t.pt.iterCached(func(cp *cachedPiece) {
 		if cp.isExpired() {
-			t.VisitPeers(func(conn *PeerConn) {
-				conn.cancelPiece(cp.index)
-			})
-			t.pt.removePiece(cp.index)
+			if cp.pending.CountSet() > 0 {
+				t.VisitPeers(func(conn *PeerConn) {
+					conn.cancelPiece(cp.index)
+				})
+				cp.pending.Zero()
+				log.Debugf("Expired piece %d with no recent activity for torrent: %s", cp.index, t.Name())
+			}
+			cp.lastActive = time.Now()
 		}
 	})
 	t.VisitPeers(func(conn *PeerConn) {
