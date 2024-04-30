@@ -25,7 +25,7 @@ type cachedPiece struct {
 // should we accept a piece data with offset and length ?
 func (p *cachedPiece) accept(offset, length uint32) bool {
 	if offset%BlockSize != 0 {
-		log.Errorf("Rejecting chunk where piece offset=%d % BlockSize=%d != 0", offset, BlockSize)
+		log.Errorf("Rejecting chunk where piece offset=%d %% BlockSize=%d != 0", offset, BlockSize)
 		return false
 	}
 
