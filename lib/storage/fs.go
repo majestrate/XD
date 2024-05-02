@@ -291,10 +291,12 @@ func (t *fsTorrent) FilePath() string {
 
 }
 
-func (t *fsTorrent) PutInfo(info metainfo.Info) (err error) {
+func (t *fsTorrent) PutInfoBytes(info []byte) (err error) {
 	if t.meta == nil {
-		meta := &metainfo.TorrentFile{
-			Info: info,
+		var meta *metainfo.TorrentFile
+		meta, err = metainfo.TorrentFileFromInfoBytes(info)
+		if err != nil {
+			return
 		}
 		ih := meta.Infohash()
 		if !t.ih.Equal(ih) {

@@ -600,6 +600,7 @@ func (c *PeerConn) handlePEXAdded(m interface{}) {
 	var peers []common.Peer
 	msg := m.(string)
 	l := len(msg) / 32
+	log.Infof("%s got %d peers for %s", c.id.String(), l, c.t.st.Infohash().Hex())
 	for l > 0 {
 		var p common.Peer
 		// TODO: bounds check
@@ -623,9 +624,11 @@ func (c *PeerConn) SupportsLNPEX() bool {
 }
 
 func (c *PeerConn) sendI2PPEX(connected, disconnected []byte) {
-	id := c.theirOpts.Extensions[extensions.I2PPeerExchange.String()]
-	msg := extensions.NewI2PPEX(uint8(id), connected, disconnected)
-	c.Send(msg.ToWireMessage())
+	if len(connected) > 0 || len(disconnected) > 0 {
+		id := c.theirOpts.Extensions[extensions.I2PPeerExchange.String()]
+		msg := extensions.NewI2PPEX(uint8(id), connected, disconnected)
+		c.Send(msg.ToWireMessage())
+	}
 }
 
 func (c *PeerConn) sendLNPEX(connected, disconnected []common.Peer) {

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/log"
-	"github.com/majestrate/XD/lib/util"
 	"github.com/zeebo/bencode"
 	"io"
 	"path/filepath"
@@ -51,12 +50,6 @@ type Info struct {
 	Sum []byte `bencode:"md5sum,omitempty"`
 }
 
-func (i Info) Bytes() []byte {
-	var buff util.Buffer
-	bencode.NewEncoder(&buff).Encode(i)
-	return buff.Bytes()
-}
-
 // get fileinfos from this info section
 func (i Info) GetFiles() (infos []FileInfo) {
 	if i.Length > 0 {
@@ -93,13 +86,14 @@ func (i Info) NumPieces() uint32 {
 
 // a torrent file
 type TorrentFile struct {
-	Info         Info       `bencode:"info"`
-	Announce     string     `bencode:"announce"`
-	AnnounceList [][]string `bencode:"announce-list"`
-	Created      int64      `bencode:"created"`
-	Comment      []byte     `bencode:"comment"`
-	CreatedBy    []byte     `bencode:"created by"`
-	Encoding     []byte     `bencode:"encoding"`
+	Info         Info               `bencode:"-"`
+	RawInfo      bencode.RawMessage `bencode:"info"`
+	Announce     string             `bencode:"announce"`
+	AnnounceList [][]string         `bencode:"announce-list"`
+	Created      int64              `bencode:"created"`
+	Comment      []byte             `bencode:"comment"`
+	CreatedBy    []byte             `bencode:"created by"`
+	Encoding     []byte             `bencode:"encoding"`
 }
 
 func (tf *TorrentFile) LengthOfPiece(idx uint32) (l uint32) {
@@ -147,10 +141,7 @@ func (tf *TorrentFile) TorrentName() string {
 
 // calculate infohash
 func (tf *TorrentFile) Infohash() (ih common.Infohash) {
-	s := sha1.New()
-	enc := bencode.NewEncoder(s)
-	enc.Encode(&tf.Info)
-	d := s.Sum(nil)
+	d := sha1.Sum(tf.RawInfo)
 	copy(ih[:], d[:])
 	return
 }
@@ -171,10 +162,36 @@ func (tf *TorrentFile) BEncode(w io.Writer) (err error) {
 func (tf *TorrentFile) BDecode(r io.Reader) (err error) {
 	dec := bencode.NewDecoder(r)
 	err = dec.Decode(tf)
+	if err != nil {
+		return
+	}
+	err = bencode.DecodeBytes(tf.RawInfo, &tf.Info)
 	return
 }
 
 // IsPrivate returns true if this torrent is a private torrent
 func (tf *TorrentFile) IsPrivate() bool {
 	return tf.Info.Private != nil && *tf.Info.Private > 0
+}
+
+func TorrentFileFromInfoBytes(bytes []byte) (tf *TorrentFile, err error) {
+	tf = &TorrentFile{
+		RawInfo: bytes,
+	}
+	err = bencode.DecodeBytes(tf.RawInfo, &tf.Info)
+	if err != nil {
+		tf = nil
+	}
+	return
+}
+
+func TorrentFileFromInfo(info Info) (tf *TorrentFile, err error) {
+	tf = &TorrentFile{
+		Info: info,
+	}
+	tf.RawInfo, err = bencode.EncodeBytes(tf.Info)
+	if err != nil {
+		tf = nil
+	}
+	return
 }

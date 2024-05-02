@@ -48,11 +48,11 @@ func (opts Message) MetaData() bool {
 
 // SetSupported sets a bittorrent extension as supported
 func (opts *Message) SetSupported(ext Extension) {
-	// get max id
-	max := uint32(1)
-	for k := range opts.Extensions {
-		if opts.Extensions[k] > max {
-			max = opts.Extensions[k]
+	// get next id
+	nextId := uint32(1)
+	for k, v := range opts.Extensions {
+		if v >= nextId {
+			nextId = v + 1
 		}
 		// already supported
 		if k == ext.String() {
@@ -60,7 +60,7 @@ func (opts *Message) SetSupported(ext Extension) {
 		}
 	}
 	// set supported
-	opts.Extensions[ext.String()] = max
+	opts.Extensions[ext.String()] = nextId
 }
 
 // IsSupported returns true if an extension by its name is supported

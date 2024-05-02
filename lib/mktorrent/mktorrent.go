@@ -37,9 +37,7 @@ func mkTorrentSingle(f fs.Driver, fpath string, pieceLength uint32) (*metainfo.T
 		}
 	}
 
-	return &metainfo.TorrentFile{
-		Info: info,
-	}, nil
+	return metainfo.TorrentFileFromInfo(info)
 }
 
 func mkTorrentDir(f fs.Driver, fpath string, pieceLength uint32) (*metainfo.TorrentFile, error) {

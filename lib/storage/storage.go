@@ -70,7 +70,7 @@ type Torrent interface {
 	Seed() (bool, error)
 
 	// set metainfo for empty torrent
-	PutInfo(info metainfo.Info) error
+	PutInfoBytes(info []byte) error
 
 	// get directory for data files
 	DownloadDir() string

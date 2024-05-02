@@ -15,7 +15,6 @@ import (
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/tracker"
 	"github.com/majestrate/XD/lib/util"
-	"github.com/zeebo/bencode"
 	"net"
 	"time"
 )
@@ -162,11 +161,9 @@ func newTorrent(st storage.Torrent, getNet func() network.Network) *Torrent {
 		t.statsTracker.NewRate(rate)
 	}
 	if t.Ready() {
-		buff := new(bytes.Buffer)
-		info := t.st.MetaInfo().Info
-		bencode.NewEncoder(buff).Encode(&info)
-		t.defaultOpts = extensions.NewOur(uint32(buff.Len()))
-		t.metaInfo = buff.Bytes()
+		bytes := t.st.MetaInfo().RawInfo
+		t.defaultOpts = extensions.NewOur(uint32(len(bytes)))
+		t.metaInfo = bytes
 	} else {
 		t.defaultOpts = extensions.NewOur(0)
 	}
@@ -538,7 +535,7 @@ func (t *Torrent) getMetaInfo() []byte {
 	if t.metaInfo == nil {
 		info := t.st.MetaInfo()
 		if info != nil {
-			t.metaInfo = info.Info.Bytes()
+			t.metaInfo = info.RawInfo
 		}
 	}
 	return t.metaInfo
@@ -573,13 +570,8 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 		if t.hasAllPendingInfo() {
 			t.puttingMetaInfo = true
 			log.Debugf("got all info slices: %q", t.metaInfo)
-			r := bytes.NewReader(t.metaInfo)
-			var info metainfo.Info
-			err := bencode.NewDecoder(r).Decode(&info)
-			if err == nil {
-				log.Info("putting metainfo")
-				err = t.st.PutInfo(info)
-			}
+			log.Info("putting metainfo")
+			err := t.st.PutInfoBytes(t.metaInfo)
 			if err == nil {
 				// reset
 				sz := uint32(len(t.metaInfo))
