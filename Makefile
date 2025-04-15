@@ -85,5 +85,5 @@ no-webui:
 
 install: $(XD) $(CLI)
 	$(MKDIR) $(PREFIX)/bin
-	$(INSTALL) XD $(PREFIX)/bin
+	$(INSTALL) $(XD) $(PREFIX)/bin
 	$(CPLINK) $(CLI) $(PREFIX)/bin
