@@ -94,7 +94,9 @@ func (bf *Bitfield) AND(other *Bitfield) *Bitfield {
 	if bf.Length == other.Length {
 		b := NewBitfield(bf.Length, bf.Data)
 		for idx := range other.Data {
-			b.Data[idx] &= other.Data[idx]
+			if idx < len(bf.Data) {
+				b.Data[idx] &= other.Data[idx]
+			}
 		}
 		return b
 	}
