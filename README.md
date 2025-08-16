@@ -53,10 +53,6 @@ you can build with go get using:
 
 please note that using `go get` disables the webui.
 
-to compile XD to use [lokinet](https://github.com/loki-project/loki-network) by default use:
-
-    $ make LOKINET=1
-
 or use `go get`:
 
     $ go get -u -v -tags lokinet github.com/majestrate/XD
