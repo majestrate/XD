@@ -199,7 +199,7 @@ func (cp *cachedPiece) isExpired() (expired bool) {
 func (pt *pieceTracker) PendingPieces() (exclude []uint32) {
 	pt.mtx.Lock()
 	for k, cp := range pt.requests {
-		if cp.pending.CountSet() > 0 {
+		if cp.pending.AnySet() {
 			exclude = append(exclude, k)
 		}
 	}

@@ -50,7 +50,7 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 					if upper == "STREAM" {
 						continue
 					}
-					if upper == "RESULT" {
+					if upper == "STATUS" {
 						continue
 					}
 					if upper == "RESULT=OK" {
@@ -58,18 +58,20 @@ func (l *i2pListener) Accept() (c net.Conn, err error) {
 						break
 					}
 					// error
-					err = errors.New(text)
+					err = errors.New(line)
 				}
 			}
-			// read address line
-			line, err = readLine(nc, readbuf)
 			if err == nil {
-				// we got a new connection yeeeeh
-				err = nc.(*net.TCPConn).SetKeepAlive(false)
-				c = &I2PConn{
-					c:     nc,
-					laddr: l.laddr,
-					raddr: I2PAddr(line[:len(line)-1]),
+				// read address line
+				line, err = readLine(nc, readbuf)
+				if err == nil {
+					// we got a new connection yeeeeh
+					_ = nc.(*net.TCPConn).SetKeepAlive(false)
+					c = &I2PConn{
+						c:     nc,
+						laddr: l.laddr,
+						raddr: I2PAddr(line[:len(line)-1]),
+					}
 				}
 			}
 		}

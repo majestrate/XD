@@ -28,7 +28,7 @@ type PeerConn struct {
 	peerInterested      bool
 	usChoke             bool
 	usInterested        bool
-	sentInterested      bool
+	peerUsInterested    bool
 	Done                func()
 	lastSend            time.Time
 	tx                  *util.Rate
@@ -47,6 +47,7 @@ type PeerConn struct {
 	uploading           bool
 	runDownload         bool
 	nextPieceRequest    time.Time
+	reserved            bittorrent.Reserved
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -77,7 +78,7 @@ func (c *PeerConn) Stats() (st *PeerConnStats) {
 	return
 }
 
-func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.Message) *PeerConn {
+func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.Message, reserved bittorrent.Reserved) *PeerConn {
 	p := t.getNextPeer()
 	p.c = c
 	p.t = t
@@ -87,11 +88,12 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.ourOpts = ourOpts
 	p.peerChoke = true
 	p.usChoke = true
-	p.usInterested = true
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
 	p.downloading = []*common.PieceRequest{}
 	p.send = make(chan common.WireMessage, 128)
+	p.reserved = reserved
+	p.close = make(chan bool)
 	return p
 }
 
@@ -111,6 +113,7 @@ func (c *PeerConn) run() {
 		select {
 		case <-c.ticker.C:
 			if c.flushSend() != nil {
+				log.Debugf("%s starting close due to send error", c.id.String())
 				c.closing = true
 				c.doClose()
 				continue
@@ -121,21 +124,25 @@ func (c *PeerConn) run() {
 			}
 			c.tickstats = !c.tickstats
 		case <-c.close:
+			log.Debugf("%s received close message", c.id.String())
 			c.doClose()
 			return
 		case msg := <-c.send:
 			if msg == nil {
 				continue
 			}
+			log.Debugf("%s sending message type %s", c.id.String(), msg.MessageID().String())
 			if msg.Len() > 1000 {
 				if c.flushSend() == nil {
 					// write big messages right away
 					if c.processWrite(c.c, msg) != nil {
+						log.Debugf("%s starting close due to send error", c.id.String())
 						c.closing = true
 						c.doClose()
 						continue
 					}
 				} else {
+					log.Debugf("%s starting close due to send error", c.id.String())
 					c.closing = true
 					c.doClose()
 					continue
@@ -172,11 +179,11 @@ func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) (err error)
 		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {
 			// drop
-			log.Debugf("cancel request because choke")
+			log.Debugf("%s cancel request because choke", c.id.String())
 			c.cancelDownload(msg.GetPieceRequest())
 			return
 		}
-		log.Debugf("writing %d bytes", msg.Len())
+		log.Debugf("%s writing %d bytes", c.id.String(), msg.Len())
 		err = util.WriteFull(w, msg)
 		if err == nil {
 			if msg.MessageID() == common.Piece {
@@ -306,6 +313,7 @@ func (c *PeerConn) remoteUnchoke() {
 		log.Warnf("remote peer %s sent multiple unchokes", c.id.String())
 	}
 	c.peerChoke = false
+	c.checkInterested()
 	log.Debugf("%s unchoked us", c.id.String())
 }
 
@@ -365,7 +373,7 @@ func (c *PeerConn) doClose() {
 func (c *PeerConn) runReader() {
 	err := common.ReadWireMessages(c.c, c.recv, c.readBuff[:])
 	if err != nil {
-		log.Debugf("PeerConn() reader failed: %s", err.Error())
+		log.Debugf("%s PeerConn() reader failed: %s", c.id.String(), err.Error())
 	}
 	c.Close()
 }
@@ -386,16 +394,21 @@ func (c *PeerConn) cancelPiece(idx uint32) {
 
 func (c *PeerConn) checkInterested() {
 	bf := c.t.Bitfield()
-	if bf != nil && c.bf != nil && c.bf.XOR(bf).CountSet() > 0 {
+	if bf != nil && c.bf != nil && bf.Inverted().AND(c.bf).AnySet() {
 		c.usInterested = true
-		m := common.NewInterested()
-		c.Send(m)
-		c.sentInterested = true
 	} else {
 		c.usInterested = false
-		m := common.NewNotInterested()
-		c.sentInterested = true
-		c.Send(m)
+	}
+
+	if c.usInterested != c.peerUsInterested {
+		if c.usInterested {
+			m := common.NewInterested()
+			c.Send(m)
+		} else {
+			m := common.NewNotInterested()
+			c.Send(m)
+		}
+		c.peerUsInterested = c.usInterested
 	}
 }
 
@@ -407,11 +420,11 @@ func (c *PeerConn) metaInfoDownload() {
 				// set meta info
 				c.t.metaInfo = make([]byte, l)
 				l = 1 + (l / (16 * 1024))
-				log.Debugf("bitfield is %d bits", l)
+				log.Debugf("%s bitfield is %d bits", c.id.String(), l)
 				c.t.pendingInfoBF = bittorrent.NewBitfield(l, nil)
 				c.t.requestingInfoBF = bittorrent.NewBitfield(l, nil)
 			} else {
-				log.Debugf("metainfo len=%d", len(c.t.metaInfo))
+				log.Debugf("%s metainfo len=%d", c.id.String(), len(c.t.metaInfo))
 			}
 		}
 		id, ok := c.theirOpts.Extensions[extensions.UTMetaData.String()]
@@ -422,13 +435,13 @@ func (c *PeerConn) metaInfoDownload() {
 			if r != nil {
 				md.Piece = *r
 				m := &extensions.Message{ID: uint8(id), PayloadRaw: md.Bytes()}
-				log.Debugf("asking for info piece %d", md.Piece)
+				log.Debugf("%s asking for info piece %d", c.id.String(), md.Piece)
 				c.Send(m.ToWireMessage())
 			} else {
-				log.Debugf("no more pieces desired")
+				log.Debugf("%s no more pieces desired", c.id.String())
 			}
 		} else {
-			log.Debug("ut_metadata not found?")
+			log.Debugf("%s ut_metadata not found?", c.id.String())
 		}
 	}
 }
@@ -436,7 +449,7 @@ func (c *PeerConn) metaInfoDownload() {
 func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 
 	if msg.KeepAlive() {
-		log.Debugf("keepalive from %s", c.id)
+		log.Debugf("keepalive from %s", c.id.String())
 		return
 	}
 	msgid := msg.MessageID()
@@ -452,9 +465,12 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.checkInterested()
 			if isnew {
 				c.Unchoke()
-				c.Send(c.ourOpts.ToWireMessage())
+				if c.reserved.Has(bittorrent.Extension) {
+					c.Send(c.ourOpts.ToWireMessage())
+				}
 			}
 		} else {
+			log.Errorf("%s requested bitfield before we were ready", c.id.String())
 			// empty bitfield
 			bits := make([]byte, len(msg.Payload()))
 			c.Send(common.NewWireMessage(common.BitField, bits))
@@ -464,6 +480,8 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		if isnew {
 			if c.t.Ready() {
 				c.runDownload = true
+			} else {
+				log.Errorf("%s cannot run download because torrent is not ready", c.id.String())
 			}
 		}
 		return
@@ -477,16 +495,9 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 	}
 	if msgid == common.Interested {
 		c.markInterested()
-		if !c.sentInterested {
-			c.checkInterested()
-			c.Unchoke()
-		}
 	}
 	if msgid == common.NotInterested {
 		c.markNotInterested()
-		if !c.sentInterested {
-			c.checkInterested()
-		}
 	}
 	if msgid == common.Request {
 		c.uploading = true
@@ -506,15 +517,14 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.bf.Set(idx)
 			c.checkInterested()
 		} else {
-			// default to interested if we have no bitfield yet
-			c.Send(common.NewNotInterested())
+			log.Errorf("%s sent have before bitfield", c.id.String())
 		}
 	}
 	if msgid == common.Cancel {
 		// TODO: check validity
 		//c.t.pt.canceledRequest(msg.GetPieceRequest())
 	}
-	if msgid == common.Extended {
+	if msgid == common.Extended && c.reserved.Has(bittorrent.Extension) {
 		// handle extended options
 		opts, err := extensions.FromWireMessage(msg)
 		if err == nil {
@@ -572,7 +582,7 @@ func (c *PeerConn) handleLNPEX(m interface{}) {
 		}
 		c.t.addPeers(peers)
 	} else {
-		log.Errorf("invalid pex message: %q", m)
+		log.Errorf("%s invalid pex message: %q", c.id.String(), m)
 	}
 }
 
@@ -591,7 +601,7 @@ func (c *PeerConn) handleI2PPEX(m interface{}) {
 			c.handlePEXAddedf(added)
 		}
 	} else {
-		log.Errorf("invalid pex message: %q", m)
+		log.Errorf("%s invalid pex message: %q", c.id.String(), m)
 	}
 }
 
@@ -625,6 +635,7 @@ func (c *PeerConn) SupportsLNPEX() bool {
 
 func (c *PeerConn) sendI2PPEX(connected, disconnected []byte) {
 	if len(connected) > 0 || len(disconnected) > 0 {
+		log.Debugf("sending i2p pex message to %s", c.id.String())
 		id := c.theirOpts.Extensions[extensions.I2PPeerExchange.String()]
 		msg := extensions.NewI2PPEX(uint8(id), connected, disconnected)
 		c.Send(msg.ToWireMessage())
@@ -632,6 +643,7 @@ func (c *PeerConn) sendI2PPEX(connected, disconnected []byte) {
 }
 
 func (c *PeerConn) sendLNPEX(connected, disconnected []common.Peer) {
+	log.Debugf("sending lokinet pex message to %s", c.id.String())
 	id := c.theirOpts.Extensions[extensions.LokinetPeerExchange.String()]
 	msg := extensions.NewLNPEX(uint8(id), connected, disconnected)
 	c.Send(msg.ToWireMessage())
@@ -641,21 +653,28 @@ func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
 	if opts.ID == 0 {
 		// handshake
 		c.theirOpts = opts.Copy()
+		for k, v := range opts.Extensions {
+			log.Debugf("%s has extension %s %d", c.id.String(), k, v)
+		}
 	} else {
 		// lookup the extension number
 		ext, ok := c.ourOpts.Lookup(opts.ID)
 		if ok {
 			if ext == extensions.I2PPeerExchange.String() {
+				log.Debugf("received I2P pex message from %s", c.id.String())
 				c.handleI2PPEX(opts.Payload)
 			} else if ext == extensions.LokinetPeerExchange.String() {
+				log.Debugf("received lokinet pex message from %s", c.id.String())
 				c.handleLNPEX(opts.Payload)
 			} else if ext == extensions.XDHT.String() {
 				// xdht message
+				log.Debugf("received xdht message from %s", c.id.String())
 				err := c.t.xdht.HandleMessage(opts, c.id)
 				if err != nil {
 					log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
 				}
 			} else if ext == extensions.UTMetaData.String() {
+				log.Debugf("received metadata message from %s", c.id.String())
 				c.handleMetadata(opts)
 			}
 		} else {
@@ -676,10 +695,10 @@ func (c *PeerConn) askNextMetadata(id uint8) {
 		msg.Piece = *r
 		m.ID = id
 		m.PayloadRaw = msg.Bytes()
-		log.Debugf("asking for info piece %d", msg.Piece)
+		log.Debugf("%s asking for info piece %d", c.id.String(), msg.Piece)
 		c.Send(m.ToWireMessage())
 	} else {
-		log.Debug("no more info pieces required")
+		log.Debugf("%s no more info pieces required", c.id.String())
 	}
 }
 
@@ -687,7 +706,7 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 	msg, err := extensions.ParseMetadata(m.PayloadRaw)
 	if err == nil {
 		if msg.Type == extensions.UTData {
-			log.Debugf("got UTData: piece %d", msg.Piece)
+			log.Debugf("%s got UTData: piece %d", c.id.String(), msg.Piece)
 			if !c.t.Ready() && msg.Size > 0 {
 				c.t.putInfoSlice(msg.Piece, msg.Data)
 				c.askNextMetadata(m.ID)
@@ -728,7 +747,7 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 			c.Send(m.ToWireMessage())
 		}
 	} else {
-		log.Errorf("failed to parse ut_metainfo message: %s", err.Error())
+		log.Errorf("%s failed to parse ut_metainfo message: %s", c.id.String(), err.Error())
 	}
 }
 
@@ -751,7 +770,7 @@ func (c *PeerConn) tickDownload() {
 			c.Done()
 			c.Done = nil
 		}
-	} else if (c.usInterested || c.peerInterested) && !c.closing {
+	} else if c.usInterested && !c.closing {
 		if c.RemoteChoking() {
 			//log.Debugf("will not download this tick, %s is choking", c.id.String())
 			return

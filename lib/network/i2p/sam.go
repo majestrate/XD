@@ -119,6 +119,7 @@ func (s *samSession) DialI2P(addr Addr) (c net.Conn, err error) {
 			var nport int
 			nport, err = net.LookupPort("tcp", addr.port)
 			if err != nil {
+				nc.Close()
 				return
 			}
 			port += fmt.Sprintf(" PORT=%d", nport)

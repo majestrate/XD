@@ -36,6 +36,13 @@ func (r *Reserved) Set(bit ReservedBit) {
 	r.data[bit.index()] |= bit.mask()
 }
 
+// Intersect clears bits in `r` that are not set in `other`
+func (r *Reserved) Intersect(other Reserved) {
+	for i := range r.data {
+		r.data[i] &= other.data[i]
+	}
+}
+
 // Extension is ReservedBit for bittorrent extensions
 const Extension = ReservedBit(44)
 

@@ -119,39 +119,51 @@ func (sw *Swarm) inboundConn(c net.Conn) {
 		h := new(bittorrent.Handshake)
 		err := h.FromBytes(buff[:])
 		if err != nil {
-			log.Debug(err.Error())
+			log.Debugf("invalid bittorrent handshake: %s", err.Error())
 			c.Close()
 			return
 		}
+		var id common.PeerID
+		copy(id[:], h.PeerID[:])
 		t := sw.Torrents.GetTorrent(h.Infohash)
 		if t == nil {
-			log.Warnf("we don't have torrent with infohash %s, closing connection", h.Infohash.Hex())
+			log.Warnf("%s we don't have torrent with infohash %s, closing connection", id.String(), h.Infohash.Hex())
 			// no such torrent
 			c.Close()
 			return
 		}
 		// check if we should accept this new peer or not
 		if !t.ShouldAcceptNewPeer() {
+			log.Debugf("%s Torrent %s is not accepting new peers", id.String(), h.Infohash.Hex())
 			c.Close()
 			return
 		}
 		var opts extensions.Message
 		if h.Reserved.Has(bittorrent.Extension) {
+			log.Debugf("%s supports extensions", id.String())
 			opts = t.defaultOpts.Copy()
+			for k, v := range opts.Extensions {
+				log.Debugf("we support extension %s %d for %s", k, v, id.String())
+			}
+		} else {
+			log.Debugf("%s does not support extensions", id.String())
 		}
 		// reply to handshake
-		var id common.PeerID
-		copy(id[:], h.PeerID[:])
-		copy(h.PeerID[:], sw.id[:])
-		err = h.Send(c)
+		ih := t.st.Infohash()
+		var replyh bittorrent.Handshake
+		replyh.Reserved.Set(bittorrent.Extension)
+		replyh.Reserved.Intersect(h.Reserved)
+		copy(replyh.Infohash[:], ih[:])
+		copy(replyh.PeerID[:], t.id[:])
+		err = replyh.Send(c)
 		if err != nil {
-			log.Warnf("didn't send bittorrent handshake reply: %s, closing connection", err)
+			log.Warnf("%s didn't send bittorrent handshake reply: %s, closing connection", id.String(), err)
 			// write error
 			c.Close()
 			return
 		}
 		// make peer conn
-		p := makePeerConn(c, t, id, opts)
+		p := makePeerConn(c, t, id, opts, replyh.Reserved)
 		p.inbound = true
 		t.onNewPeer(p)
 

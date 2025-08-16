@@ -81,16 +81,12 @@ func (bf *Bitfield) Zero() {
 }
 
 // Inverted gets copy of current Bitfield with all bits inverted
-func (bf *Bitfield) Inverted() (i *Bitfield) {
-	i = NewBitfield(bf.Length, nil)
-	bit := uint32(0)
-	for bit < bf.Length {
-		if !bf.Has(bit) {
-			i.Set(bit)
-		}
-		bit++
+func (bf *Bitfield) Inverted() *Bitfield {
+	b := NewBitfield(bf.Length, bf.Data)
+	for idx := range b.Data {
+		b.Data[idx] ^= 0xff
 	}
-	return
+	return b
 }
 
 // AND returns copy of Bitfield with bitwise AND applied from other Bitfield
@@ -217,6 +213,19 @@ func (bf *Bitfield) CountSet() (sum int) {
 		}
 	}
 	return
+}
+
+// AnySet returns true if any bit is set
+func (bf *Bitfield) AnySet() bool {
+	l := bf.Length
+	for l > 0 {
+		l--
+		// TODO: make this less horrible
+		if bf.Has(l) {
+			return true
+		}
+	}
+	return false
 }
 
 // Has returns true if we have a bit at index set

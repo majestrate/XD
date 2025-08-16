@@ -434,6 +434,9 @@ func (t *Torrent) announce(name string, ev tracker.Event) {
 
 // add peers to torrent
 func (t *Torrent) addPeers(peers []common.Peer) {
+	if t.GetStatus().State == Seeding {
+		return
+	}
 	for _, p := range peers {
 		if !t.NeedsPeers() {
 			// no more peers needed
@@ -622,13 +625,13 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 	if err == nil {
 		// connected
 		// build handshake
-		var h bittorrent.Handshake
+		var ourh, h bittorrent.Handshake
 		// enable bittorrent extensions
-		h.Reserved.Set(bittorrent.Extension)
-		copy(h.Infohash[:], ih[:])
-		copy(h.PeerID[:], t.id[:])
+		ourh.Reserved.Set(bittorrent.Extension)
+		copy(ourh.Infohash[:], ih[:])
+		copy(ourh.PeerID[:], t.id[:])
 		// send handshake
-		err = h.Send(c)
+		err = ourh.Send(c)
 		if err == nil {
 			// get response to handshake
 			err = h.Recv(c)
@@ -636,10 +639,17 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 				if bytes.Equal(ih[:], h.Infohash[:]) {
 					// infohashes match
 					var opts extensions.Message
+					h.Reserved.Intersect(ourh.Reserved)
 					if h.Reserved.Has(bittorrent.Extension) {
+						log.Debugf("%s supports extensions", h.PeerID.String())
 						opts = t.defaultOpts.Copy()
+						for k, v := range opts.Extensions {
+							log.Debugf("we support extension %s %d for %s", k, v, h.PeerID.String())
+						}
+					} else {
+						log.Debugf("%s does not support extensions", h.PeerID.String())
 					}
-					pc := makePeerConn(c, t, h.PeerID, opts)
+					pc := makePeerConn(c, t, h.PeerID, opts, h.Reserved)
 					t.addOBPeer(pc)
 					pc.start()
 					if t.Ready() {
@@ -647,7 +657,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 					}
 					return nil
 				} else {
-					log.Warn("Infohash missmatch")
+					log.Warnf("%s Infohash missmatch", h.PeerID.String())
 				}
 			}
 		}
@@ -667,6 +677,7 @@ func (t *Torrent) broadcastHave(idx uint32) {
 		conns[c.c.RemoteAddr().String()] = c
 	})
 	for _, conn := range conns {
+		conn.checkInterested()
 		conn.Send(msg)
 	}
 }
@@ -691,17 +702,18 @@ func (t *Torrent) NeedsPeers() bool {
 // callback called when we get a new inbound peer
 func (t *Torrent) onNewPeer(c *PeerConn) {
 	a := c.c.RemoteAddr()
-	if t.HasIBConn(a) {
-		log.Debugf("duplicate peer from %s", a)
+	if t.HasIBConn(a) || t.HasOBConn(a) {
+		log.Debugf("%s duplicate peer from %s", c.id.String(), a)
 		c.Close()
 		return
 	}
 	if t.NeedsPeers() && t.Ready() {
-		log.Debugf("New peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
+		log.Debugf("New inbound peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 		t.addIBPeer(c)
 		c.start()
 		c.Send(t.Bitfield().ToWireMessage())
 	} else {
+		log.Debugf("New inbound peer (%s) for %s rejected due to limit or torrent not ready", c.id.String(), t.st.Infohash().Hex())
 		c.Close()
 	}
 }
@@ -799,7 +811,7 @@ func (t *Torrent) tick() {
 	// expire and cancel all timed out pieces
 	t.pt.iterCached(func(cp *cachedPiece) {
 		if cp.isExpired() {
-			if cp.pending.CountSet() > 0 {
+			if cp.pending.AnySet() {
 				t.VisitPeers(func(conn *PeerConn) {
 					conn.cancelPiece(cp.index)
 				})
