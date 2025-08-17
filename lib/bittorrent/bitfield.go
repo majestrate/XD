@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/majestrate/XD/lib/common"
 	"io"
+
+	"github.com/majestrate/XD/lib/common"
 
 	"github.com/zeebo/bencode"
 )
@@ -153,8 +154,7 @@ func (bf *Bitfield) Progress() (fl float64) {
 
 // Percent returns string represnetation of percent done
 func (bf *Bitfield) Percent() string {
-	fl := float64(bf.CountSet())
-	fl /= float64(bf.Length)
+	fl := bf.Progress()
 	return fmt.Sprintf("%.2f%%", fl*100)
 }
 

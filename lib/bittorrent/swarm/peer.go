@@ -1,17 +1,20 @@
 package swarm
 
 import (
+	"io"
+	"net"
+	"strconv"
+	"time"
+
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/util"
-	"io"
-	"net"
-	"strconv"
-	"time"
 )
+
+const sendChanLen = 512
 
 // a peer connection
 type PeerConn struct {
@@ -23,6 +26,7 @@ type PeerConn struct {
 	id                  common.PeerID
 	t                   *Torrent
 	send                chan common.WireMessage
+	recv                chan common.WireMessage
 	bf                  *bittorrent.Bitfield
 	peerChoke           bool
 	peerInterested      bool
@@ -48,6 +52,7 @@ type PeerConn struct {
 	runDownload         bool
 	nextPieceRequest    time.Time
 	reserved            bittorrent.Reserved
+	sendPending         int
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
@@ -91,7 +96,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	copy(p.id[:], id[:])
 	p.MaxParalellRequests = t.MaxRequests
 	p.downloading = []*common.PieceRequest{}
-	p.send = make(chan common.WireMessage, 128)
+	p.send = make(chan common.WireMessage, sendChanLen)
 	p.reserved = reserved
 	p.close = make(chan bool)
 	return p
@@ -109,49 +114,67 @@ func (c *PeerConn) appendSend(msg common.WireMessage) {
 }
 
 func (c *PeerConn) run() {
-	for {
-		select {
-		case <-c.ticker.C:
-			if c.flushSend() != nil {
-				log.Debugf("%s starting close due to send error", c.id.String())
-				c.closing = true
-				c.doClose()
-				continue
-			}
-			if c.tickstats {
-				c.tx.Tick()
-				c.rx.Tick()
-			}
-			c.tickstats = !c.tickstats
-		case <-c.close:
-			log.Debugf("%s received close message", c.id.String())
+	for !c.closing {
+		got := c.tickOne()
+		if !got {
+			time.Sleep(time.Millisecond * 50)
+		}
+	}
+}
+func (c *PeerConn) tickOne() bool {
+	select {
+	case <-c.ticker.C:
+		if c.flushSend() != nil {
+			log.Debugf("%s starting close due to send error", c.id.String())
+			c.closing = true
 			c.doClose()
-			return
-		case msg := <-c.send:
-			if msg == nil {
-				continue
-			}
-			log.Debugf("%s sending message type %s", c.id.String(), msg.MessageID().String())
-			if msg.Len() > 1000 {
-				if c.flushSend() == nil {
-					// write big messages right away
-					if c.processWrite(c.c, msg) != nil {
-						log.Debugf("%s starting close due to send error", c.id.String())
-						c.closing = true
-						c.doClose()
-						continue
-					}
-				} else {
+			return true
+		}
+		if c.tickstats {
+			c.tx.Tick()
+			c.rx.Tick()
+		}
+		c.tickstats = !c.tickstats
+		return true
+	case <-c.close:
+		log.Debugf("%s received close message", c.id.String())
+		c.doClose()
+		return true
+	case msg := <-c.recv:
+		err := c.inboundMessage(msg)
+		if err != nil {
+			log.Errorf("%s failed to read message: %s", c.id.String(), err.Error())
+		}
+		return true
+	case msg := <-c.send:
+		if msg == nil {
+			return true
+		}
+		c.sendPending--
+		log.Debugf("%s sending message type %s", c.id.String(), msg.MessageID().String())
+		if msg.Len() > 1000 {
+			if c.flushSend() == nil {
+				// write big messages right away
+				if c.processWrite(c.c, msg) != nil {
 					log.Debugf("%s starting close due to send error", c.id.String())
 					c.closing = true
 					c.doClose()
-					continue
+					return true
 				}
 			} else {
-				c.appendSend(msg)
+				log.Debugf("%s starting close due to send error", c.id.String())
+				c.closing = true
+				c.doClose()
+				return true
 			}
+		} else {
+			c.appendSend(msg)
 		}
+		return true
+	default:
+		return false
 	}
+
 }
 
 func (c *PeerConn) start() {
@@ -198,12 +221,19 @@ func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) (err error)
 
 // queue a send of a bittorrent wire message to this peer
 func (c *PeerConn) Send(msg common.WireMessage) {
+	if c.sendPending >= sendChanLen {
+		// too many pending sends, drop it.
+		log.Warnf("%s too many pending send events, dropping wire message", c.id.String())
+		return
+	}
+
 	if c.send != nil {
+		c.sendPending++
 		c.send <- msg
 	}
 }
 
-func (c *PeerConn) recv(msg common.WireMessage) (err error) {
+func (c *PeerConn) queueRecv(msg common.WireMessage) (err error) {
 	c.lastRecv = time.Now()
 	if (!msg.KeepAlive()) && msg.MessageID() == common.Piece {
 		n := uint64(msg.Len())
@@ -211,7 +241,10 @@ func (c *PeerConn) recv(msg common.WireMessage) (err error) {
 		c.t.statsTracker.AddSample(RateDownload, n)
 	}
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
-	err = c.inboundMessage(msg)
+
+	msgCopy := make(common.WireMessage, len(msg))
+	copy(msgCopy[:], msg[:])
+	c.recv <- msgCopy
 	return
 }
 
@@ -371,7 +404,7 @@ func (c *PeerConn) doClose() {
 
 // run read loop
 func (c *PeerConn) runReader() {
-	err := common.ReadWireMessages(c.c, c.recv, c.readBuff[:])
+	err := common.ReadWireMessages(c.c, c.queueRecv, c.readBuff[:])
 	if err != nil {
 		log.Debugf("%s PeerConn() reader failed: %s", c.id.String(), err.Error())
 	}
