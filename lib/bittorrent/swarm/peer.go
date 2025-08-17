@@ -97,8 +97,11 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.MaxParalellRequests = t.MaxRequests
 	p.downloading = []*common.PieceRequest{}
 	p.send = make(chan common.WireMessage, sendChanLen)
+	p.recv = make(chan common.WireMessage)
 	p.reserved = reserved
-	p.close = make(chan bool)
+	p.close = make(chan bool, 1)
+	p.lastSend = time.Now()
+	p.lastRecv = time.Now()
 	return p
 }
 
@@ -106,7 +109,6 @@ func (c *PeerConn) appendSend(msg common.WireMessage) {
 	if c.writeBuff.Len() > 1000 {
 		if c.flushSend() != nil {
 			c.closing = true
-			c.doClose()
 			return
 		}
 	}
@@ -120,6 +122,8 @@ func (c *PeerConn) run() {
 			time.Sleep(time.Millisecond * 50)
 		}
 	}
+
+	c.doClose()
 }
 func (c *PeerConn) tickOne() bool {
 	select {
@@ -127,7 +131,6 @@ func (c *PeerConn) tickOne() bool {
 		if c.flushSend() != nil {
 			log.Debugf("%s starting close due to send error", c.id.String())
 			c.closing = true
-			c.doClose()
 			return true
 		}
 		if c.tickstats {
@@ -138,7 +141,7 @@ func (c *PeerConn) tickOne() bool {
 		return true
 	case <-c.close:
 		log.Debugf("%s received close message", c.id.String())
-		c.doClose()
+		c.closing = true
 		return true
 	case msg := <-c.recv:
 		err := c.inboundMessage(msg)
@@ -151,6 +154,7 @@ func (c *PeerConn) tickOne() bool {
 			return true
 		}
 		c.sendPending--
+		c.lastSend = time.Now()
 		log.Debugf("%s sending message type %s", c.id.String(), msg.MessageID().String())
 		if msg.Len() > 1000 {
 			if c.flushSend() == nil {
@@ -158,13 +162,11 @@ func (c *PeerConn) tickOne() bool {
 				if c.processWrite(c.c, msg) != nil {
 					log.Debugf("%s starting close due to send error", c.id.String())
 					c.closing = true
-					c.doClose()
 					return true
 				}
 			} else {
 				log.Debugf("%s starting close due to send error", c.id.String())
 				c.closing = true
-				c.doClose()
 				return true
 			}
 		} else {
@@ -198,8 +200,6 @@ func (c *PeerConn) btPeer() (p common.Peer) {
 
 func (c *PeerConn) processWrite(w io.Writer, msg common.WireMessage) (err error) {
 	if msg != nil {
-		now := time.Now()
-		c.lastSend = now
 		if c.RemoteChoking() && msg.MessageID() == common.Request {
 			// drop
 			log.Debugf("%s cancel request because choke", c.id.String())
@@ -242,9 +242,11 @@ func (c *PeerConn) queueRecv(msg common.WireMessage) (err error) {
 	}
 	log.Debugf("got %d bytes from %s", msg.Len(), c.id)
 
-	msgCopy := make(common.WireMessage, len(msg))
-	copy(msgCopy[:], msg[:])
-	c.recv <- msgCopy
+	if !c.closing && c.recv != nil {
+		msgCopy := make(common.WireMessage, len(msg))
+		copy(msgCopy[:], msg[:])
+		c.recv <- msgCopy
+	}
 	return
 }
 
@@ -383,15 +385,23 @@ func (c *PeerConn) Close() {
 		return
 	}
 	c.closing = true
-	c.close <- true
+
+	if c.close != nil {
+		c.close <- true
+	}
 }
 
 func (c *PeerConn) doClose() {
+	c.closing = true
 	c.send = nil
+	c.recv = nil
+	c.close = nil
+	c.access.Lock()
 	for _, r := range c.downloading {
 		c.t.pt.canceledRequest(r)
 	}
 	c.downloading = nil
+	c.access.Unlock()
 	log.Debugf("%s closing connection", c.id.String())
 	if c.inbound {
 		c.t.removeIBConn(c)
@@ -503,7 +513,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 				}
 			}
 		} else {
-			log.Errorf("%s requested bitfield before we were ready", c.id.String())
+			log.Debugf("%s requested bitfield before we were ready", c.id.String())
 			// empty bitfield
 			bits := make([]byte, len(msg.Payload()))
 			c.Send(common.NewWireMessage(common.BitField, bits))
@@ -514,7 +524,7 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			if c.t.Ready() {
 				c.runDownload = true
 			} else {
-				log.Errorf("%s cannot run download because torrent is not ready", c.id.String())
+				log.Debugf("%s cannot run download because torrent is not ready", c.id.String())
 			}
 		}
 		return
@@ -550,7 +560,15 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.bf.Set(idx)
 			c.checkInterested()
 		} else {
-			log.Errorf("%s sent have before bitfield", c.id.String())
+			if c.t.Ready() {
+				// The initial bitfield message is optional. However, we currently require it.
+				// If they haven't sent us a bitfield yet we disconnect them. If they reconnect
+				// hopefully they will have some pieces downloaded and will send a bitfield.
+				log.Errorf("%s sent have before bitfield an active torrent, closing", c.id.String())
+				c.Close()
+			} else {
+				// downloading metadata
+			}
 		}
 	}
 	if msgid == common.Cancel {
@@ -785,8 +803,9 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 }
 
 func (c *PeerConn) sendKeepAlive() {
-	tm := time.Now().Add(0 - (time.Minute * 2))
-	if c.lastSend.Before(tm) {
+	if time.Since(c.lastSend) > 2*time.Minute {
+		// this avoids spamming keepalives if it takes a while to process the send
+		c.lastSend = time.Now()
 		log.Debugf("send keepalive to %s", c.id.String())
 		c.Send(common.KeepAlive)
 	}
@@ -824,5 +843,12 @@ func (c *PeerConn) tickDownload() {
 				log.Debugf("no next piece to download for %s", c.id.String())
 			}
 		}
+	}
+}
+
+func (c *PeerConn) closeIfTimedOut() {
+	if time.Since(c.lastRecv) > 15*time.Minute {
+		log.Infof("%s closing connection due to inactivity", c.id.String())
+		c.Close()
 	}
 }

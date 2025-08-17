@@ -805,6 +805,14 @@ func (t *Torrent) tick() {
 		}
 	}
 
+	t.VisitPeers(func(conn *PeerConn) {
+		conn.closeIfTimedOut()
+	})
+
+	t.VisitPeers(func(conn *PeerConn) {
+		conn.sendKeepAlive()
+	})
+
 	if t.Done() {
 		return
 	}
