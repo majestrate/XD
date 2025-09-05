@@ -87,3 +87,9 @@ install: $(XD) $(CLI)
 	$(MKDIR) $(PREFIX)/bin
 	$(INSTALL) $(XD) $(PREFIX)/bin
 	$(CPLINK) $(CLI) $(PREFIX)/bin
+
+uninstall:
+	$(RM) $(PREFIX)/bin/$(XD)
+	$(RM) $(PREFIX)/bin/$(CLI)
+
+.PHONY: build dev test clean distclean clean-assets webui-clean go-clean webui no-webui install uninstall
