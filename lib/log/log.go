@@ -92,7 +92,7 @@ func log(lvl logLevel, f string, args ...interface{}) {
 
 // Debug prints debug message
 func Debug(msg string) {
-	log(debug, msg)
+	log(debug, msg, nil)
 }
 
 // Debugf prints formatted debug message
@@ -102,7 +102,7 @@ func Debugf(f string, args ...interface{}) {
 
 // Info prints info log message
 func Info(msg string) {
-	log(info, msg)
+	log(info, msg, nil)
 }
 
 // Infof prints formatted info log message
@@ -112,7 +112,7 @@ func Infof(f string, args ...interface{}) {
 
 // Warn prints warn log message
 func Warn(msg string) {
-	log(warn, msg)
+	log(warn, msg, nil)
 }
 
 // Warnf prints formatted warn log message
@@ -122,7 +122,7 @@ func Warnf(f string, args ...interface{}) {
 
 // Error prints error log message
 func Error(msg string) {
-	log(err, msg)
+	log(err, msg, nil)
 }
 
 // Errorf prints formatted error log message
@@ -132,7 +132,7 @@ func Errorf(f string, args ...interface{}) {
 
 // Fatal print fatal error and panic
 func Fatal(msg string) {
-	log(fatal, msg)
+	log(fatal, msg, nil)
 }
 
 // Fatalf print formatted fatal error and panic
