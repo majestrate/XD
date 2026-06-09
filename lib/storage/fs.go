@@ -77,6 +77,9 @@ func (t *fsTorrent) MoveTo(other string) (err error) {
 			}
 		}
 	}
+	// Remove empty parent directories from old location
+	t.st.FS.RemoveAll(t.FilePath())
+
 	s := t.st.getSettings(t.ih)
 	s.Put("dir", other)
 	t.st.putSettings(t.ih, s)
