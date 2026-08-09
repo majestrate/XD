@@ -83,9 +83,10 @@ to list torrents run:
 
     $ ./XD-CLI list
 
-to add a torrent from http server:
+to add a torrent from a torrent file on a http server or a magnet link:
 
     $ ./XD-CLI add http://somehwere.i2p/some_torrent_that_is_not_fake.torrent
+    $ ./XD-CLI add magnet:?xt=urn:btih:somehash&dn=somaname&tr=http://sometracker.i2p/announce.php
 
 Optionally on non windows systems you can install XD to `/usr/local/`
 
