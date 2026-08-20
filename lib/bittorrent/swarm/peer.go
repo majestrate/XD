@@ -767,28 +767,21 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 			c.t.requestingInfoBF.Unset(msg.Piece)
 		} else if msg.Type == extensions.UTRequest {
 			if c.t.Ready() {
-				idx := msg.Piece * (16 * 1024)
+				offset := msg.Piece * (16 * 1024)
 				pieces := c.t.getMetaInfo()
-				if pieces == nil || len(pieces) == 0 {
+				len_pieces := uint32(len(pieces))
+				data_len := 16 * 1024
+				if pieces == nil || len_pieces == 0 {
 					msg.Type = extensions.UTReject
-				} else if uint32(len(pieces)) >= idx+(32*1024) {
+				} else if offset >= len_pieces {
 					msg.Type = extensions.UTReject
-				} else if uint32(len(pieces)) >= idx+(16*1024) {
-					if idx < uint32(len(pieces)) {
-						msg.Type = extensions.UTData
-						msg.Data = pieces[idx:]
-						msg.Size = uint32(len(msg.Data))
-					} else {
-						msg.Type = extensions.UTReject
-					}
 				} else {
-					if idx+(16*1024) < uint32(len(pieces)) {
-						msg.Type = extensions.UTData
-						msg.Data = pieces[idx : idx+(16*1024)]
-						msg.Size = uint32(len(msg.Data))
-					} else {
-						msg.Type = extensions.UTReject
+					if offset + data_len >= len_pieces {
+						data_len = len_pieces - offset
 					}
+					msg.Type = extensions.UTData
+					msg.Data = pieces[offset:offset+data_len]
+					msg.Size = uint32(len(msg.Data))
 				}
 			} else {
 				msg.Type = extensions.UTReject
