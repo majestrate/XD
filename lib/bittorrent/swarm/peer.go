@@ -770,7 +770,7 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 				offset := msg.Piece * (16 * 1024)
 				pieces := c.t.getMetaInfo()
 				len_pieces := uint32(len(pieces))
-				data_len := 16 * 1024
+				data_len := uint32(16 * 1024)
 				if pieces == nil || len_pieces == 0 {
 					msg.Type = extensions.UTReject
 				} else if offset >= len_pieces {
