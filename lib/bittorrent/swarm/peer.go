@@ -454,10 +454,10 @@ func (c *PeerConn) checkInterested() {
 	if usBf == nil {
 		return
 	}
-	if c.bf == nil {
+	themBf := c.Bitfield()
+	if themBf == nil {
 		return
 	}
-	themBf := c.bf
 	usDontHaveBf := usBf.Inverted()
 	lastUsInterested := c.usInterested
 	if usDontHaveBf.AND(themBf).AnySet() {
