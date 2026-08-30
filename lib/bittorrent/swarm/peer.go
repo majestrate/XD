@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"io"
+	"math/rand/v2"
 	"net"
 	"strconv"
 	"time"
@@ -32,7 +33,6 @@ type PeerConn struct {
 	peerInterested      bool
 	usChoke             bool
 	usInterested        bool
-	peerUsInterested    bool
 	Done                func()
 	lastSend            time.Time
 	tx                  *util.Rate
@@ -46,6 +46,7 @@ type PeerConn struct {
 	access              sync.Mutex
 	close               chan bool
 	ticker              *time.Ticker
+	chokeTicker         *time.Ticker
 	tickstats           bool
 	closing             bool
 	uploading           bool
@@ -53,13 +54,22 @@ type PeerConn struct {
 	nextPieceRequest    time.Time
 	reserved            bittorrent.Reserved
 	sendPending         int
+	lastChoke           time.Time
+	chokeUntil          time.Time
 }
 
 func (c *PeerConn) Bitfield() *bittorrent.Bitfield {
-	if c.bf != nil {
-		return c.bf.Copy()
+	// if we have no bitfield clone the bitfield from our storage and zero it out as the initial state.
+	if c.bf == nil {
+		st_bf := c.t.Bitfield()
+		if st_bf == nil {
+			// case: we have no known bitfield for this torrent swarm.
+			return nil
+		}
+		c.bf = st_bf.Copy()
+		c.bf.Zero()
 	}
-	return nil
+	return c.bf.Copy()
 }
 
 // get stats for this connection
@@ -102,6 +112,7 @@ func makePeerConn(c net.Conn, t *Torrent, id common.PeerID, ourOpts extensions.M
 	p.close = make(chan bool, 1)
 	p.lastSend = time.Now()
 	p.lastRecv = time.Now()
+	p.chokeTicker = time.NewTicker(time.Second)
 	return p
 }
 
@@ -127,6 +138,9 @@ func (c *PeerConn) run() {
 }
 func (c *PeerConn) tickOne() bool {
 	select {
+	case <-c.chokeTicker.C:
+		c.tickChoker()
+		return true
 	case <-c.ticker.C:
 		if c.flushSend() != nil {
 			log.Debugf("%s starting close due to send error", c.id.String())
@@ -370,12 +384,12 @@ func (c *PeerConn) cancelPendingDownloads() {
 	c.access.Unlock()
 }
 
-func (c *PeerConn) markInterested() {
+func (c *PeerConn) markPeerInterested() {
 	c.peerInterested = true
 	log.Debugf("%s is interested", c.id.String())
 }
 
-func (c *PeerConn) markNotInterested() {
+func (c *PeerConn) markPeerNotInterested() {
 	c.peerInterested = false
 	log.Debugf("%s is not interested", c.id.String())
 }
@@ -436,23 +450,35 @@ func (c *PeerConn) cancelPiece(idx uint32) {
 }
 
 func (c *PeerConn) checkInterested() {
-	bf := c.t.Bitfield()
-	if bf != nil && c.bf != nil && bf.Inverted().AND(c.bf).AnySet() {
+	usBf := c.t.Bitfield()
+	if usBf == nil {
+		return
+	}
+	if c.bf == nil {
+		return
+	}
+	themBf := c.bf
+	usDontHaveBf := usBf.Inverted()
+	lastUsInterested := c.usInterested
+	if usDontHaveBf.AND(themBf).AnySet() {
+		// them has some we want to download.
 		c.usInterested = true
 	} else {
+		// them has nothing interesting to download.
 		c.usInterested = false
 	}
-
-	if c.usInterested != c.peerUsInterested {
-		if c.usInterested {
-			m := common.NewInterested()
-			c.Send(m)
-		} else {
-			m := common.NewNotInterested()
-			c.Send(m)
-		}
-		c.peerUsInterested = c.usInterested
+	// check for state change.
+	if lastUsInterested == c.usInterested {
+		return
 	}
+
+	var msg common.WireMessage
+	if c.usInterested {
+		msg = common.NewInterested()
+	} else {
+		msg = common.NewNotInterested()
+	}
+	c.Send(msg)
 }
 
 func (c *PeerConn) metaInfoDownload() {
@@ -537,10 +563,10 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 		c.remoteUnchoke()
 	}
 	if msgid == common.Interested {
-		c.markInterested()
+		c.markPeerInterested()
 	}
 	if msgid == common.NotInterested {
-		c.markNotInterested()
+		c.markPeerNotInterested()
 	}
 	if msgid == common.Request {
 		c.uploading = true
@@ -717,13 +743,6 @@ func (c *PeerConn) handleExtendedOpts(opts extensions.Message) {
 			} else if ext == extensions.LokinetPeerExchange.String() {
 				log.Debugf("received lokinet pex message from %s", c.id.String())
 				c.handleLNPEX(opts.Payload)
-			} else if ext == extensions.XDHT.String() {
-				// xdht message
-				log.Debugf("received xdht message from %s", c.id.String())
-				err := c.t.xdht.HandleMessage(opts, c.id)
-				if err != nil {
-					log.Warnf("error handling xdht message from %s: %s", c.id.String(), err.Error())
-				}
 			} else if ext == extensions.UTMetaData.String() {
 				log.Debugf("received metadata message from %s", c.id.String())
 				c.handleMetadata(opts)
@@ -776,16 +795,17 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 				} else if offset >= len_pieces {
 					msg.Type = extensions.UTReject
 				} else {
-					if offset + data_len >= len_pieces {
+					if offset+data_len >= len_pieces {
 						data_len = len_pieces - offset
 					}
 					msg.Type = extensions.UTData
-					msg.Data = pieces[offset:offset+data_len]
+					msg.Data = pieces[offset : offset+data_len]
 					msg.Size = uint32(len(msg.Data))
 				}
 			} else {
 				msg.Type = extensions.UTReject
 			}
+			log.Warnf("send ut_metadata type=%q size=%q", msg.Type, msg.Size)
 			m.Payload = nil
 			m.PayloadRaw = msg.Bytes()
 			c.Send(m.ToWireMessage())
@@ -804,39 +824,80 @@ func (c *PeerConn) sendKeepAlive() {
 	}
 }
 
+func (c *PeerConn) ChokeFor(d time.Duration) {
+	c.lastChoke = time.Now()
+	c.chokeUntil = c.lastChoke.Add(d)
+	c.Choke()
+}
+
+func (c *PeerConn) tickChoker() {
+	if !c.usChoke {
+		if time.Since(c.lastChoke) > 2*time.Minute {
+			// fuzzy choke
+			if rand.Int32N(100) > 20 {
+				return
+			}
+			c.ChokeFor(time.Second * 30)
+			return
+		}
+	}
+	now := time.Now()
+	if now.After(c.chokeUntil) {
+		c.Unchoke()
+	}
+}
+
 // tick download stuff
 func (c *PeerConn) tickDownload() {
+	// check downloading
 	if !c.runDownload {
 		return
 	}
+	// check for done.
 	if c.t.Done() {
+		// tell not interested.
+		c.usInterested = false
+		c.Send(common.NewNotInterested())
 		// done downloading
 		if c.Done != nil {
 			c.Done()
 			c.Done = nil
 		}
-	} else if c.usInterested && !c.closing {
-		if c.RemoteChoking() {
-			//log.Debugf("will not download this tick, %s is choking", c.id.String())
-			return
-		}
-		// pending request
-		p := c.numDownloading()
-		if p >= c.MaxParalellRequests {
-			//log.Debugf("max parallel reached for %s", c.id.String())
-			return
-		}
-		now := time.Now()
-		if now.After(c.nextPieceRequest) {
-			r := c.t.pt.NextRequest(c.bf, c.lastRequest)
-			if r != nil {
-				c.queueDownload(r)
-			} else {
-				c.nextPieceRequest = now.Add(time.Second / 4)
-				log.Debugf("no next piece to download for %s", c.id.String())
-			}
-		}
+		return
 	}
+	// check for closing.
+	if c.closing {
+		return
+	}
+	c.checkInterested()
+	if !c.usInterested {
+		return
+	}
+	if c.RemoteChoking() {
+		//log.Debugf("will not download this tick, %s is choking", c.id.String())
+		return
+	}
+	// pending request
+	p := c.numDownloading()
+	// check max in flight requests.
+	if p >= c.MaxParalellRequests {
+		//log.Debugf("max parallel reached for %s", c.id.String())
+		return
+	}
+	// check request timer.
+	now := time.Now()
+	if now.Before(c.nextPieceRequest) {
+		return
+	}
+	// fetch next request.
+	r := c.t.pt.NextRequest(c.bf, c.lastRequest)
+	if r != nil {
+		c.queueDownload(r)
+		return
+	}
+	// increment request timer.
+	c.nextPieceRequest = now.Add(time.Second)
+	log.Debugf("no next piece to download for %s", c.id.String())
 }
 
 func (c *PeerConn) closeIfTimedOut() {

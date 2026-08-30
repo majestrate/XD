@@ -3,10 +3,12 @@ package swarm
 import (
 	"bytes"
 	"errors"
+	"net"
+	"time"
+
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
-	"github.com/majestrate/XD/lib/dht"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/metainfo"
 	"github.com/majestrate/XD/lib/network"
@@ -15,8 +17,6 @@ import (
 	"github.com/majestrate/XD/lib/sync"
 	"github.com/majestrate/XD/lib/tracker"
 	"github.com/majestrate/XD/lib/util"
-	"net"
-	"time"
 )
 
 // max peers peer swarm default
@@ -32,32 +32,32 @@ var defaultRates = []string{RateDownload, RateUpload}
 
 // single torrent tracked in a swarm
 type Torrent struct {
-	TID              int64
-	addr             net.Addr
-	Completed        func()
-	Started          func()
-	Stopped          func()
-	RemoveSelf       func()
-	netacces         sync.Mutex
-	suspended        bool
-	Network          func() network.Network
-	Trackers         map[string]tracker.Announcer
-	announcers       map[string]*torrentAnnounce
-	announceMtx      sync.Mutex
-	announceTicker   *time.Ticker
-	id               common.PeerID
-	st               storage.Torrent
-	obconns          map[string]*PeerConn
-	ibconns          map[string]*PeerConn
-	connMtx          sync.Mutex
-	pt               *pieceTracker
-	defaultOpts      extensions.Message
-	closing          bool
-	started          bool
-	MaxRequests      int
-	MaxPeers         uint
-	pexState         PEXSwarmState
-	xdht             *dht.XDHT
+	TID            int64
+	addr           net.Addr
+	Completed      func()
+	Started        func()
+	Stopped        func()
+	RemoveSelf     func()
+	netacces       sync.Mutex
+	suspended      bool
+	Network        func() network.Network
+	Trackers       map[string]tracker.Announcer
+	announcers     map[string]*torrentAnnounce
+	announceMtx    sync.Mutex
+	announceTicker *time.Ticker
+	id             common.PeerID
+	st             storage.Torrent
+	obconns        map[string]*PeerConn
+	ibconns        map[string]*PeerConn
+	connMtx        sync.Mutex
+	pt             *pieceTracker
+	defaultOpts    extensions.Message
+	closing        bool
+	started        bool
+	MaxRequests    int
+	MaxPeers       uint
+	pexState       PEXSwarmState
+	// xdht             *dht.XDHT
 	statsTracker     *stats.Tracker
 	tx               uint64
 	rx               uint64

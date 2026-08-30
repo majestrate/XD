@@ -1,12 +1,6 @@
 package dht
 
-import (
-	"bytes"
-	"github.com/majestrate/XD/lib/bittorrent/extensions"
-	"github.com/majestrate/XD/lib/common"
-	"github.com/zeebo/bencode"
-)
-
+/*
 type XDHT struct {
 }
 
@@ -25,3 +19,6 @@ func (dht *XDHT) HandleMessage(msg extensions.Message, src common.PeerID) (err e
 	}
 	return
 }
+
+
+*/

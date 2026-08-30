@@ -12,6 +12,7 @@ const vID = "id"
 const vTarget = "target"
 const vNodes = "nodes"
 
+/*
 type Message struct {
 	Query string                 `bencode:"q",omitempty`
 	TID   string                 `bencode:"t"`
@@ -47,3 +48,5 @@ func NewFindNodeRequest(txid, id, target string) *Message {
 		},
 	}
 }
+
+*/

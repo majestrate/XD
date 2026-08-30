@@ -2,10 +2,16 @@ package swarm
 
 import (
 	"bytes"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/majestrate/XD/lib/bittorrent"
 	"github.com/majestrate/XD/lib/bittorrent/extensions"
 	"github.com/majestrate/XD/lib/common"
-	"github.com/majestrate/XD/lib/dht"
 	"github.com/majestrate/XD/lib/gnutella"
 	"github.com/majestrate/XD/lib/log"
 	"github.com/majestrate/XD/lib/metainfo"
@@ -13,12 +19,6 @@ import (
 	"github.com/majestrate/XD/lib/storage"
 	"github.com/majestrate/XD/lib/tracker"
 	"github.com/majestrate/XD/lib/util"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"time"
 )
 
 // a bittorrent swarm tracking many torrents
@@ -27,7 +27,7 @@ type Swarm struct {
 	Torrents Holder
 	id       common.PeerID
 	trackers map[string]tracker.Announcer
-	xdht     dht.XDHT
+	// xdht     dht.XDHT
 	gnutella *gnutella.Swarm
 	active   int
 	getNet   chan network.Network
@@ -70,7 +70,7 @@ func (sw *Swarm) startTorrent(t *Torrent) {
 	}
 	// wait for network
 	sw.Network()
-	t.xdht = &sw.xdht
+	// t.xdht = &sw.xdht
 	// give peerid
 	t.id = sw.id
 	// add open trackers
@@ -238,18 +238,18 @@ func (sw *Swarm) netLoop() {
 }
 
 // run until error
-func (sw *Swarm) Run() error {
+func (sw *Swarm) Run() (err error) {
 	ticker := time.NewTicker(time.Millisecond * 100)
-	for {
+	for err == nil {
 		select {
 		case <-ticker.C:
 			sw.tick()
-		case err := <-sw.netError:
+		case err = <-sw.netError:
 			ticker.Stop()
-			return err
+			break
 		}
 	}
-	return nil
+	return
 }
 
 func (sw *Swarm) tick() {
