@@ -47,7 +47,7 @@ func MetadataPieceBounds(size int, piece uint32) (start, end int, ok bool) {
 // MetadataPiece copies one BEP 9 block out of meta.
 // total is the full metadata length, which BEP 9 sends as total_size.
 func MetadataPiece(meta []byte, piece uint32) (data []byte, total uint32, ok bool) {
-	if len(meta) > int(^uint32(0)) {
+	if uint64(len(meta)) > uint64(^uint32(0)) {
 		return nil, 0, false
 	}
 	start, end, ok := MetadataPieceBounds(len(meta), piece)
