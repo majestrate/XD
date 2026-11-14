@@ -483,15 +483,14 @@ func (c *PeerConn) checkInterested() {
 
 func (c *PeerConn) metaInfoDownload() {
 	if !c.t.Ready() && c.theirOpts.MetaData() {
-		if c.theirOpts.MetainfoSize != nil {
-			l := *c.theirOpts.MetainfoSize
+		if c.theirOpts.MetainfoSize != nil && *c.theirOpts.MetainfoSize > 0 {
+			n := *c.theirOpts.MetainfoSize
 			if c.t.metaInfo == nil || len(c.t.metaInfo) == 0 {
-				// set meta info
-				c.t.metaInfo = make([]byte, l)
-				l = 1 + (l / (16 * 1024))
-				log.Debugf("%s bitfield is %d bits", c.id.String(), l)
-				c.t.pendingInfoBF = bittorrent.NewBitfield(l, nil)
-				c.t.requestingInfoBF = bittorrent.NewBitfield(l, nil)
+				c.t.metaInfo = make([]byte, n)
+				blocks := extensions.MetadataBlockCount(int(n))
+				log.Debugf("%s bitfield is %d bits", c.id.String(), blocks)
+				c.t.pendingInfoBF = bittorrent.NewBitfield(blocks, nil)
+				c.t.requestingInfoBF = bittorrent.NewBitfield(blocks, nil)
 			} else {
 				log.Debugf("%s metainfo len=%d", c.id.String(), len(c.t.metaInfo))
 			}
@@ -785,27 +784,21 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 			log.Debugf("ut_metadata rejected from %s", c.id.String())
 			c.t.requestingInfoBF.Unset(msg.Piece)
 		} else if msg.Type == extensions.UTRequest {
+			var pieces []byte
 			if c.t.Ready() {
-				offset := msg.Piece * (16 * 1024)
-				pieces := c.t.getMetaInfo()
-				len_pieces := uint32(len(pieces))
-				data_len := uint32(16 * 1024)
-				if pieces == nil || len_pieces == 0 {
-					msg.Type = extensions.UTReject
-				} else if offset >= len_pieces {
-					msg.Type = extensions.UTReject
-				} else {
-					if offset+data_len >= len_pieces {
-						data_len = len_pieces - offset
-					}
-					msg.Type = extensions.UTData
-					msg.Data = pieces[offset : offset+data_len]
-					msg.Size = uint32(len(msg.Data))
-				}
-			} else {
-				msg.Type = extensions.UTReject
+				pieces = c.t.getMetaInfo()
 			}
-			log.Warnf("send ut_metadata type=%q size=%q", msg.Type, msg.Size)
+			data, total, ok := extensions.MetadataPiece(pieces, msg.Piece)
+			if !ok {
+				msg.Type = extensions.UTReject
+				msg.Data = nil
+				msg.Size = 0
+			} else {
+				msg.Type = extensions.UTData
+				msg.Data = data
+				msg.Size = total
+			}
+			log.Debugf("send ut_metadata type=%d total_size=%d piece=%d datalen=%d", msg.Type, msg.Size, msg.Piece, len(msg.Data))
 			m.Payload = nil
 			m.PayloadRaw = msg.Bytes()
 			c.Send(m.ToWireMessage())
