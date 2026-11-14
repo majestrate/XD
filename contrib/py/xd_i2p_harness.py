@@ -300,7 +300,9 @@ def read_wire_message(io, limit):
     header = io.readexactly(4)
     length = struct.unpack(">I", header)[0]
     if length == 0:
+        print("[info] wire keepalive")
         return None, b""
+    print("[info] wire length %d" % length)
     if length > limit:
         raise CheckFailure("peer sent a %d byte message, over the %d byte cap" % (length, limit))
     body = io.readexactly(length)
@@ -339,6 +341,20 @@ def expected_block_len(total, piece):
     if remain > METADATA_BLOCK:
         return METADATA_BLOCK
     return remain
+
+
+def piece_count(info):
+    mapping, _consumed = bdecode_at(info, 0)
+    pieces = dict_get(mapping, "pieces")
+    if not isinstance(pieces, bytes) or len(pieces) == 0 or len(pieces) % 20:
+        raise HarnessError("info dict has no piece hashes")
+    return len(pieces) // 20
+
+
+def bitfield_message(npieces):
+    # BEP 3: after the handshake, send a bitfield. Zero means we have no file pieces yet.
+    nbytes = (npieces + 7) // 8 if npieces else 1
+    return wire_message(5, b"\x00" * nbytes)
 
 
 def block_count(total):
@@ -465,6 +481,10 @@ def run_metadata(args):
         check(remote["infohash"] == infohash, "peer echoed infohash %s" % remote["infohash"].hex())
         check(remote["extension"], "peer set the BEP 10 extension bit (peer id %s)" % shown)
         io.sendall(our_extended_handshake())
+        npieces = piece_count(info) if args.torrent else 0
+        bits = bitfield_message(npieces)
+        io.sendall(bits)
+        print("[info] sent empty bitfield for %d pieces" % npieces)
 
         deadline = time.monotonic() + args.timeout
         their_id, metadata_size, version = read_extended_handshake(io, args.max_message, deadline)
