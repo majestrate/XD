@@ -567,9 +567,17 @@ func (t *Torrent) putInfoSlice(idx uint32, data []byte) {
 		return
 	}
 	if t.metaInfo != nil && !t.Ready() {
+		start, end, ok := extensions.MetadataPieceBounds(len(t.metaInfo), idx)
+		if !ok || len(data) != end-start {
+			log.Warnf("discard ut_metadata piece %d len=%d", idx, len(data))
+			if t.requestingInfoBF != nil {
+				t.requestingInfoBF.Unset(idx)
+			}
+			return
+		}
 		log.Debugf("put info slice idx=%d len=%d", idx, len(data))
+		copy(t.metaInfo[start:end], data)
 		t.pendingInfoBF.Set(idx)
-		copy(t.metaInfo[idx*(16*1024):], data)
 		if t.hasAllPendingInfo() {
 			t.puttingMetaInfo = true
 			log.Debugf("got all info slices: %q", t.metaInfo)
@@ -603,8 +611,9 @@ func (t *Torrent) nextMetaInfoReq() *uint32 {
 		log.Debug("no bitfield or metainfo")
 		return nil
 	}
+	blocks := extensions.MetadataBlockCount(len(t.metaInfo))
 	var i uint32
-	for i < uint32(len(t.metaInfo)/(1024*16))+1 {
+	for i < blocks {
 		if (!t.pendingInfoBF.Has(i)) && (!t.requestingInfoBF.Has(i)) {
 			t.requestingInfoBF.Set(i)
 			return &i
