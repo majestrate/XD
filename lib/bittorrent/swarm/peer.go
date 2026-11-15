@@ -534,9 +534,6 @@ func (c *PeerConn) inboundMessage(msg common.WireMessage) (err error) {
 			c.checkInterested()
 			if isnew {
 				c.Unchoke()
-				if c.reserved.Has(bittorrent.Extension) {
-					c.Send(c.ourOpts.ToWireMessage())
-				}
 			}
 		} else {
 			log.Debugf("%s requested bitfield before we were ready", c.id.String())
@@ -812,6 +809,23 @@ func (c *PeerConn) handleMetadata(m extensions.Message) {
 		}
 	} else {
 		log.Errorf("%s failed to parse ut_metainfo message: %s", c.id.String(), err.Error())
+	}
+}
+
+// sendIntro announces the extensions we negotiated and, once the torrent
+// has metadata, our piece bitfield. BEP 10 sends the extended handshake
+// immediately after the base handshake. BEP 3 makes the bitfield optional
+// for a peer with no pieces, so this does not wait for one to arrive.
+func (c *PeerConn) sendIntro() {
+	if c.reserved.Has(bittorrent.Extension) {
+		if msg := c.ourOpts.ToWireMessage(); msg != nil {
+			c.Send(msg)
+		}
+	}
+	if c.t != nil && c.t.Ready() {
+		if bf := c.t.Bitfield(); bf != nil {
+			c.Send(bf.ToWireMessage())
+		}
 	}
 }
 

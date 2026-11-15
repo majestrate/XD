@@ -652,9 +652,7 @@ func (t *Torrent) DialPeer(a net.Addr, id common.PeerID) error {
 					pc := makePeerConn(c, t, h.PeerID, opts, h.Reserved)
 					t.addOBPeer(pc)
 					pc.start()
-					if t.Ready() {
-						pc.Send(t.Bitfield().ToWireMessage())
-					}
+					pc.sendIntro()
 					return nil
 				} else {
 					log.Warnf("%s Infohash missmatch", h.PeerID.String())
@@ -711,7 +709,7 @@ func (t *Torrent) onNewPeer(c *PeerConn) {
 		log.Debugf("New inbound peer (%s) for %s", c.id.String(), t.st.Infohash().Hex())
 		t.addIBPeer(c)
 		c.start()
-		c.Send(t.Bitfield().ToWireMessage())
+		c.sendIntro()
 	} else {
 		log.Debugf("New inbound peer (%s) for %s rejected due to limit or torrent not ready", c.id.String(), t.st.Infohash().Hex())
 		c.Close()

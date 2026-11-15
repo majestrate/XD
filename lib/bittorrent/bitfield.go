@@ -19,10 +19,15 @@ type Bitfield struct {
 	Data []byte `bencode:"bitfield"`
 }
 
+// WireLen is the BEP 3 bitfield payload size, ceil(bits / 8).
+func WireLen(bits uint32) uint32 {
+	return (bits + 7) >> 3
+}
+
 // NewBitfield creates new bitfield given number of bits and initial value
 func NewBitfield(bits uint32, value []byte) *Bitfield {
 	if value == nil {
-		value = make([]byte, (bits/8)+1)
+		value = make([]byte, WireLen(bits))
 	}
 	b := make([]byte, len(value))
 	copy(b, value)
@@ -50,7 +55,7 @@ func (bf *Bitfield) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &bl)
 	if err == nil {
 		bf.Length = uint32(len(bl))
-		bf.Data = make([]byte, (bf.Length/8)+1)
+		bf.Data = make([]byte, WireLen(bf.Length))
 		for idx, v := range bl {
 			if v != 0 {
 				bf.Set(uint32(idx))
@@ -78,7 +83,7 @@ func (bf Bitfield) MarshalJSON() (data []byte, err error) {
 
 // Zero sets all bits to zero
 func (bf *Bitfield) Zero() {
-	bf.Data = make([]byte, (bf.Length/8)+1)
+	bf.Data = make([]byte, WireLen(bf.Length))
 }
 
 // Inverted gets copy of current Bitfield with all bits inverted
@@ -177,9 +182,19 @@ func (bf *Bitfield) BDecode(r io.Reader) (err error) {
 	return
 }
 
-// ToWireMessage serializes to bittorrent wire message
+// ToWireMessage serializes to a BEP 3 bitfield message.
+// The payload is exactly ceil(Length/8) bytes, and spare bits in the last byte are zero.
 func (bf *Bitfield) ToWireMessage() common.WireMessage {
-	return common.NewWireMessage(common.BitField, bf.Data[:])
+	n := WireLen(bf.Length)
+	payload := make([]byte, n)
+	copy(payload, bf.Data)
+	if n > 0 {
+		used := bf.Length & 7
+		if used != 0 {
+			payload[n-1] &= 0xFF << (8 - used)
+		}
+	}
+	return common.NewWireMessage(common.BitField, payload)
 }
 
 // Unset unsets a big at index
